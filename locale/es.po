@@ -1,0 +1,360 @@
+#
+msgid ""
+msgstr "Content-Type: text/plain; charset=utf-8\n"
+
+msgctxt "field:account.statement.journal,aspsp_country:"
+msgid "ASPSP Country"
+msgstr "País ASPSP"
+
+msgctxt "field:account.statement.journal,aspsp_name:"
+msgid "ASPSP Name"
+msgstr "Nombre ASPSP"
+
+msgctxt "field:account.statement.origin,entry_reference:"
+msgid "Entry Reference"
+msgstr "Referencia de entrada"
+
+msgctxt "field:enable_banking.configuration,date_field:"
+msgid "Date Field"
+msgstr "Campo fecha"
+
+msgctxt "field:enable_banking.configuration,offset:"
+msgid "Offset Days"
+msgstr "Días de Offset"
+
+msgctxt "field:enable_banking.configuration,redirecturl:"
+msgid "Redirect URL"
+msgstr "URL de redireccionamiento"
+
+msgctxt "field:enable_banking.session,aspsp_country:"
+msgid "ASPSP Country"
+msgstr "País ASPSP"
+
+msgctxt "field:enable_banking.session,aspsp_name:"
+msgid "ASPSP Name"
+msgstr "Nombre ASPSP"
+
+msgctxt "field:enable_banking.session,bank:"
+msgid "Bank"
+msgstr "Banco"
+
+msgctxt "field:enable_banking.session,company:"
+msgid "Company"
+msgstr "Empresa"
+
+msgctxt "field:enable_banking.session,session:"
+msgid "Session"
+msgstr "Sesión"
+
+msgctxt "field:enable_banking.session,session_id:"
+msgid "Session ID"
+msgstr "ID Sesión"
+
+msgctxt "field:enable_banking.session,valid_until:"
+msgid "Valid Until"
+msgstr "Valido hasta"
+
+msgctxt "help:enable_banking.configuration,date_field:"
+msgid "Choose which date to use when importing statements"
+msgstr "Escoge que fecha utilizar al importar extractos."
+
+msgctxt "help:enable_banking.configuration,offset:"
+msgid "Offset in days to apply when importing statements"
+msgstr "Offset en dias a aplicar al importar extractos."
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_balance_after_transaction"
+msgid "Balance After Transaction"
+msgstr "Saldo después de la transacción"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_bank_transaction_code"
+msgid "Bank Transaction Code"
+msgstr "Código de transacción bancaria"
+
+msgctxt "model:account.statement.origin.information,string:eb_booking_date"
+msgid "Booking Date"
+msgstr "Fecha reserva"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_credit_debit_indicator"
+msgid "Credit Debit Indicator"
+msgstr "Indicador de débito de crédito"
+
+msgctxt "model:account.statement.origin.information,string:eb_creditor"
+msgid "Creditor"
+msgstr "Acreedor"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_creditor_account"
+msgid "Creditor Account"
+msgstr "Cuenta acreedor"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_creditor_account_additional_identification"
+msgid "Creditor Account Additional Identification"
+msgstr "Información adicional de la cuenta acreedor"
+
+msgctxt "model:account.statement.origin.information,string:eb_creditor_agent"
+msgid "Creditor Agent"
+msgstr "Agente Acreedor"
+
+msgctxt "model:account.statement.origin.information,string:eb_debtor"
+msgid "Debtor"
+msgstr "Deudor"
+
+msgctxt "model:account.statement.origin.information,string:eb_debtor_account"
+msgid "Debtor Account"
+msgstr "Cuenta deudor"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_debtor_account_additional_identification"
+msgid "Debtor Account Additional Identification"
+msgstr "Identificación adicional de la cuenta deudora"
+
+msgctxt "model:account.statement.origin.information,string:eb_debtor_agent"
+msgid "Debtor Agent"
+msgstr "Agente deudor"
+
+msgctxt "model:account.statement.origin.information,string:eb_entry_reference"
+msgid "Entry Reference"
+msgstr "Referencia de entrada"
+
+msgctxt "model:account.statement.origin.information,string:eb_exchange_rate"
+msgid "Exchange Rate"
+msgstr "Tasa de cambio"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_merchant_category_code"
+msgid "Merchant Category Code"
+msgstr "Código de categoría de comerciante"
+
+msgctxt "model:account.statement.origin.information,string:eb_note"
+msgid "Note"
+msgstr "Nota"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_reference_number"
+msgid "Reference Number"
+msgstr "Número de referencia"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_remittance_information"
+msgid "Remittance Information"
+msgstr "Información envío"
+
+msgctxt "model:account.statement.origin.information,string:eb_status"
+msgid "Status"
+msgstr "Estado"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_transaction_amount"
+msgid "Transaction Amount"
+msgstr "Cantidad de transacción"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_transaction_date"
+msgid "Transaction Date"
+msgstr "Fecha transacción"
+
+msgctxt "model:account.statement.origin.information,string:eb_value_date"
+msgid "Value Date"
+msgstr "Fecha valor"
+
+msgctxt "model:enable_banking.configuration,name:"
+msgid "Enable Banking Configuration"
+msgstr "Configuración"
+
+msgctxt "model:enable_banking.session,name:"
+msgid "Enable Banking Session"
+msgstr "Sesión Enable Banking"
+
+msgctxt "model:enable_banking.synchronize_statement.start,name:"
+msgid "Synchronize Statement Enable Banking Start"
+msgstr "Sincronizar Asientos Enable Banking Inicio"
+
+msgctxt "model:ir.action,name:act_enable_banking_configuration_form"
+msgid "Enable Banking Configuration"
+msgstr "Configuración"
+
+msgctxt "model:ir.action,name:act_enable_banking_session_form"
+msgid "Enable Banking Session"
+msgstr "Sesión Enable Banking"
+
+msgctxt "model:ir.action,name:act_enable_banking_synchronize_statement"
+msgid "Synchronize Statement Enable Banking"
+msgstr "Sincroniza Extractos a través de Enable Banking"
+
+msgctxt "model:ir.action,name:act_statement_form"
+msgid "Statements Origin"
+msgstr "Origen líneas de extracto"
+
+msgctxt "model:ir.action,name:report_session_ko"
+msgid "Enable Banking Session KO"
+msgstr "Sesión Enable Banking KO"
+
+msgctxt "model:ir.action,name:report_session_ok"
+msgid "Enable Banking Session OK"
+msgstr "Enable Banking Sesión OK"
+
+msgctxt "model:ir.action,name:url_session"
+msgid "Enable Banking Session"
+msgstr "Sessión Enable Banking"
+
+msgctxt "model:ir.message,text:msg_account_not_found"
+msgid ""
+"Account \"%(account)s\" not found in session from bank \"%(bank)s\" make "
+"sure the account number is correct."
+msgstr ""
+"La cuenta \"%(account)s\" no se ha encontrado en la sesión del banco "
+"\"%(bank)s\" comprueba que el número de cuenta es correcto."
+
+msgctxt "model:ir.message,text:msg_aspsp_not_found"
+msgid ""
+"Bank \"%(bank)s\" from country \"%(country_code)s\" not found in Enable "
+"Banking compatible banks."
+msgstr ""
+"El banco \"%(bank)s\" del país \"%(country_code)s\" no se ha encontrado en "
+"la lista de bancos compatibles de Enable Banking."
+
+msgctxt "model:ir.message,text:msg_connection_test_error"
+msgid "Error testing connection: \"%(error_code)\"s \"%(error_message)s\""
+msgstr ""
+"Se ha producido un error probando la conexión: \"%(error_code)\"s "
+"\"%(error_message)s\""
+
+msgctxt "model:ir.message,text:msg_connection_test_ok"
+msgid "Connection test successful."
+msgstr "El test de conexión ha funcionado correctamente."
+
+msgctxt "model:ir.message,text:msg_currency_not_match"
+msgid "The bank statements currency and the journal currency dosen't match."
+msgstr ""
+"La moneda de los extractos bancarios no coincide con la moneda del diario."
+
+msgctxt "model:ir.message,text:msg_error_create_session"
+msgid "Error creating the session: \"%(error_code)\"s \"%(error_message)s\""
+msgstr ""
+"Se ha producido un error mientras se intentaba crear la sesión: "
+"\"%(error_code)\"s \"%(error_message)s\""
+
+msgctxt "model:ir.message,text:msg_error_get_statements"
+msgid "Error getting statements: \"%(error_code)\"s \"%(error_message)s\""
+msgstr ""
+"Se ha producido un error mientras se intentaba obtener las líneas de extracto: "
+"\"%(error_code)\"s \"%(error_message)s\""
+
+msgctxt "model:ir.message,text:msg_no_bank_account"
+msgid ""
+"No bank account found in journal, if you want to synchronize statements, you"
+" need to set a bank account."
+msgstr ""
+"No se ha encontrado una cuenta bancaria en el diario, si quieres sincronizar"
+" extractos, necesitas indicar una cuenta bancaria."
+
+msgctxt "model:ir.message,text:msg_no_country"
+msgid ""
+"Country not found in bank party, please, make sure the bank party have at "
+"least one address with country."
+msgstr ""
+"No se ha encontrado un país en el tercero del banco, por favor, asegúrese "
+"que el tercero del banco tiene al menos una dirección con país."
+
+msgctxt "model:ir.message,text:msg_no_session"
+msgid "Session not found."
+msgstr "Sesión no encontrada"
+
+msgctxt "model:ir.model.button,string:reconcile_statement_origin_button"
+msgid "Reconcile"
+msgstr "Conciliar"
+
+msgctxt ""
+"model:ir.model.button,string:synchronize_statement_enable_banking_button"
+msgid "Synchronize Statement Enable Banking"
+msgstr "Sincroniza Extractos a través de Enable Banking"
+
+msgctxt ""
+"model:ir.model.button,string:test_connection_enable_banking_configuration_button"
+msgid "Test Connection"
+msgstr "Prueba de conexión"
+
+msgctxt "model:ir.ui.menu,name:menu_enable_banking"
+msgid "Enable Banking"
+msgstr "Enable Banking"
+
+msgctxt "model:ir.ui.menu,name:menu_enable_banking_configuration_form"
+msgid "Enable Banking Configuration"
+msgstr "Configuración"
+
+msgctxt "model:ir.ui.menu,name:menu_enable_banking_session_form"
+msgid "Enable Banking Session"
+msgstr "Sesión Enable Banking"
+
+msgctxt "model:ir.ui.menu,name:menu_statement_form"
+msgid "Statements Origin"
+msgstr "Origen líneas de extracto"
+
+msgctxt "report:enable_banking.session_ko:"
+msgid "Please. Try to create the session again later."
+msgstr "Por favor. Prueba a crear la sesión de nuevo más tarde."
+
+msgctxt "report:enable_banking.session_ko:"
+msgid "Session creating failed"
+msgstr "La creación de la sesión ha fallado"
+
+msgctxt "report:enable_banking.session_ko:"
+msgid "Session creating failed."
+msgstr "La creación de la sesión ha fallado."
+
+msgctxt "report:enable_banking.session_ok:"
+msgid "Now, you can close this window and go back to Tryton."
+msgstr "Ahora, puedes cerrar esta ventana y volver a Tryton."
+
+msgctxt "report:enable_banking.session_ok:"
+msgid "Session created successfully."
+msgstr "Sesión creada con éxito."
+
+msgctxt "report:enable_banking.session_ok:"
+msgid ""
+"The session between enable banking and your bank has been created "
+"successfully."
+msgstr "La sesión entre Enable Banking y tu banco se ha creado con éxito."
+
+msgctxt "selection:enable_banking.configuration,date_field:"
+msgid "Booking Date"
+msgstr "Fecha reserva"
+
+msgctxt "selection:enable_banking.configuration,date_field:"
+msgid "Transaction Date"
+msgstr "Fecha transacción"
+
+msgctxt "selection:enable_banking.configuration,date_field:"
+msgid "Value Date"
+msgstr "Fecha valor"
+
+msgctxt "view:enable_banking.session:"
+msgid "Bank"
+msgstr "Banco"
+
+msgctxt "view:enable_banking.session:"
+msgid "Session"
+msgstr "Sesión"
+
+msgctxt "view:enable_banking.synchronize_statement.start:"
+msgid "Do you want to continue?"
+msgstr "¿Quieres continuar?"
+
+msgctxt "view:enable_banking.synchronize_statement.start:"
+msgid ""
+"It will proceed to connect with the bank and synchronize the statements."
+msgstr ""
+"Se procederá a conectarse y sincronizar las líneas de extracto del banco."
+
+msgctxt ""
+"wizard_button:enable_banking.synchronize_statement,start,check_session:"
+msgid "OK"
+msgstr "Aceptar"
+
+msgctxt "wizard_button:enable_banking.synchronize_statement,start,end:"
+msgid "Cancel"
+msgstr "Cancelar"

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<form>
+    <label name="redirecturl"/>
+    <field name="redirecturl"/>
+    <label name="date_field"/>
+    <field name="date_field"/>
+    <label name="offset"/>
+    <field name="offset"/>
+    <button name="test_connection" colspan="4"/>
+</form>

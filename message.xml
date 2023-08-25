@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data grouped="1">
+        <record model="ir.message" id="msg_no_session">
+            <field name="text">Session not found.</field>
+        </record>
+        <record model="ir.message" id="msg_account_not_found">
+            <field name="text">Account "%(account)s" not found in session from bank "%(bank)s" make sure the account number is correct.</field>
+        </record>
+        <record model="ir.message" id="msg_currency_not_match">
+            <field name="text">The bank statements currency and the journal currency dosen't match.</field>
+        </record>
+        <record model="ir.message" id="msg_error_get_statements">
+            <field name="text">Error getting statements: "%(error_code)"s "%(error_message)s"</field>
+        </record>
+        <record model="ir.message" id="msg_no_bank_account">
+            <field name="text">No bank account found in journal, if you want to synchronize statements, you need to set a bank account.</field>
+        </record>
+        <record model="ir.message" id="msg_no_country">
+            <field name="text">Country not found in bank party, please, make sure the bank party have at least one address with country.</field>
+        </record>
+        <record model="ir.message" id="msg_aspsp_not_found">
+            <field name="text">Bank "%(bank)s" from country "%(country_code)s" not found in Enable Banking compatible banks.</field>
+        </record>
+        <record model="ir.message" id="msg_error_create_session">
+            <field name="text">Error creating the session: "%(error_code)"s "%(error_message)s"</field>
+        </record>
+        <record model="ir.message" id="msg_connection_test_ok">
+            <field name="text">Connection test successful.</field>
+        </record>
+        <record model="ir.message" id="msg_connection_test_error">
+            <field name="text">Error testing connection: "%(error_code)"s "%(error_message)s"</field>
+        </record>
+    </data>
+</tryton>

@@ -1,0 +1,185 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<tryton>
+    <data>
+        <!-- account.statement.origin -->
+        <record model="ir.action.act_window" id="act_statement_form">
+            <field name="name">Statements Origin</field>
+            <field name="res_model">account.statement.origin</field>
+        </record>
+        <menuitem
+            parent="account_statement.menu_statements"
+            action="act_statement_form"
+            sequence="10"
+            id="menu_statement_form"
+            icon="tryton-list"/>
+
+        <record model="ir.model.button" id="reconcile_statement_origin_button">
+            <field name="name">reconcile</field>
+            <field name="string">Reconcile</field>
+            <field name="model" search="[('model', '=', 'account.statement.origin')]"/>
+        </record>
+
+        <!-- TODO: add group permission? -->
+        <record model="ir.model.button-res.group" id="reconcile_statement_origin_button_group_account">
+            <field name="button" ref="reconcile_statement_origin_button"/>
+            <field name="group" ref="account.group_account"/>
+        </record>
+
+        <record model="ir.ui.view" id="statement_origin_view_form">
+            <field name="model">account.statement.origin</field>
+            <field name="inherit" ref="account_statement.statement_origin_view_form"/>
+            <field name="name">statement_origin_form</field>
+        </record>
+        <record model="ir.ui.view" id="statement_origin_view_tree">
+            <field name="model">account.statement.origin</field>
+            <field name="inherit" ref="account_statement.statement_origin_view_tree"/>
+            <field name="name">statement_origin_tree</field>
+        </record>
+
+        <!-- account.statement.journal -->
+        <record model="ir.ui.view" id="statement_journal_view_form">
+            <field name="model">account.statement.journal</field>
+            <field name="inherit" ref="account_statement.statement_journal_view_form"/>
+            <field name="name">statement_journal_form</field>
+        </record>
+
+
+
+        <!-- enable_banking.synchronize_statement -->
+        <record model="ir.ui.view" id="enable_banking_synchronize_statement_start_form">
+            <field name="model">enable_banking.synchronize_statement.start</field>
+            <field name="type">form</field>
+            <field name="name">enable_banking_synchronize_statement_start</field>
+        </record>
+
+        <record model="ir.action.wizard" id="act_enable_banking_synchronize_statement">
+            <field name="name">Synchronize Statement Enable Banking</field>
+            <field name="wiz_name">enable_banking.synchronize_statement</field>
+        </record>
+
+        <record model="ir.model.button" id="synchronize_statement_enable_banking_button">
+            <field name="name">synchronize_statement_enable_banking</field>
+            <field name="string">Synchronize Statement Enable Banking</field>
+            <field name="model" search="[('model', '=', 'account.statement.journal')]"/>
+        </record>
+
+        <record model="ir.action.url" id="url_session">
+            <field name="name">Enable Banking Session</field>
+            <field name="url">https://enablebanking.com/</field>
+        </record>
+
+        <!-- account.statement.origin.information -->
+        <record model="account.statement.origin.information" id="eb_balance_after_transaction">
+            <field name="name">balance_after_transaction</field>
+            <field name="string">Balance After Transaction</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_bank_transaction_code">
+            <field name="name">bank_transaction_code</field>
+            <field name="string">Bank Transaction Code</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_booking_date">
+            <field name="name">booking_date</field>
+            <field name="string">Booking Date</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_credit_debit_indicator">
+            <field name="name">credit_debit_indicator</field>
+            <field name="string">Credit Debit Indicator</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_creditor">
+            <field name="name">creditor</field>
+            <field name="string">Creditor</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_creditor_account">
+            <field name="name">creditor_account</field>
+            <field name="string">Creditor Account</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_creditor_account_additional_identification">
+            <field name="name">creditor_account_additional_identification</field>
+            <field name="string">Creditor Account Additional Identification</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_creditor_agent">
+            <field name="name">creditor_agent</field>
+            <field name="string">Creditor Agent</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor">
+            <field name="name">debtor</field>
+            <field name="string">Debtor</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor_account">
+            <field name="name">debtor_account</field>
+            <field name="string">Debtor Account</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor_account_additional_identification">
+            <field name="name">debtor_account_additional_identification</field>
+            <field name="string">Debtor Account Additional Identification</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor_agent">
+            <field name="name">debtor_agent</field>
+            <field name="string">Debtor Agent</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_entry_reference">
+            <field name="name">entry_reference</field>
+            <field name="string">Entry Reference</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_exchange_rate">
+            <field name="name">exchange_rate</field>
+            <field name="string">Exchange Rate</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_merchant_category_code">
+            <field name="name">merchant_category_code</field>
+            <field name="string">Merchant Category Code</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_note">
+            <field name="name">note</field>
+            <field name="string">Note</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_reference_number">
+            <field name="name">reference_number</field>
+            <field name="string">Reference Number</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_remittance_information">
+            <field name="name">remittance_information</field>
+            <field name="string">Remittance Information</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_status">
+            <field name="name">status</field>
+            <field name="string">Status</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_transaction_amount">
+            <field name="name">transaction_amount</field>
+            <field name="string">Transaction Amount</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_transaction_date">
+            <field name="name">transaction_date</field>
+            <field name="string">Transaction Date</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_value_date">
+            <field name="name">value_date</field>
+            <field name="string">Value Date</field>
+            <field name="type_">char</field>
+        </record>
+    </data>
+</tryton>

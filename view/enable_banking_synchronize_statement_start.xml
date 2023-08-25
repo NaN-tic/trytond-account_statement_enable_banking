@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<form>
+    <label string="It will proceed to connect with the bank and synchronize the statements." id="warning_statement_enable_banking"/>
+    <newline/>
+    <label string="Do you want to continue?" id="warning_statement_enable_banking2"/>
+</form>
