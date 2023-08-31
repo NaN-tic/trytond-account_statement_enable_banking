@@ -239,10 +239,10 @@ msgstr ""
 " \"%(error_message)s\""
 
 msgctxt "model:ir.message,text:msg_error_get_statements"
-msgid "Error getting statements: \"%(error_code)\"s \"%(error_message)s\""
+msgid "Error getting statements: \"%(error_code)s\" \"%(error_message)s\""
 msgstr ""
 "S'ha produït un error mentre s'intentava obtenir les línies d'extracte: "
-"\"%(error_code)\"s \"%(error_message)s\""
+"\"%(error_code)s\" \"%(error_message)s\""
 
 msgctxt "model:ir.message,text:msg_no_bank_account"
 msgid ""

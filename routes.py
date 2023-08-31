@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 from werkzeug.wrappers import Response
+from datetime import datetime
 import requests
 
 from trytond.protocols.wrappers import with_pool, with_transaction, allow_null_origin
@@ -38,7 +39,7 @@ def redirect(request, pool):
 
         eb_session = eb_session[0]
         with Transaction().set_context(company=eb_session.company.id):
-            #eb_session.valid_until = datetime.strptime(session['access']['valid_until'], '%Y-%m-%dT%H:%M:%S.%f%z')
+            eb_session.valid_until = datetime.strptime(session['access']['valid_until'], '%Y-%m-%dT%H:%M:%S.%f%z')
             eb_session.session = session
             EBSession.save([eb_session])
             ext, content, _, _ = EBSessionReportOK.execute([], data)

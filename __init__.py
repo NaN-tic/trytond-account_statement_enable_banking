@@ -11,6 +11,7 @@ def register():
         statement.Origin,
         statement.Journal,
         statement.SynchronizeStatementEnableBankingStart,
+        statement.Cron,
         enable_banking.EnableBankingConfiguration,
         enable_banking.EnableBankingSession,
         module='account_statement_enable_banking', type_='model')
