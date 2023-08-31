@@ -48,6 +48,7 @@ class Journal(metaclass=PoolMeta):
 
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
+    synchronize_journal = fields.Boolean("Synchronize Journal")
 
     @classmethod
     def __setup__(cls):
@@ -57,7 +58,8 @@ class Journal(metaclass=PoolMeta):
         })
 
     @classmethod
-    @ModelView.button_action('account_statement_enable_banking.act_enable_banking_synchronize_statement')
+    @ModelView.button_action(
+        'account_statement_enable_banking.act_enable_banking_synchronize_statement')
     def synchronize_statement_enable_banking(cls, journals):
         pass
 
@@ -76,7 +78,9 @@ class Journal(metaclass=PoolMeta):
             ('bank', '=', self.bank_account.bank.id)], limit=1)
 
         if not eb_session:
-            raise UserError(gettext('account_statement_enable_banking.msg_no_session'))
+            raise UserError(
+                gettext('account_statement_enable_banking.msg_no_session'))
+
         # Search the account from the journal
         session = eval(eb_session[0].session)
         bank_numbers = [x.number_compact for x in self.bank_account.numbers]
@@ -94,7 +98,8 @@ class Journal(metaclass=PoolMeta):
         # Prepare request
         base_headers = get_base_header()
         query = {
-            "date_from": (datetime.now(timezone.utc) - timedelta(days=ebconfig.offset)).date().isoformat(),}
+            "date_from": (datetime.now(timezone.utc) - timedelta(
+                days=ebconfig.offset)).date().isoformat(),}
 
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
@@ -121,8 +126,8 @@ class Journal(metaclass=PoolMeta):
                 continuation_key = response.get('continuation_key')
                 for transaction in response['transactions']:
                     if transaction['transaction_amount']['currency'] != self.currency.code:
-                        raise UserError(
-                            gettext('account_statement_enable_banking.msg_currency_not_match'))
+                        raise UserError(gettext(
+                            'account_statement_enable_banking.msg_currency_not_match'))
                     found_statement_origin = StatementOrigin.search([
                         ('entry_reference', '=', transaction['entry_reference']),
                     ])
@@ -132,11 +137,18 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.statement = statement
                     statement_origin.company = self.company
                     statement_origin.currency = self.currency
-                    statement_origin.amount = transaction['transaction_amount']['amount']
+                    statement_origin.amount = (
+                            transaction['transaction_amount']['amount'])
+                    if (transaction['credit_debit_indicator'] and
+                            transaction['credit_debit_indicator'] == 'CRDT'):
+                        statement_origin.amount = -statement_origin.amount
                     statement_origin.entry_reference = transaction['entry_reference']
-                    statement_origin.date = datetime.strptime(transaction[ebconfig.date_field], '%Y-%m-%d')
+                    statement_origin.date = datetime.strptime(
+                        transaction[ebconfig.date_field], '%Y-%m-%d')
                     information_dict = {}
                     for key, value in transaction.items():
+                        if value is None:
+                            continue
                         information_dict[key] = str(value)
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
@@ -145,9 +157,16 @@ class Journal(metaclass=PoolMeta):
             else:
                 raise UserError(
                     gettext('account_statement_enable_banking.msg_error_get_statements',
-                        error=r.status_code,
-                        error_message=r.text))
+                        error=str(r.status_code),
+                        error_message=str(r.text)))
         StatementOrigin.save(to_save)
+
+    @classmethod
+    def synchronize_enable_banking_journals(cls):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        for journal in Journal.search([('synchronize_journal', '=', True)]):
+            journal.synchronize_statements_enable_banking()
 
 
 class SynchronizeStatementEnableBankingStart(ModelView):
@@ -207,9 +226,15 @@ class SynchronizeStatementEnableBanking(Wizard):
         if eb_session:
             # We need to check the date and if we have the field session, if not
             # the session was not created correctly and need to be deleted
-            if (datetime.now() < eb_session[0].valid_until and
-                    eb_session[0].session):
-                return 'sync_statements'
+            session = eval(eb_session[0].session)
+            r = requests.get(f"{config.get('enable_banking', 'api_origin')}/sessions/{session['session_id']}",
+                headers=base_headers)
+            if r.status_code == 200:
+                session = r.json()
+                if (session['status'] == 'AUTHORIZED' and
+                        datetime.now() < eb_session[0].valid_until and
+                        eb_session[0].session):
+                    return 'sync_statements'
             else:
                 EBSession.delete([eb_session])
         return 'create_session'
@@ -225,7 +250,8 @@ class SynchronizeStatementEnableBanking(Wizard):
         eb_session.aspsp_country = journal.aspsp_country
         eb_session.bank = journal.bank_account.bank
         eb_session.session_id = token_hex(16)
-        eb_session.valid_until = datetime.now(timezone.utc) + timedelta(days=10)
+        eb_session.valid_until = datetime.fromtimestamp(
+            int(datetime.now().timestamp()) + 86400)
         EBSession.save([eb_session])
         base_headers = get_base_header()
         body = {
@@ -257,3 +283,15 @@ class SynchronizeStatementEnableBanking(Wizard):
         journal = Journal(Transaction().context['active_id'])
         journal.synchronize_statements_enable_banking()
         return 'end'
+
+
+class Cron(metaclass=PoolMeta):
+    __name__ = 'ir.cron'
+
+    @classmethod
+    def __setup__(cls):
+        super().__setup__()
+        cls.method.selection.extend([
+            ('account.statement.journal|synchronize_enable_banking_journals',
+                "Synchronize Enable Banking Journals"),
+            ])

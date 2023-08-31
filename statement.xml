@@ -45,8 +45,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="name">statement_journal_form</field>
         </record>
 
-
-
         <!-- enable_banking.synchronize_statement -->
         <record model="ir.ui.view" id="enable_banking_synchronize_statement_start_form">
             <field name="model">enable_banking.synchronize_statement.start</field>

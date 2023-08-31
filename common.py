@@ -11,7 +11,7 @@ def get_base_header():
             "iss": "enablebanking.com",
             "aud": "api.enablebanking.com",
             "iat": iat,
-            "exp": iat + 3600,
+            "exp": iat + 86400,
         }
     jwt = pyjwt.encode(
             jwt_body,
