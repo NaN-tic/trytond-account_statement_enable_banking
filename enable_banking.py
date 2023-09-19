@@ -25,7 +25,7 @@ class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
 
     @classmethod
     def default_date_field(cls):
-        return 'booking_date'
+        return 'transaction_date'
 
     @classmethod
     def default_offset(cls):
