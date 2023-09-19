@@ -192,11 +192,37 @@ class SynchronizeStatementEnableBanking(Wizard):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         EBSession = pool.get('enable_banking.session')
+        base_headers = get_base_header()
 
         journal = Journal(Transaction().context['active_id'])
         if not journal.bank_account:
             raise UserError(gettext('account_statement_enable_banking.msg_no_bank_account'))
 
+        eb_sessions = EBSession.search([
+            ('company', '=', journal.company.id),
+            ('bank', '=', journal.bank_account.bank.id)], limit=1)
+        if eb_sessions:
+            # We need to check the date and if we have the field session, if not
+            # the session was not created correctly and need to be deleted
+            eb_session = eb_sessions[0]
+            if eb_session.session:
+                session = eval(eb_session.session)
+                r = requests.get(f"{config.get('enable_banking', 'api_origin')}/sessions/{session['session_id']}",
+                    headers=base_headers)
+                if r.status_code == 200:
+                    session = r.json()
+                    if (session['status'] == 'AUTHORIZED' and
+                            datetime.now() < eb_session.valid_until and
+                            eb_session.session):
+                        return 'sync_statements'
+            EBSession.delete(eb_sessions)
+        return 'create_session'
+
+    def do_create_session(self, action):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        EBSession = pool.get('enable_banking.session')
+        journal = Journal(Transaction().context['active_id'])
         bank_name = journal.bank_account.bank.party.name.lower()
         bic = (journal.bank_account.bank.bic or '').lower()
         if journal.bank_account.bank.party.addresses:
@@ -218,36 +244,13 @@ class SynchronizeStatementEnableBanking(Wizard):
                 Journal.save([journal])
                 aspsp_found = True
                 break
+
         if not aspsp_found:
             raise UserError(
                 gettext('account_statement_enable_banking.msg_aspsp_not_found',
                     bank=journal.aspsp_name,
                     country_code=journal.aspsp_country))
 
-        eb_session = EBSession.search([
-            ('company', '=', journal.company.id),
-            ('bank', '=', journal.bank_account.bank.id)], limit=1)
-        if eb_session:
-            # We need to check the date and if we have the field session, if not
-            # the session was not created correctly and need to be deleted
-            session = eval(eb_session[0].session)
-            r = requests.get(f"{config.get('enable_banking', 'api_origin')}/sessions/{session['session_id']}",
-                headers=base_headers)
-            if r.status_code == 200:
-                session = r.json()
-                if (session['status'] == 'AUTHORIZED' and
-                        datetime.now() < eb_session[0].valid_until and
-                        eb_session[0].session):
-                    return 'sync_statements'
-            else:
-                EBSession.delete([eb_session])
-        return 'create_session'
-
-    def do_create_session(self, action):
-        pool = Pool()
-        Journal = pool.get('account.statement.journal')
-        EBSession = pool.get('enable_banking.session')
-        journal = Journal(Transaction().context['active_id'])
         eb_session = EBSession()
         eb_session.company = journal.company
         eb_session.aspsp_name = journal.aspsp_name
@@ -273,7 +276,7 @@ class SynchronizeStatementEnableBanking(Wizard):
             json=body, headers=base_headers)
 
         if r.status_code == 200:
-            action['url'] =r.json()['url']
+            action['url'] = r.json()['url']
         else:
             raise UserError(
                 gettext('account_statement_enable_banking.msg_error_create_session',
