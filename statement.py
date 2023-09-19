@@ -238,7 +238,7 @@ class SynchronizeStatementEnableBanking(Wizard):
             if aspsp["country"] != country:
                 continue
             if (aspsp["name"].lower() == bank_name
-                    or aspsp["bic"].lower() == bic):
+                    or aspsp.get("bic", " ").lower() == bic):
                 journal.aspsp_name = aspsp["name"]
                 journal.aspsp_country = aspsp["country"]
                 Journal.save([journal])
