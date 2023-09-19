@@ -50,7 +50,6 @@ class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
         else:
             raise UserError(gettext(
                 'account_statement_enable_banking.msg_connection_test_error',
-                error_code=r.status_code,
                 error_message=r.text))
 
 

@@ -31,7 +31,7 @@ this repository contains the full copyright notices and license terms. -->
             <field name="text">Connection test successful.</field>
         </record>
         <record model="ir.message" id="msg_connection_test_error">
-            <field name="text">Error testing connection: "%(error_code)s" "%(error_message)s"</field>
+            <field name="text">Error testing connection: %(error_message)s </field>
         </record>
     </data>
 </tryton>
