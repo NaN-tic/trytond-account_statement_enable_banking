@@ -197,7 +197,8 @@ class SynchronizeStatementEnableBanking(Wizard):
         if not journal.bank_account:
             raise UserError(gettext('account_statement_enable_banking.msg_no_bank_account'))
 
-        bank_name = journal.bank_account.bank.party.name
+        bank_name = journal.bank_account.bank.party.name.lower()
+        bic = (journal.bank_account.bank.bic or '').lower()
         if journal.bank_account.bank.party.addresses:
             country = journal.bank_account.bank.party.addresses[0].country.code
         else:
@@ -208,7 +209,10 @@ class SynchronizeStatementEnableBanking(Wizard):
         r = requests.get(f"{config.get('enable_banking', 'api_origin')}/aspsps", headers=base_headers)
         aspsp_found = False
         for aspsp in r.json()["aspsps"]:
-            if aspsp["name"] == bank_name and aspsp["country"] == country:
+            if aspsp["country"] != country:
+                continue
+            if (aspsp["name"].lower() == bank_name
+                    or aspsp["bic"].lower() == bic):
                 journal.aspsp_name = aspsp["name"]
                 journal.aspsp_country = aspsp["country"]
                 Journal.save([journal])
