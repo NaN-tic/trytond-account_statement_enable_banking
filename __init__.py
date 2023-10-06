@@ -2,12 +2,15 @@
 # The COPYRIGHT file at the top level of this repository contains
 # the full copyright notices and license terms.
 from trytond.pool import Pool
+from . import account
 from . import statement
 from . import enable_banking
 from . import routes
 
 def register():
     Pool.register(
+        account.MoveLine,
+        statement.Line,
         statement.Origin,
         statement.Journal,
         statement.SynchronizeStatementEnableBankingStart,

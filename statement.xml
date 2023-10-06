@@ -179,5 +179,31 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Value Date</field>
             <field name="type_">char</field>
         </record>
+
+        <record model="ir.action.act_window" id="act_origin_move_lines_form">
+            <field name="name">Move Lines</field>
+            <field name="res_model">account.move.line</field>
+            <field name="domain"
+                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ('origin.origin.id', '=', Eval('active_id'), 'account.statement.line'), ('origin.origin.id', 'in', Eval('active_ids'), 'account.statement.line'))]"
+                pyson="1"/>
+        </record>
+        <record model="ir.action.keyword" id="act_origin_move_lines_form_keyword1">
+            <field name="keyword">form_relate</field>
+            <field name="model">account.statement.origin,-1</field>
+            <field name="action" ref="act_origin_move_lines_form"/>
+        </record>
+
+        <record model="ir.action.act_window" id="act_origin_moves_form">
+            <field name="name">Moves</field>
+            <field name="res_model">account.move</field>
+            <field name="domain"
+                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ('origin.origins.id', '=', Eval('active_id'), 'account.statement'), ('origin.origins.id', 'in', Eval('active_ids'), 'account.statement'))]"
+                pyson="1"/>
+        </record>
+        <record model="ir.action.keyword" id="act_origin_moves_form_keyword1">
+            <field name="keyword">form_relate</field>
+            <field name="model">account.statement.origin,-1</field>
+            <field name="action" ref="act_origin_moves_form"/>
+        </record>
     </data>
 </tryton>

@@ -12,11 +12,15 @@ msgstr "Nombre ASPSP"
 
 msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
-msgstr ""
+msgstr "Diario sincronización"
 
 msgctxt "field:account.statement.origin,entry_reference:"
 msgid "Entry Reference"
 msgstr "Referencia de entrada"
+
+msgctxt "field:account.statement.origin,reconciled:"
+msgid "Reconciled"
+msgstr "Reconciliado"
 
 msgctxt "field:enable_banking.configuration,date_field:"
 msgid "Date Field"
@@ -189,6 +193,14 @@ msgctxt "model:ir.action,name:act_enable_banking_synchronize_statement"
 msgid "Synchronize Statement Enable Banking"
 msgstr "Sincroniza Extractos a través de Enable Banking"
 
+msgctxt "model:ir.action,name:act_origin_move_lines_form"
+msgid "Move Lines"
+msgstr "Apuntes"
+
+msgctxt "model:ir.action,name:act_origin_moves_form"
+msgid "Moves"
+msgstr "Asientos"
+
 msgctxt "model:ir.action,name:act_statement_form"
 msgid "Statements Origin"
 msgstr "Origen líneas de extracto"
@@ -266,6 +278,22 @@ msgctxt "model:ir.message,text:msg_no_session"
 msgid "Session not found."
 msgstr "Sesión no encontrada"
 
+msgctxt "model:ir.message,text:msg_origin_line_with_move"
+msgid ""
+"The line have a move %(move)s related. Delete the line will create a cancell"
+" move. Do you want to continue?"
+msgstr ""
+"La línea tiene un asiento %(move)s relacionado. Eliminar la línea creará "
+"un asiento de cancelación. ¿Quieres continuar?"
+
+msgctxt "model:ir.message,text:msg_origin_pending_amount"
+msgid ""
+"The origin could not be conciled becasue the lines amount is "
+"%(line_amount)s, and is not the same of the origin amount %(origin_amount)s."
+msgstr ""
+"El origen no se pudo conciliar porque el monto de las líneas es "
+"%(line_amount)s y no es el mismo que el de origen %(origin_amount)s."
+
 msgctxt "model:ir.model.button,string:reconcile_statement_origin_button"
 msgid "Reconcile"
 msgstr "Conciliar"
@@ -336,7 +364,7 @@ msgstr "Fecha valor"
 
 msgctxt "selection:ir.cron,method:"
 msgid "Synchronize Enable Banking Journals"
-msgstr ""
+msgstr "Sincronizar Diarios Enable Banking"
 
 msgctxt "view:enable_banking.session:"
 msgid "Bank"

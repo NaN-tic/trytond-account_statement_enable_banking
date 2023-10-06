@@ -12,11 +12,15 @@ msgstr "Nom ASPSP"
 
 msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
-msgstr ""
+msgstr "Diari sincronització"
 
 msgctxt "field:account.statement.origin,entry_reference:"
 msgid "Entry Reference"
 msgstr "Referència d'entrada"
+
+msgctxt "field:account.statement.origin,reconciled:"
+msgid "Reconciled"
+msgstr "Reconciliat"
 
 msgctxt "field:enable_banking.configuration,date_field:"
 msgid "Date Field"
@@ -189,6 +193,14 @@ msgctxt "model:ir.action,name:act_enable_banking_synchronize_statement"
 msgid "Synchronize Statement Enable Banking"
 msgstr "Sincronitza extractes a través d'Enable Banking"
 
+msgctxt "model:ir.action,name:act_origin_move_lines_form"
+msgid "Move Lines"
+msgstr "Apunts"
+
+msgctxt "model:ir.action,name:act_origin_moves_form"
+msgid "Moves"
+msgstr "Assentaments"
+
 msgctxt "model:ir.action,name:act_statement_form"
 msgid "Statements Origin"
 msgstr "Origen línies d'extracte"
@@ -266,6 +278,22 @@ msgctxt "model:ir.message,text:msg_no_session"
 msgid "Session not found."
 msgstr "Sessió no trobada."
 
+msgctxt "model:ir.message,text:msg_origin_line_with_move"
+msgid ""
+"The line have a move %(move)s related. Delete the line will create a cancell"
+" move. Do you want to continue?"
+msgstr ""
+"La línia té un assentament %(move)s relacionat. Suprimir la línia crearà un "
+"assentament de cancel·lació. Vols continuar?"
+
+msgctxt "model:ir.message,text:msg_origin_pending_amount"
+msgid ""
+"The origin could not be conciled becasue the lines amount is "
+"%(line_amount)s, and is not the same of the origin amount %(origin_amount)s."
+msgstr ""
+"L'origen no s'ha pogut conciliar perquè l'import de les línies és "
+"%(line_amount)s i no és el mateix que l'origen %(origin_amount)s."
+
 msgctxt "model:ir.model.button,string:reconcile_statement_origin_button"
 msgid "Reconcile"
 msgstr "Concilia"
@@ -336,7 +364,7 @@ msgstr "Data valor"
 
 msgctxt "selection:ir.cron,method:"
 msgid "Synchronize Enable Banking Journals"
-msgstr ""
+msgstr "Sincronitzar Diaris Enable Banking"
 
 msgctxt "view:enable_banking.session:"
 msgid "Bank"
