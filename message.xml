@@ -34,10 +34,10 @@ this repository contains the full copyright notices and license terms. -->
             <field name="text">Error testing connection: %(error_message)s </field>
         </record>
         <record model="ir.message" id="msg_origin_pending_amount">
-            <field name="text">The origin could not be conciled becasue the lines amount is %(line_amount)s, and is not the same of the origin amount %(origin_amount)s.</field>
+            <field name="text">The origin could not be reconciled because the amount of the lines "%(line_amount)s" and the amount of the origin "%(origin_amount)s" differ.</field>
         </record>
         <record model="ir.message" id="msg_origin_line_with_move">
-            <field name="text">The line have a move %(move)s related. Delete the line will create a cancell move. Do you want to continue?</field>
+            <field name="text">The line has move "%(move)s" related to it. Deleting the line will create a cancelled move. Do you want to continue?</field>
         </record>
     </data>
 </tryton>

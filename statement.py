@@ -162,6 +162,8 @@ class Origin(metaclass=PoolMeta):
 
     @classmethod
     def validate_statement(cls, statements):
+        "Basically is a copy & paste from account_statement"
+        "validate_statement(), but adapted to work at origin level"
         pool = Pool()
         Statement = pool.get('account.statement')
         Line = pool.get('account.statement.line')
@@ -191,6 +193,7 @@ class Origin(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def reconcile(cls, origins):
+        "Basically is a copy & paste from account_statement create_move()"
         pool = Pool()
         Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
