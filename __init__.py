@@ -6,6 +6,9 @@ from . import statement
 from . import enable_banking
 from . import routes
 
+__all__ = ['register', 'routes']
+
+
 def register():
     Pool.register(
         statement.Origin,
