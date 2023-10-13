@@ -6,9 +6,10 @@ from decimal import Decimal
 from secrets import token_hex
 from itertools import groupby
 
-from trytond.model import ModelView, fields
+from trytond.model import Workflow, ModelView, fields
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Eval
+from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 from trytond.transaction import Transaction
@@ -20,56 +21,136 @@ from trytond.modules.account_statement.exceptions import (StatementValidateError
     StatementValidateWarning)
 
 
+class Statement(metaclass=PoolMeta):
+    __name__ = 'account.statement'
+
+    @classmethod
+    def cancel(cls, statements):
+        pool = Pool()
+        Origin = pool.get('account.statement.origin')
+
+        origins = [s.origin for s in statements]
+        Origin.cancel(origins)
+
+        super().cancel(statements)
+
+    @classmethod
+    def delete(cls, statements):
+        raise UserError(gettext('account_statement_enable_banking.'
+                'msg_no_allow_delete_only_cancel'))
+
+
 class Line(metaclass=PoolMeta):
     __name__ = 'account.statement.line'
 
     @classmethod
-    def delete(cls, lines):
-        # Do not remove the possible move related. Create the cancelation move
-        # and leave they related to the statement, to have an hstory.
+    def cancel_move(cls, lines):
         pool = Pool()
         Move = pool.get('account.move')
+        MoveLine = pool.get('account.move.line')
+        Reconciliation = pool.get('account.move.reconciliation')
+        Invoice = pool.get('account.invoice')
+
+        for line in lines:
+            move = line.move
+            to_unreconcile = [x.reconciliation for x in move.lines
+                if x.reconciliation]
+            if to_unreconcile:
+                to_unreconcile = Reconciliation.browse([
+                        x.id for x in to_unreconcile])
+                Reconciliation.delete(to_unreconcile)
+
+            # On possible realted invoices, need to unlink the payment lines
+            to_unpay = [x for x in move.lines if x.invoice_payment]
+            if to_unpay:
+                #to_unpay = [MoveLine(x.id) for x in to_unpay]
+                Invoice.remove_payment_lines(to_unpay)
+
+            cancel_move = move.cancel()
+            cancel_move.origin = line.origin
+            Move.post([cancel_move])
+            mlines = [l for m in [move, cancel_move]
+                for l in m.lines if l.account.reconcile]
+            if mlines:
+                MoveLine.reconcile(mlines)
+
+    @classmethod
+    def delete(cls, lines):
+        '''As is needed save an history fo all movements, do not remove the
+        possible move related. Create the cancelation move and leave they
+        related to the statement and the origin, to have an hstory.
+        '''
+        pool = Pool()
+        Move = pool.get('account.move')
+        MoveLine = pool.get('account.move.line')
         Warning = pool.get('res.user.warning')
 
         moves = []
+        mlines = []
         for line in lines:
             if line.move:
                 warning_key = Warning.format(
-                    'origin_line_with_move', line.move.id)
+                    'origin_line_with_move', [line.move.id])
                 if Warning.check(warning_key):
                     raise StatementValidateWarning(warning_key,
-                        gettext('account_statement'
-                            '.msg_origin_line_with_move',
-                            move=line.move,
+                        gettext('account_statement_enable_banking.'
+                            'msg_origin_line_with_move',
+                            move=line.move.rec_name,
                             ))
-                line.move.origin = line.origin
+                for mline in line.move.lines:
+                    if mline.origin == line:
+                        mline.origin = line.origin
+                        mlines.append(mline)
                 moves.append(line.move)
-        if moves:
-            Move.save(moves)
-            for move in moves:
-                cancel_move = Move.cancel(move)
-                Move.post(cancel_move)
-                lines = [l for m in [move, cancel_move] for l in m]
-                Line.reconcile(lines)
-
+        if mlines:
+            with Transaction().set_context(from_account_statement_origin=True):
+                #line_moves = list(set([l.move for l in mlines]))
+                #Move.write(line_moves, {'state': 'draft'})
+                MoveLine.save(mlines)
+                #Move.post(line_moves)
+        cls.cancel_move(lines)
         super().delete(lines)
 
-class Origin(metaclass=PoolMeta):
+
+class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
 
     entry_reference = fields.Char("Entry Reference", readonly=True)
-    reconciled = fields.Function(
-        fields.Boolean("Reconciled"), 'get_reconciled')
+    state = fields.Selection([
+            ('registered', "Registered"),
+            ('cancelled', "Cancelled"),
+            ('posted', "Posted"),
+            ], "State", readonly=True, sort=False)
 
     @classmethod
     def __setup__(cls):
         super().__setup__()
+        cls._order.insert(0, ('date', 'ASC'))
+        cls._order.insert(1, ('statement', 'ASC'))
+        cls._transitions |= set((
+                ('registered', 'posted'),
+                ('registered', 'cancelled'),
+                ('cancelled', 'registered'),
+                ('posted', 'cancelled'),
+                ))
         cls._buttons.update({
-            'reconcile': {
-                'invisible': Eval('reconciled'),
-                'depends': ['reconciled'],
-                },
-        })
+                'register': {
+                    'invisible': Eval('state') != 'cancelled',
+                    'depends': ['state'],
+                    },
+                'post': {
+                    'invisible': Eval('state') != 'registered',
+                    'depends': ['state'],
+                    },
+                'cancel': {
+                    'invisible': Eval('state') == 'cancelled',
+                    'depends': ['state'],
+                    },
+                })
+        cls.__rpc__.update({
+                'post': RPC(
+                    readonly=False, instantiate=0, fresh_session=True),
+                })
 
     def get_rec_name(self, name):
         return "%s - %s" % (self.statement.rec_name, self.id)
@@ -77,11 +158,6 @@ class Origin(metaclass=PoolMeta):
     @classmethod
     def search_rec_name(cls, name, clause):
         return [('statement.rec_name',) + tuple(clause[1:])]
-
-    def get_reconciled(self, name=None):
-        if self.lines and all([True if l.move else False for l in self.lines]):
-            return True
-        return False
 
     @fields.depends('statement', 'lines')
     def on_change_lines(self):
@@ -119,30 +195,7 @@ class Origin(metaclass=PoolMeta):
                             line.amount + amount_to_pay)
                 else:
                     line.invoice = None
-            self.lines = lines
-
-    @classmethod
-    def validate_origin(cls, origins):
-        pool = Pool()
-        Line = pool.get('account.statement.line')
-        Warning = pool.get('res.user.warning')
-
-        paid_cancelled_invoice_lines = []
-        for origin in origins:
-            paid_cancelled_invoice_lines.extend(l for l in origin.lines
-                if l.invoice and l.invoice.state in {'cancelled', 'paid'})
-
-        if paid_cancelled_invoice_lines:
-            warning_key = Warning.format(
-                'statement_paid_cancelled_invoice_lines',
-                paid_cancelled_invoice_lines)
-            if Warning.check(warning_key):
-                raise StatementValidateWarning(warning_key,
-                    gettext('account_statement'
-                        '.msg_statement_invoice_paid_cancelled'))
-            Line.write(paid_cancelled_invoice_lines, {
-                    'related_to': None,
-                    })
+        self.lines = lines
 
     def validate_amount(self):
         pool = Pool()
@@ -161,17 +214,18 @@ class Origin(metaclass=PoolMeta):
                     line_amount=amount))
 
     @classmethod
-    def validate_statement(cls, statements):
-        "Basically is a copy & paste from account_statement"
-        "validate_statement(), but adapted to work at origin level"
+    def validate_origin(cls, origins):
+        '''Basically is a piece of copy & paste from account_statement
+        validate_statement(), but adapted to work at origin level
+        '''
         pool = Pool()
-        Statement = pool.get('account.statement')
-        Line = pool.get('account.statement.line')
+        StatementLine = pool.get('account.statement.line')
         Warning = pool.get('res.user.warning')
 
         paid_cancelled_invoice_lines = []
-        for statement in statements:
-            paid_cancelled_invoice_lines.extend(l for l in statement.lines
+        for origin in origins:
+            origin.validate_amount()
+            paid_cancelled_invoice_lines.extend(l for l in origin.lines
                 if l.invoice and l.invoice.state in {'cancelled', 'paid'})
 
         if paid_cancelled_invoice_lines:
@@ -182,29 +236,22 @@ class Origin(metaclass=PoolMeta):
                 raise StatementValidateWarning(warning_key,
                     gettext('account_statement'
                         '.msg_statement_invoice_paid_cancelled'))
-            Line.write(paid_cancelled_invoice_lines, {
+            StatementLine.write(paid_cancelled_invoice_lines, {
                     'related_to': None,
                     })
 
-        Statement.write(statements, {
-                'state': 'validated',
-                })
-
     @classmethod
-    @ModelView.button
-    def reconcile(cls, origins):
-        "Basically is a copy & paste from account_statement create_move()"
+    def create_moves(cls, origins):
+        '''Basically is a copy & paste from account_statement create_move(),
+        but adapted to work at origin level
+        '''
         pool = Pool()
-        Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
 
-        cls.validate_origin(origins)
-
         moves = []
         for origin in origins:
-            origin.validate_amount()
             for key, lines in groupby(
                     origin.lines, key=origin.statement._group_key):
                 lines = list(lines)
@@ -216,10 +263,7 @@ class Origin(metaclass=PoolMeta):
 
         to_write = []
         for move, lines in moves:
-            to_write.append(lines)
-            to_write.append({
-                    'move': move.id,
-                    })
+            to_write.extend((lines, {'move': move.id}))
         if to_write:
             StatementLine.write(*to_write)
 
@@ -244,8 +288,28 @@ class Origin(metaclass=PoolMeta):
 
         MoveLine.save([l for l, _ in move_lines])
         StatementLine.reconcile(move_lines)
-        lines = [l for l in origin.lines]
+        return moves
 
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('registered')
+    def register(cls, origins):
+        pass
+
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('posted')
+    def post(cls, origins):
+        pool = Pool()
+        Statement = pool.get('account.statement')
+        StatementLine = pool.get('account.statement.line')
+        Move = pool.get('account.move')
+        MoveLine = pool.get('account.move.line')
+
+        cls.validate_origin(origins)
+        cls.create_moves(origins)
+
+        lines = [l for o in origins for l in o.lines]
         # It's an awfull hack to sate the state, but it's needed to ensure the
         # Warning of statement state in Move.post is not applied when try to
         # concile and individual origin. For this, need the state == 'posted'.
@@ -261,6 +325,7 @@ class Origin(metaclass=PoolMeta):
         StatementLine.post_move(lines)
         if statement_state:
             Statement.write(*statement_state)
+        # End awful hack
 
         statements = []
         for origin in origins:
@@ -271,8 +336,49 @@ class Origin(metaclass=PoolMeta):
             except StatementValidateError:
                 pass
         if statements:
-            cls.validate_statement(statements)
             Statement.post(statements)
+
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('cancelled')
+    def cancel(cls, origins):
+        pool = Pool()
+        MoveLine = pool.get('account.move.line')
+        Statement = pool.get('account.statement')
+        StatementLine = pool.get('account.statement.line')
+        Warning = pool.get('res.user.warning')
+
+        lines = [x for o in origins for x in o.lines]
+        moves = dict((x.move, x.origin) for x in lines if x.move)
+        if moves:
+            warning_key = Warning.format('cancel_origin_line_with_move',
+                list(moves.keys()))
+            if Warning.check(warning_key):
+                raise StatementValidateWarning(warning_key,
+                    gettext('account_statement_enable_banking.'
+                        'msg_cancel_origin_line_with_move',
+                        moves=", ".join(m.rec_name for m in moves)))
+            StatementLine.cancel_move(lines)
+            with Transaction().set_context(from_account_statement_origin=True):
+                to_write = []
+                for move, origin in moves.items():
+                    for line in move.lines:
+                        if line.origin in origin.lines:
+                            to_write.extend(([line], {'origin': origin}))
+                if to_write:
+                    MoveLine.write(*to_write)
+        StatementLine.write(lines, {'move': None})
+        statements = []
+        for origin in origins:
+            if origin.statement.state != 'draft':
+                statements.append(origin.statements)
+        if statements:
+            Statement.draft(statements)
+
+    @classmethod
+    def delete(cls, origins):
+        raise UserError(gettext('account_statement_enable_banking.'
+                'msg_no_allow_delete_only_cancel'))
 
 
 class Journal(metaclass=PoolMeta):
@@ -290,8 +396,8 @@ class Journal(metaclass=PoolMeta):
         })
 
     @classmethod
-    @ModelView.button_action(
-        'account_statement_enable_banking.act_enable_banking_synchronize_statement')
+    @ModelView.button_action('account_statement_enable_banking.'
+        'act_enable_banking_synchronize_statement')
     def synchronize_statement_enable_banking(cls, journals):
         pass
 
@@ -323,7 +429,8 @@ class Journal(metaclass=PoolMeta):
                 break
         if not account_id:
             raise UserError(
-                gettext('account_statement_enable_banking.msg_account_not_found',
+                gettext('account_statement_enable_banking.'
+                    'msg_account_not_found',
                     account=bank_numbers,
                     bank=eb_session.bank.party.name))
 
@@ -331,7 +438,7 @@ class Journal(metaclass=PoolMeta):
         base_headers = get_base_header()
         query = {
             "date_from": (datetime.now(timezone.utc) - timedelta(
-                days=ebconfig.offset)).date().isoformat(),}
+                    days=ebconfig.offset)).date().isoformat()}
 
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
@@ -351,21 +458,27 @@ class Journal(metaclass=PoolMeta):
             if continuation_key:
                 query["continuation_key"] = continuation_key
 
-            r = requests.get(f"{config.get('enable_banking', 'api_origin')}/accounts/{account_id}/transactions",
-                params=query, headers=base_headers,)
+            r = requests.get(
+                f"{config.get('enable_banking', 'api_origin')}"
+                f"/accounts/{account_id}/transactions",
+                params=query, headers=base_headers)
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
                 for transaction in response['transactions']:
-                    if transaction['transaction_amount']['currency'] != self.currency.code:
+                    if (transaction['transaction_amount']['currency'] !=
+                            self.currency.code):
                         raise UserError(gettext(
-                            'account_statement_enable_banking.msg_currency_not_match'))
+                                'account_statement_enable_banking.'
+                                'msg_currency_not_match'))
                     found_statement_origin = StatementOrigin.search([
-                        ('entry_reference', '=', transaction['entry_reference']),
-                    ])
+                        ('entry_reference', '=',
+                            transaction['entry_reference']),
+                        ])
                     if found_statement_origin:
                         continue
                     statement_origin = StatementOrigin()
+                    statement_origin.state = 'registered'
                     statement_origin.statement = statement
                     statement_origin.company = self.company
                     statement_origin.currency = self.currency
@@ -374,7 +487,8 @@ class Journal(metaclass=PoolMeta):
                     if (transaction['credit_debit_indicator'] and
                             transaction['credit_debit_indicator'] == 'DBIT'):
                         statement_origin.amount = -statement_origin.amount
-                    statement_origin.entry_reference = transaction['entry_reference']
+                    statement_origin.entry_reference = transaction[
+                        'entry_reference']
                     statement_origin.date = datetime.strptime(
                         transaction[ebconfig.date_field], '%Y-%m-%d')
                     information_dict = {}
@@ -385,12 +499,14 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
                 if not continuation_key:
-                    statement.end_balance = transaction['eb_balance_after_transaction']
+                    statement.end_balance = transaction[
+                        'eb_balance_after_transaction']
                     statement.save()
                     break
             else:
                 raise UserError(
-                    gettext('account_statement_enable_banking.msg_error_get_statements',
+                    gettext('account_statement_enable_banking.'
+                        'msg_error_get_statements',
                         error=str(r.status_code),
                         error_message=str(r.text)))
         StatementOrigin.save(to_save)
@@ -413,13 +529,15 @@ class SynchronizeStatementEnableBanking(Wizard):
     __name__ = 'enable_banking.synchronize_statement'
 
     start = StateView('enable_banking.synchronize_statement.start',
-        'account_statement_enable_banking.enable_banking_synchronize_statement_start_form',
+        'account_statement_enable_banking.'
+        'enable_banking_synchronize_statement_start_form',
         [
             Button('Cancel', 'end', 'tryton-cancel'),
             Button('OK', 'check_session', 'tryton-ok', default=True),
         ])
     check_session = StateTransition()
-    create_session = StateAction('account_statement_enable_banking.url_session')
+    create_session = StateAction(
+        'account_statement_enable_banking.url_session')
     sync_statements = StateTransition()
 
     def transition_check_session(self):
@@ -430,18 +548,21 @@ class SynchronizeStatementEnableBanking(Wizard):
 
         journal = Journal(Transaction().context['active_id'])
         if not journal.bank_account:
-            raise UserError(gettext('account_statement_enable_banking.msg_no_bank_account'))
+            raise UserError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
 
         eb_sessions = EBSession.search([
             ('company', '=', journal.company.id),
             ('bank', '=', journal.bank_account.bank.id)], limit=1)
         if eb_sessions:
-            # We need to check the date and if we have the field session, if not
-            # the session was not created correctly and need to be deleted
+            # We need to check the date and if we have the field session, if
+            # not the session was not created correctly and need to be deleted
             eb_session = eb_sessions[0]
             if eb_session.session:
                 session = eval(eb_session.session)
-                r = requests.get(f"{config.get('enable_banking', 'api_origin')}/sessions/{session['session_id']}",
+                r = requests.get(
+                    f"{config.get('enable_banking', 'api_origin')}"
+                    f"/sessions/{session['session_id']}",
                     headers=base_headers)
                 if r.status_code == 200:
                     session = r.json()
@@ -462,11 +583,14 @@ class SynchronizeStatementEnableBanking(Wizard):
         if journal.bank_account.bank.party.addresses:
             country = journal.bank_account.bank.party.addresses[0].country.code
         else:
-            raise UserError(gettext('account_statement_enable_banking.msg_no_country'))
+            raise UserError(gettext('account_statement_enable_banking.'
+                    'msg_no_country'))
 
         # We fill the aspsp name and country using the bank account
         base_headers = get_base_header()
-        r = requests.get(f"{config.get('enable_banking', 'api_origin')}/aspsps", headers=base_headers)
+        r = requests.get(
+            f"{config.get('enable_banking', 'api_origin')}/aspsps",
+            headers=base_headers)
         aspsp_found = False
         for aspsp in r.json()["aspsps"]:
             if aspsp["country"] != country:
@@ -513,7 +637,8 @@ class SynchronizeStatementEnableBanking(Wizard):
             action['url'] = r.json()['url']
         else:
             raise UserError(
-                gettext('account_statement_enable_banking.msg_error_create_session',
+                gettext('account_statement_enable_banking.'
+                    'msg_error_create_session',
                     error_code=r.status_code,
                     error_message=r.text))
         return action, {}

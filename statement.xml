@@ -4,27 +4,84 @@ this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
         <!-- account.statement.origin -->
-        <record model="ir.action.act_window" id="act_statement_form">
+        <record model="ir.action.act_window" id="act_statement_origin_form">
             <field name="name">Statements Origin</field>
             <field name="res_model">account.statement.origin</field>
         </record>
+        <record model="ir.action.act_window.view" id="act_statement_origin_form_view1">
+            <field name="sequence" eval="10"/>
+            <field name="view" ref="account_statement.statement_origin_view_tree"/>
+            <field name="act_window" ref="act_statement_origin_form"/>
+        </record>
+        <record model="ir.action.act_window.view" id="act_statement_origin_form_view2">
+            <field name="sequence" eval="20"/>
+            <field name="view" ref="account_statement.statement_origin_view_form"/>
+            <field name="act_window" ref="act_statement_origin_form"/>
+        </record>
+        <record model="ir.action.act_window.domain"
+            id="act_statement_origin_form_domain_registered">
+            <field name="name">Registered</field>
+            <field name="sequence" eval="20"/>
+            <field name="domain" eval="[('state', '=', 'registered')]" pyson="1"/>
+            <field name="count" eval="True"/>
+            <field name="act_window" ref="act_statement_origin_form"/>
+        </record>
+        <record model="ir.action.act_window.domain"
+            id="act_statement_origin_form_domain_posted">
+            <field name="name">Posted</field>
+            <field name="sequence" eval="30"/>
+            <field name="domain" eval="[('state', '=', 'posted')]" pyson="1"/>
+            <field name="act_window" ref="act_statement_origin_form"/>
+        </record>
+        <record model="ir.action.act_window.domain"
+            id="act_statement_origin_form_domain_all">
+            <field name="name">All</field>
+            <field name="sequence" eval="9999"/>
+            <field name="domain"></field>
+            <field name="act_window" ref="act_statement_origin_form"/>
+        </record>
         <menuitem
             parent="account_statement.menu_statements"
-            action="act_statement_form"
+            action="act_statement_origin_form"
             sequence="10"
             id="menu_statement_form"
             icon="tryton-list"/>
 
-        <record model="ir.model.button" id="reconcile_statement_origin_button">
-            <field name="name">reconcile</field>
-            <field name="string">Reconcile</field>
-            <field name="model" search="[('model', '=', 'account.statement.origin')]"/>
+        <record model="ir.model.button" id="statement_origin_register_button">
+            <field name="name">register</field>
+            <field name="string">Register</field>
+            <field name="model"
+                search="[('model', '=', 'account.statement.origin')]"/>
+        </record>
+        <record model="ir.model.button-res.group"
+            id="register_button_group_account">
+            <field name="button" ref="statement_origin_register_button"/>
+            <field name="group" ref="account.group_account"/>
         </record>
 
-        <!-- TODO: add group permission? -->
-        <record model="ir.model.button-res.group" id="reconcile_statement_origin_button_group_account">
-            <field name="button" ref="reconcile_statement_origin_button"/>
+        <record model="ir.model.button" id="statement_origin_post_button">
+            <field name="name">post</field>
+            <field name="string">Post</field>
+            <field name="confirm">Are you sure you want to post the origin?</field>
+            <field name="model"
+                search="[('model', '=', 'account.statement.origin')]"/>
+        </record>
+        <record model="ir.model.button-res.group"
+            id="statement_origin_post_button_group_account">
+            <field name="button" ref="statement_origin_post_button"/>
             <field name="group" ref="account.group_account"/>
+        </record>
+
+        <record model="ir.model.button" id="statement_origin_cancel_button">
+            <field name="name">cancel</field>
+            <field name="string">Cancel</field>
+            <field name="model"
+                search="[('model', '=', 'account.statement.origin')]"/>
+        </record>
+        <record model="ir.model.button-res.group"
+            id="statement_origin_cancel_button_group_account">
+            <field name="button" ref="statement_origin_cancel_button"/>
+            <field name="group" ref="account.group_account_admin"/>
         </record>
 
         <record model="ir.ui.view" id="statement_origin_view_form">
@@ -184,7 +241,7 @@ this repository contains the full copyright notices and license terms. -->
             <field name="name">Move Lines</field>
             <field name="res_model">account.move.line</field>
             <field name="domain"
-                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ('origin.origin.id', '=', Eval('active_id'), 'account.statement.line'), ('origin.origin.id', 'in', Eval('active_ids'), 'account.statement.line'))]"
+                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ['OR', ('origin.origin.id', '=', Eval('active_id'), 'account.statement.line'), ('origin.id', '=', Eval('active_id'), 'account.statement.origin')], ['OR', ('origin.origin.id', 'in', Eval('active_ids'), 'account.statement.line'), ('origin.id', 'in', Eval('active_ids'), 'account.statement.origin')])]"
                 pyson="1"/>
         </record>
         <record model="ir.action.keyword" id="act_origin_move_lines_form_keyword1">
@@ -193,11 +250,12 @@ this repository contains the full copyright notices and license terms. -->
             <field name="action" ref="act_origin_move_lines_form"/>
         </record>
 
+        <!--
         <record model="ir.action.act_window" id="act_origin_moves_form">
             <field name="name">Moves</field>
             <field name="res_model">account.move</field>
             <field name="domain"
-                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ('origin.origins.id', '=', Eval('active_id'), 'account.statement'), ('origin.origins.id', 'in', Eval('active_ids'), 'account.statement'))]"
+                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ['OR', ('origin.origins.id', '=', Eval('active_id'), 'account.statement'), ('origin.id', '=', Eval('active_id'), 'account.statement.origin')], ['OR', ('origin.origins.id', 'in', Eval('active_ids'), 'account.statement'), ('origin.id', 'in', Eval('active_ids'), 'account.statement.origin')])]"
                 pyson="1"/>
         </record>
         <record model="ir.action.keyword" id="act_origin_moves_form_keyword1">
@@ -205,5 +263,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="model">account.statement.origin,-1</field>
             <field name="action" ref="act_origin_moves_form"/>
         </record>
+        -->
     </data>
 </tryton>

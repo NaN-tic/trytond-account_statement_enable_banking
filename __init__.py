@@ -9,6 +9,7 @@ from . import routes
 
 def register():
     Pool.register(
+        account.Move,
         account.MoveLine,
         statement.Line,
         statement.Origin,

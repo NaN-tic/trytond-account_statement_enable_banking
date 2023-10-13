@@ -1,6 +1,15 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 from trytond.pool import PoolMeta
+from trytond.transaction import Transaction
+
+
+class Move(metaclass=PoolMeta):
+    __name__ = 'account.move'
+
+    @classmethod
+    def _get_origin(cls):
+        return super()._get_origin() + ['account.statement.origin']
 
 
 class MoveLine(metaclass=PoolMeta):
@@ -9,3 +18,14 @@ class MoveLine(metaclass=PoolMeta):
     @classmethod
     def _get_origin(cls):
         return super()._get_origin() + ['account.statement.origin']
+
+    @classmethod
+    def check_modify(cls, *args, **kwargs):
+        context = Transaction().context
+        print("===1", context)
+        if Transaction().context.get('from_account_statement_origin',
+                False):
+            print("===2")
+            return
+        print("===3")
+        return super().check_modify(*args, **kwargs)
