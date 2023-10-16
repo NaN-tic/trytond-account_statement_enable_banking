@@ -22,10 +22,7 @@ class MoveLine(metaclass=PoolMeta):
     @classmethod
     def check_modify(cls, *args, **kwargs):
         context = Transaction().context
-        print("===1", context)
         if Transaction().context.get('from_account_statement_origin',
                 False):
-            print("===2")
             return
-        print("===3")
         return super().check_modify(*args, **kwargs)

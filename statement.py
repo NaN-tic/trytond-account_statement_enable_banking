@@ -53,26 +53,28 @@ class Line(metaclass=PoolMeta):
 
         for line in lines:
             move = line.move
-            to_unreconcile = [x.reconciliation for x in move.lines
-                if x.reconciliation]
-            if to_unreconcile:
-                to_unreconcile = Reconciliation.browse([
-                        x.id for x in to_unreconcile])
-                Reconciliation.delete(to_unreconcile)
+            if move:
+                to_unreconcile = [x.reconciliation for x in move.lines
+                    if x.reconciliation]
+                if to_unreconcile:
+                    to_unreconcile = Reconciliation.browse([
+                            x.id for x in to_unreconcile])
+                    Reconciliation.delete(to_unreconcile)
 
-            # On possible realted invoices, need to unlink the payment lines
-            to_unpay = [x for x in move.lines if x.invoice_payment]
-            if to_unpay:
-                #to_unpay = [MoveLine(x.id) for x in to_unpay]
-                Invoice.remove_payment_lines(to_unpay)
+                # On possible realted invoices, need to unlink the payment
+                # lines
+                to_unpay = [x for x in move.lines if x.invoice_payment]
+                if to_unpay:
+                    #to_unpay = [MoveLine(x.id) for x in to_unpay]
+                    Invoice.remove_payment_lines(to_unpay)
 
-            cancel_move = move.cancel()
-            cancel_move.origin = line.origin
-            Move.post([cancel_move])
-            mlines = [l for m in [move, cancel_move]
-                for l in m.lines if l.account.reconcile]
-            if mlines:
-                MoveLine.reconcile(mlines)
+                cancel_move = move.cancel()
+                cancel_move.origin = line.origin
+                Move.post([cancel_move])
+                mlines = [l for m in [move, cancel_move]
+                    for l in m.lines if l.account.reconcile]
+                if mlines:
+                    MoveLine.reconcile(mlines)
 
     @classmethod
     def delete(cls, lines):
@@ -152,13 +154,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                     readonly=False, instantiate=0, fresh_session=True),
                 })
 
-    def get_rec_name(self, name):
-        return "%s - %s" % (self.statement.rec_name, self.id)
-
-    @classmethod
-    def search_rec_name(cls, name, clause):
-        return [('statement.rec_name',) + tuple(clause[1:])]
-
     @fields.depends('statement', 'lines')
     def on_change_lines(self):
         if not self.statement.journal or not self.statement.company:
@@ -167,10 +162,14 @@ class Origin(Workflow, metaclass=PoolMeta):
             return
 
         invoices = set()
+        payments = set()
         for line in self.lines:
             if (line.invoice
                     and line.invoice.currency == self.company.currency):
                 invoices.add(line.invoice)
+            if (line.payment
+                    and line.payment.currency == self.company.currency):
+                payments.add(line.payment)
         invoice_id2amount_to_pay = {}
         for invoice in invoices:
             if invoice.type == 'out':
@@ -178,6 +177,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             else:
                 sign = 1
             invoice_id2amount_to_pay[invoice.id] = sign * invoice.amount_to_pay
+
+        payment_id2amount = (dict((x.id, x.amount) for x in payments)
+            if payments else {})
 
         lines = list(self.lines)
         for line in lines:
@@ -195,6 +197,18 @@ class Origin(Workflow, metaclass=PoolMeta):
                             line.amount + amount_to_pay)
                 else:
                     line.invoice = None
+            if (line.payment
+                    and line.id
+                    and line.payment.id in payment_id2amount):
+                amount = payment_id2amount[line.payment.id]
+                if amount and getattr(line, 'amount', None):
+                    if abs(line.amount) > abs(amount):
+                        line.amount = amount.copy_sign(line.amount)
+                    else:
+                        payment_id2amount[line.payment.id] = (
+                            line.amount + amount)
+                else:
+                    line.payment = None
         self.lines = lines
 
     def validate_amount(self):
@@ -499,8 +513,8 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
                 if not continuation_key:
-                    statement.end_balance = transaction[
-                        'eb_balance_after_transaction']
+                    statement.end_balance = transaction.get(
+                        'eb_balance_after_transaction', 0)
                     statement.save()
                     break
             else:

@@ -330,21 +330,17 @@ msgstr ""
 "L'orígen no es s'ha pogut conciliar perquè el total de les línies "
 "\"%(line_amount)s\" i el de l'origen \"%(origin_amount)s\" són diferents."
 
-msgctxt "model:ir.model.button,confirm:statement_origin_post_button"
-msgid "Are you sure you want to post the origin?"
-msgstr "Esteu segur que voleu comptabilitzar l'origen?"
-
 msgctxt "model:ir.model.button,string:statement_origin_cancel_button"
 msgid "Cancel"
-msgstr "Cancel·lar"
+msgstr "Cancel·la"
 
 msgctxt "model:ir.model.button,string:statement_origin_post_button"
 msgid "Post"
-msgstr "Comptabilitzar"
+msgstr "Comptabilitza"
 
 msgctxt "model:ir.model.button,string:statement_origin_register_button"
 msgid "Register"
-msgstr "Registrar"
+msgstr "Registra"
 
 msgctxt ""
 "model:ir.model.button,string:synchronize_statement_enable_banking_button"
