@@ -8,7 +8,7 @@ from itertools import groupby
 
 from trytond.model import Workflow, ModelView, fields
 from trytond.pool import Pool, PoolMeta
-from trytond.pyson import Eval
+from trytond.pyson import Eval, Id
 from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
@@ -127,8 +127,9 @@ class Origin(Workflow, metaclass=PoolMeta):
     @classmethod
     def __setup__(cls):
         super().__setup__()
+        cls.number.search_unaccented = False
         cls._order.insert(0, ('date', 'ASC'))
-        cls._order.insert(1, ('statement', 'ASC'))
+        cls._order.insert(1, ('number', 'ASC'))
         cls._transitions |= set((
                 ('registered', 'posted'),
                 ('registered', 'cancelled'),
@@ -401,6 +402,14 @@ class Journal(metaclass=PoolMeta):
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
     synchronize_journal = fields.Boolean("Synchronize Journal")
+    account_statement_origin_sequence = fields.Many2One(
+        'ir.sequence', "Account Statement Origin Sequence", required=True,
+        domain=[
+            ('sequence_type', '=',
+                Id('account_statement_enable_banking',
+                    'sequence_type_account_statement_origin')),
+            ('company', '=', Eval('company')),
+            ])
 
     @classmethod
     def __setup__(cls):
@@ -408,6 +417,22 @@ class Journal(metaclass=PoolMeta):
         cls._buttons.update({
             'synchronize_statement_enable_banking': {},
         })
+
+    @classmethod
+    def set_number(cls, origins):
+        '''
+        Fill the number field with the statement origin sequence
+        '''
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+
+        for origin in origins:
+            if origin.number:
+                continue
+            origin.number = (origin.statement.journal.
+                account_statement_origin_sequence
+                if origin.statement and origin.statement.journal else None)
+        StatementOrigin.save(origins)
 
     @classmethod
     @ModelView.button_action('account_statement_enable_banking.'
@@ -468,6 +493,7 @@ class Journal(metaclass=PoolMeta):
         # to do a while loop to get all the transactions
         continuation_key = None
         to_save = []
+        total_amount = 0
         while True:
             if continuation_key:
                 query["continuation_key"] = continuation_key
@@ -501,6 +527,7 @@ class Journal(metaclass=PoolMeta):
                     if (transaction['credit_debit_indicator'] and
                             transaction['credit_debit_indicator'] == 'DBIT'):
                         statement_origin.amount = -statement_origin.amount
+                    total_amount += statement_origin.amount
                     statement_origin.entry_reference = transaction[
                         'entry_reference']
                     statement_origin.date = datetime.strptime(
@@ -513,8 +540,7 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
                 if not continuation_key:
-                    statement.end_balance = transaction.get(
-                        'eb_balance_after_transaction', 0)
+                    statement.end_balance = total_amount
                     statement.save()
                     break
             else:
@@ -523,7 +549,10 @@ class Journal(metaclass=PoolMeta):
                         'msg_error_get_statements',
                         error=str(r.status_code),
                         error_message=str(r.text)))
-        StatementOrigin.save(to_save)
+
+        to_save.sort(key=lambda x: x.date)
+        StatementOrigin.set_number(to_save)
+
 
     @classmethod
     def synchronize_enable_banking_journals(cls):

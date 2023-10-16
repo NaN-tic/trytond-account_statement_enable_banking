@@ -9,6 +9,8 @@ this repository contains the full copyright notices and license terms. -->
         <field name="aspsp_country"/>
         <label name="synchronize_journal"/>
         <field name="synchronize_journal"/>
+        <label name="account_statement_origin_sequence"/>
+        <field name="account_statement_origin_sequence"/>
         <button name="synchronize_statement_enable_banking" colspan="4"/>
     </xpath>
 </data>

@@ -2,6 +2,10 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
+msgctxt "field:account.statement.journal,account_statement_origin_sequence:"
+msgid "Account Statement Origin Sequence"
+msgstr "Sequencia de Origen Extracto"
+
 msgctxt "field:account.statement.journal,aspsp_country:"
 msgid "ASPSP Country"
 msgstr "País ASPSP"
@@ -202,8 +206,8 @@ msgid "Move Lines"
 msgstr "Apuntes"
 
 msgctxt "model:ir.action,name:act_statement_origin_form"
-msgid "Statements Origin"
-msgstr "Origen líneas de extracto"
+msgid "Statement Origins"
+msgstr "Origenes de extracto"
 
 msgctxt "model:ir.action,name:report_session_ko"
 msgid "Enable Banking Session KO"
@@ -352,6 +356,10 @@ msgctxt ""
 msgid "Test Connection"
 msgstr "Prueba de conexión"
 
+msgctxt "model:ir.sequence.type,name:sequence_type_account_statement_origin"
+msgid "Account Statement Origin"
+msgstr "Origen Extracto"
+
 msgctxt "model:ir.ui.menu,name:menu_enable_banking"
 msgid "Enable Banking"
 msgstr "Enable Banking"
@@ -365,8 +373,8 @@ msgid "Enable Banking Session"
 msgstr "Sesión Enable Banking"
 
 msgctxt "model:ir.ui.menu,name:menu_statement_form"
-msgid "Statements Origin"
-msgstr "Origen líneas de extracto"
+msgid "Statement Origins"
+msgstr "Origenes de extracto"
 
 msgctxt "report:enable_banking.session_ko:"
 msgid "Please. Try to create the session again later."
