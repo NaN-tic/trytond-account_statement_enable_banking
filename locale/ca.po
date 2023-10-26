@@ -18,11 +18,71 @@ msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
 msgstr "Sincronitzar diari"
 
+msgctxt "field:account.statement.line,suggested_line:"
+msgid "Suggested Lines"
+msgstr "Línies suggerides"
+
 msgctxt "field:account.statement.origin,entry_reference:"
 msgid "Entry Reference"
 msgstr "Referència d'entrada"
 
 msgctxt "field:account.statement.origin,state:"
+msgid "State"
+msgstr "Estat"
+
+msgctxt "field:account.statement.origin,suggested_lines:"
+msgid "Suggested Lines"
+msgstr "Línies suggerides"
+
+msgctxt "field:account.statement.origin,suggested_lines_tree:"
+msgid "Suggested Lines"
+msgstr "Línies suggerides"
+
+msgctxt "field:account.statement.origin.suggested.line,account:"
+msgid "Account"
+msgstr "Compte"
+
+msgctxt "field:account.statement.origin.suggested.line,amount:"
+msgid "Amount"
+msgstr "Import"
+
+msgctxt "field:account.statement.origin.suggested.line,childs:"
+msgid "Children"
+msgstr "Fills"
+
+msgctxt "field:account.statement.origin.suggested.line,company:"
+msgid "Company"
+msgstr "Companyia"
+
+msgctxt "field:account.statement.origin.suggested.line,currency:"
+msgid "Currency"
+msgstr "Moneda"
+
+msgctxt "field:account.statement.origin.suggested.line,date:"
+msgid "Date"
+msgstr "Data"
+
+msgctxt "field:account.statement.origin.suggested.line,name:"
+msgid "Name"
+msgstr "Nom"
+
+msgctxt "field:account.statement.origin.suggested.line,origin:"
+msgid "Origin"
+msgstr "Origen"
+
+msgctxt "field:account.statement.origin.suggested.line,parent:"
+msgid "Parent"
+msgstr "Pare"
+
+msgctxt "field:account.statement.origin.suggested.line,party:"
+msgid "Party"
+msgstr "Tercer"
+
+msgctxt "field:account.statement.origin.suggested.line,related_to:"
+msgid "Related To"
+msgstr "Relacionat amb"
+
+msgctxt "field:account.statement.origin.suggested.line,state:"
 msgid "State"
 msgstr "Estat"
 
@@ -173,6 +233,10 @@ msgctxt "model:account.statement.origin.information,string:eb_value_date"
 msgid "Value Date"
 msgstr "Data valor"
 
+msgctxt "model:account.statement.origin.suggested.line,name:"
+msgid "Account Statement Origin Suggested Line"
+msgstr "Línia Suggerida Origen Extracte"
+
 msgctxt "model:enable_banking.configuration,name:"
 msgid "Enable Banking Configuration"
 msgstr "Configuració Enable Banking"
@@ -188,6 +252,11 @@ msgstr "Sincronitza extractes a través d'Enable Banking Inici"
 msgctxt "model:ir.action,name:"
 msgid "Moves"
 msgstr "Assentaments"
+
+msgctxt ""
+"model:ir.action,name:act_account_statement_origin_suggested_line_view"
+msgid "Account Statement Origin Suggested Line"
+msgstr "Línia Suggerida Origen Extracte"
 
 msgctxt "model:ir.action,name:act_enable_banking_configuration_form"
 msgid "Enable Banking Configuration"
@@ -334,6 +403,27 @@ msgstr ""
 "L'orígen no es s'ha pogut conciliar perquè el total de les línies "
 "\"%(line_amount)s\" i el de l'origen \"%(origin_amount)s\" són diferents."
 
+msgctxt "model:ir.message,text:msg_suggested_line_related_to_statement_line"
+msgid ""
+"There is a suggested line relate to a statement line. Befeore make a new "
+"search, remove the statement line."
+msgstr ""
+"Hi ha una línia suggerida relacionada amb una línia d'extracte. Abans de "
+"fer una cerca nova, elimineu la línia d'extracte."
+
+msgctxt "model:ir.model.button,string:statement_line_multiple_invoices_button"
+msgid "Add Multiple Invoices"
+msgstr "Afegeix diverses factures"
+
+msgctxt ""
+"model:ir.model.button,string:statement_line_multiple_move_lines_button"
+msgid "Add Multiple Move Lines"
+msgstr "Afegeix diverses línies de moviment"
+
+msgctxt "model:ir.model.button,string:statement_line_multiple_payments_button"
+msgid "Add Multiple Payments"
+msgstr "Afegeix diversos pagaments"
+
 msgctxt "model:ir.model.button,string:statement_origin_cancel_button"
 msgid "Cancel"
 msgstr "Cancel·la"
@@ -345,6 +435,21 @@ msgstr "Comptabilitza"
 msgctxt "model:ir.model.button,string:statement_origin_register_button"
 msgid "Register"
 msgstr "Registra"
+
+msgctxt ""
+"model:ir.model.button,string:statement_origin_search_suggestions_button"
+msgid "Search Suggestions"
+msgstr "Cerca Suggeriments"
+
+msgctxt ""
+"model:ir.model.button,string:statement_origin_suggested_line_propose_button"
+msgid "Propose"
+msgstr "Proposa"
+
+msgctxt ""
+"model:ir.model.button,string:statement_origin_suggested_line_use_button"
+msgid "Use"
+msgstr "Usa"
 
 msgctxt ""
 "model:ir.model.button,string:synchronize_statement_enable_banking_button"
@@ -413,6 +518,14 @@ msgstr "Comptabilitzat"
 msgctxt "selection:account.statement.origin,state:"
 msgid "Registered"
 msgstr "Registrat"
+
+msgctxt "selection:account.statement.origin.suggested.line,state:"
+msgid "Proposed"
+msgstr "Proposat"
+
+msgctxt "selection:account.statement.origin.suggested.line,state:"
+msgid "Used"
+msgstr "Usat"
 
 msgctxt "selection:enable_banking.configuration,date_field:"
 msgid "Booking Date"

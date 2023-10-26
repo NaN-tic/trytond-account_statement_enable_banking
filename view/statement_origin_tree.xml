@@ -4,7 +4,8 @@ this repository contains the full copyright notices and license terms. -->
 <data>
     <xpath expr="/tree/field[@name='description']" position="after">
         <field name="state"/>
-        <button name="post" tree_invisible="1"/>
-        <button name="cancel" tree_invisible="1"/>
+        <button name="post"/>
+        <button name="cancel"/>
+        <button name="search_suggestions" tree_invisible="1"/>
     </xpath>
 </data>

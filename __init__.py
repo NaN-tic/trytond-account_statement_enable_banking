@@ -7,12 +7,14 @@ from . import statement
 from . import enable_banking
 from . import routes
 
+
 def register():
     Pool.register(
         account.Move,
         account.MoveLine,
         statement.Line,
         statement.Origin,
+        statement.OriginSuggestedLine,
         statement.Journal,
         statement.SynchronizeStatementEnableBankingStart,
         statement.Cron,
