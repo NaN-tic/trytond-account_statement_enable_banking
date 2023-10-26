@@ -7,7 +7,6 @@ from . import statement
 from . import enable_banking
 from . import routes
 
-
 def register():
     Pool.register(
         account.Move,
