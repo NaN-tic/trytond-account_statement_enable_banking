@@ -2,7 +2,29 @@
 <!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
 this repository contains the full copyright notices and license terms. -->
 <data>
-    <xpath expr="/form/field[@name='lines']" position="after">
-        <button name="reconcile"/>
+    <xpath expr="/form/field[@name='information']" position="replace"/>
+    <xpath expr="/form/field[@name='lines']" position="replace"/>
+    <xpath expr="/form" position="inside">
+        <group id="lines_information" colspan="4" col="4">
+            <group id="insert_lines" yfill="1" yexpand="1" colspan="2" col="3">
+                <!--
+                <button name="multiple_invoices"/>
+                <button name="multiple_payments"/>
+                <button name="multiple_move_lines"/>
+                -->
+                <field name="lines" colspan="3" height="250"
+                view_ids="account_statement.statement_line_view_tree_editable"/>
+                <field name="suggested_lines_tree" colspan="3" height="250"/>
+            </group>
+            <field name="information" colspan="2"/>
+        </group>
+        <group id="status" colspan="4" col="-1">
+            <label name="state"/>
+            <field name="state"/>
+            <button name="cancel" icon="tryton-cancel"/>
+            <button name="register" icon="tryton-forward"/>
+            <button name="search_suggestions" icon="tryton-search"/>
+            <button name="post" icon="tryton-ok"/>
+        </group>
     </xpath>
 </data>
