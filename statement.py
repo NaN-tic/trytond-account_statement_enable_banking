@@ -255,7 +255,8 @@ class Origin(Workflow, metaclass=PoolMeta):
     @fields.depends('statement', 'lines', 'company',
         '_parent_statement.company', '_parent_statement.journal')
     def on_change_lines(self):
-        if not self.statement.journal or not self.statement.company:
+        if (not self.statement or not self.statement.journal
+                or not self.statement.company):
             return
         if self.statement.journal.currency != self.statement.company.currency:
             return
