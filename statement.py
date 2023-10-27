@@ -151,7 +151,6 @@ class Line(metaclass=PoolMeta):
         related to the statement and the origin, to have an hstory.
         '''
         pool = Pool()
-        Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
         Warning = pool.get('res.user.warning')
@@ -253,7 +252,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         return [x.id for x in suggested_lines if x.state == 'proposed']
 
-    @fields.depends('statement', 'lines')
+    @fields.depends('statement', 'lines', 'company',
+        '_parent_statement.company', '_parent_statement.journal')
     def on_change_lines(self):
         if not self.statement.journal or not self.statement.company:
             return
