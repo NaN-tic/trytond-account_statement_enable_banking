@@ -133,7 +133,6 @@ class Line(metaclass=PoolMeta):
                 # lines
                 to_unpay = [x for x in move.lines if x.invoice_payment]
                 if to_unpay:
-                    #to_unpay = [MoveLine(x.id) for x in to_unpay]
                     Invoice.remove_payment_lines(to_unpay)
 
                 cancel_move = move.cancel()
@@ -253,7 +252,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         return [x.id for x in suggested_lines if x.state == 'proposed']
 
-    @fields.depends('statement', 'lines')
+    @fields.depends('statement', 'lines', 'company',
+        '_parent_statement.company' '_parent_statement.journal')
     def on_change_lines(self):
         if not self.statement.journal or not self.statement.company:
             return
@@ -333,7 +333,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Lang = pool.get('ir.lang')
 
-        amount = sum(l.amount for l in self.lines)
+        amount = sum(x.amount for x in self.lines)
         if amount != self.amount:
             lang = Lang.get()
             total_amount = lang.currency(
@@ -357,8 +357,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         paid_cancelled_invoice_lines = []
         for origin in origins:
             origin.validate_amount()
-            paid_cancelled_invoice_lines.extend(l for l in origin.lines
-                if l.invoice and l.invoice.state in {'cancelled', 'paid'})
+            paid_cancelled_invoice_lines.extend(x for x in origin.lines
+                if x.invoice and x.invoice.state in {'cancelled', 'paid'})
 
         if paid_cancelled_invoice_lines:
             warning_key = Warning.format(
@@ -419,7 +419,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             move_line.move = move
             move_lines.append((move_line, None))
 
-        MoveLine.save([l for l, _ in move_lines])
+        MoveLine.save([x for x, _ in move_lines])
         StatementLine.reconcile(move_lines)
         return moves
 
@@ -436,13 +436,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
-        Move = pool.get('account.move')
-        MoveLine = pool.get('account.move.line')
 
         cls.validate_origin(origins)
         cls.create_moves(origins)
 
-        lines = [l for o in origins for l in o.lines]
+        lines = [x for o in origins for x in o.lines]
         # It's an awfull hack to sate the state, but it's needed to ensure the
         # Error of statement state in Move.post is not applied when try to
         # concile and individual origin. For this, need the state == 'posted'.
@@ -657,7 +655,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 lines_by_origin = {}
                 for line in party_lines:
                     amount = line.debit - line.credit
-                    if line.move_origin and line.move_origin in lines_by_origin:
+                    if (line.move_origin
+                            and line.move_origin in lines_by_origin):
                         lines_by_origin[line.move_origin]['amount'] += amount
                         lines_by_origin[line.move_origin]['lines'].append(line)
                     elif line.move_origin:
@@ -789,7 +788,6 @@ class Origin(Workflow, metaclass=PoolMeta):
     def _search_suggested_reconciliation_payment(self, exclude=None):
         pool = Pool()
         Payment = pool.get('account.payment')
-        Group = pool.get('account.payment.group')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
         suggesteds = []
@@ -800,7 +798,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         if pending_amount == _ZERO:
             return suggesteds, suggested_used
 
-        kind = 'receivable' if pending_amount > _ZERO else 'payable'
         domain = self._search_payment_reconciliation_domain()
 
         payment_groups = {
@@ -1087,7 +1084,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             if not suggested_use:
                 suggested_use = suggest_use
 
-            # Search by any other possibiity found in the Origin text information
+            # Search by any other possibiity found in the Origin text
+            # information
             suggest_lines, suggest_use = (
                 self._search_suggested_reconciliation_by_text())
             suggesteds.extend(suggest_lines)
