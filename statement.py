@@ -1,4 +1,4 @@
-# This file is part of Tryton.  The COPYRIGHT file at the top level of
+# This file is part of Tryton.  The COPYRIGHT file at the top level oforigin.second_currency
 # this repository contains the full copyright notices and license terms.
 import requests
 from datetime import datetime, timezone, timedelta
@@ -18,7 +18,7 @@ from trytond.transaction import Transaction
 from trytond.config import config
 from .common import get_base_header
 from trytond.i18n import gettext
-from trytond.exceptions import UserError
+from trytond.model.exceptions import AccessError
 from trytond.modules.account_statement.exceptions import (
     StatementValidateError, StatementValidateWarning)
 from trytond.modules.currency.fields import Monetary
@@ -40,11 +40,6 @@ class Statement(metaclass=PoolMeta):
 
         super().cancel(statements)
 
-    @classmethod
-    def delete(cls, statements):
-        raise UserError(gettext('account_statement_enable_banking.'
-                'msg_no_allow_delete_only_cancel'))
-
 
 class Line(metaclass=PoolMeta):
     __name__ = 'account.statement.line'
@@ -55,20 +50,6 @@ class Line(metaclass=PoolMeta):
     @classmethod
     def __setup__(cls):
         super().__setup__()
-
-        # Temporally remove the currency limitation for the invoice selction
-        # in the related_to field. Working thor the Origins, an invoice with
-        # different currency is not a problem to use in the statements and
-        # reconcile.
-        domain = []
-        for key, values in cls.related_to.domain.items():
-            if key == 'account.invoice':
-                for dom in values:
-                    if isinstance(dom, tuple) and 'currency' in dom[0]:
-                        continue
-                    domain.append(dom)
-        if domain:
-            cls.related_to.domain['account.invoice'] = domain
 
         cls.related_to.domain['account.move.line'] = [
             ('company', '=', Eval('company', -1)),
@@ -88,6 +69,16 @@ class Line(metaclass=PoolMeta):
     @classmethod
     def _get_relations(cls):
         return super()._get_relations() + ['account.move.line']
+
+    @fields.depends('origin', '_parent_origin.second_currency')
+    def on_change_with_second_currency(self, name=None):
+        if self.origin and self.origin.second_currency:
+            return self.origin.second_currency
+
+    @fields.depends('origin', '_parent_origin.amount_second_currency')
+    def on_change_with_amount_second_currency(self, name=None):
+        if self.origin and self.origin.amount_second_currency:
+            return self.origin.amount_second_currency
 
     @property
     @fields.depends('related_to')
@@ -144,7 +135,7 @@ class Line(metaclass=PoolMeta):
                     MoveLine.reconcile(mlines)
 
     @classmethod
-    def delete(cls, lines):
+    def cancel_lines(cls, lines):
         '''As is needed save an history fo all movements, do not remove the
         possible move related. Create the cancelation move and leave they
         related to the statement and the origin, to have an hstory.
@@ -183,7 +174,15 @@ class Line(metaclass=PoolMeta):
         if suggested_lines:
             SuggestedLine.propose(suggested_lines)
 
+    @classmethod
+    def delete(cls, lines):
+        cls.cancel_lines(lines)
         super().delete(lines)
+
+    @classmethod
+    def delete_move(cls, lines):
+        cls.cancel_lines(lines)
+        super().delete_move(lines)
 
 
 class Origin(Workflow, metaclass=PoolMeta):
@@ -499,12 +498,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if to_write:
                     MoveLine.write(*to_write)
         StatementLine.write(lines, {'move': None})
-        statements = []
-        for origin in origins:
-            if origin.statement.state != 'draft':
-                statements.append(origin.statements)
-        if statements:
-            Statement.draft(statements)
 
     def check_key_value_exists(self, key, value, dict_list):
         """Checks if a key exists and have a specifica value in a list of
@@ -559,6 +552,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'related_to': related_to,
                 'account': line.account,
                 'amount': amount_line,
+                'second_currency': self.second_currency,
                 'state': 'proposed'
                 }
             to_create.append(values)
@@ -772,6 +766,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'date': group.planned_date,
                 'related_to': group,
                 'amount': pending_amount,
+                'second_currency': self.second_currency,
                 'state': 'proposed'
                 }
             suggesteds.append(values)
@@ -842,6 +837,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                         'related_to': payment,
                         'account': payment.account,
                         'amount': payment.amount * sign,
+                        'second_currency': self.second_currency,
                         'state': 'proposed'
                         }
                     if not parent:
@@ -869,6 +865,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                             'related_to': payment,
                             'account': payment.account,
                             'amount': payment.amount * sign,
+                            'second_currency': self.second_currency,
                             'state': 'proposed'
                             }
                         if not parent:
@@ -918,6 +915,68 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         return suggesteds, suggested_used
 
+    def _search_suggested_reconciliation_by_text(self):
+        """
+        Search by the text in Origin information field
+        """
+        pool = Pool()
+        Account = pool.get('account.account')
+        Config = pool.get('account.configuration')
+        config = Config(1)
+
+        suggesteds = []
+        suggested_used = None
+
+        pending_amount = self.pending_amount
+        if pending_amount == _ZERO:
+            return suggesteds, suggested_used
+
+        remittance_information = self.information.get(
+            'remittance_information', None)
+
+        # TODO: If nothing is found search for some special chars:
+        #   - TARJ --> move line account 629.0
+        #   - COMISION DIVISA NO EURI --> move line account 626.0
+        #   - LIQUIDACION GESTION COBRO --> move line account 629.0
+        #   - TGSS REGIMEN GENERAL
+        # PROVE OF CONCEPT
+        texts = {
+            'TARJ': '629.0',
+            'COMISON': '626.0',
+            'GESTION': '629.0',
+            'IMPUESTO': '475%',
+            }
+        for text, code in texts.items():
+            domain = self._search_account_reconciliation_domain()
+            if '.' in code:
+                code_len = len(code) - 1
+                digits = config.default_account_code_digits - code_len
+                code = code.replace('.', ''.zfill(digits))
+            domain.append(('code', 'like', code))
+            accounts = Account.search(domain)
+            if not accounts:
+                continue
+            account = accounts[0]
+            # TODO: unaccent!
+            if text.upper() in remittance_information.upper():
+                name = "%s - %s" % (text.upper(), account.code)
+                values = {
+                    'name': name,
+                    'origin': self,
+                    'date': self.date,
+                    'account': account,
+                    'amount': self.pending_amount,
+                    'second_currency': self.second_currency,
+                    'state': 'proposed'
+                    }
+                name_exists = self.check_key_value_exists('name', name,
+                    suggesteds)
+                if not name_exists:
+                    suggesteds.append(values)
+                if not suggested_used:
+                    suggested_used = name
+        return suggesteds, suggested_used
+
     def _search_account_reconciliation_domain(self):
         return [
             ('company', '=', self.company.id),
@@ -957,60 +1016,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'date': self.date,
                     'account': account,
                     'amount': self.pending_amount,
-                    'state': 'proposed'
-                    }
-                name_exists = self.check_key_value_exists('name', name,
-                    suggesteds)
-                if not name_exists:
-                    suggesteds.append(values)
-                if not suggested_used:
-                    suggested_used = name
-        return suggesteds, suggested_used
-
-    def _search_suggested_reconciliation_by_text(self):
-        """
-        Search by the text in Origin information field
-        """
-        pool = Pool()
-        Account = pool.get('account.account')
-
-        suggesteds = []
-        suggested_used = None
-
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
-            return suggesteds, suggested_used
-
-        remittance_information = self.information.get(
-            'remittance_information', None)
-
-        # TODO: If nothing is found search for some special chars:
-        #   - TARJ --> move line account 629.0
-        #   - COMISION DIVISA NO EURI --> move line account 626.0
-        #   - LIQUIDACION GESTION COBRO --> move line account 629.0
-        #   - TGSS REGIMEN GENERAL
-        # PROVE OF CONCEPT
-        texts = {
-            'TARJ': '62900000',
-            'COMISON': '62600000',
-            'GESTION': '62900000',
-            }
-        domain = self._search_account_reconciliation_domain()
-        for text, code in texts.items():
-            domain.append(('code', '=', code))
-            accounts = Account.search(domain)
-            if not accounts:
-                continue
-            account = accounts[0]
-            # TODO: unaccent!
-            if text in remittance_information:
-                name = "%s - %s" % (text, account.code)
-                values = {
-                    'name': name,
-                    'origin': self,
-                    'date': self.date,
-                    'account': account,
-                    'amount': self.pending_amount,
+                    'second_currency': self.second_currency,
                     'state': 'proposed'
                     }
                 name_exists = self.check_key_value_exists('name', name,
@@ -1036,7 +1042,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ('suggested_line', 'in', [x.id for x in suggests])
                 ])
             if lines:
-                raise UserError(
+                raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_suggested_line_related_to_statement_line'))
             SuggestedLine.delete(suggests)
@@ -1075,19 +1081,19 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not suggested_use:
             suggested_use = suggest_use
 
+        # Search by any possibiity found in the Origin text information
+        suggest_lines, suggest_use = (
+            self._search_suggested_reconciliation_by_text())
+        suggesteds.extend(suggest_lines)
+        if not suggested_use:
+            suggested_use = suggest_use
+
         if not suggesteds:
-            # Search by account name like porty
+            # At last search by account name like possible party base on the
+            # Origin text information
             suggest_lines, suggest_use = (
                 self._search_suggested_reconciliation_by_account(
                     parties=unused_parties))
-            suggesteds.extend(suggest_lines)
-            if not suggested_use:
-                suggested_use = suggest_use
-
-            # Search by any other possibiity found in the Origin text
-            # information
-            suggest_lines, suggest_use = (
-                self._search_suggested_reconciliation_by_text())
             suggesteds.extend(suggest_lines)
             if not suggested_use:
                 suggested_use = suggest_use
@@ -1109,8 +1115,15 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     @classmethod
     def delete(cls, origins):
-        raise UserError(gettext('account_statement_enable_banking.'
-                'msg_no_allow_delete_only_cancel'))
+        for origin in origins:
+            if origin.state not in {'cancelled', 'registered'}:
+                raise AccessError(
+                    gettext(
+                        'account_statement.'
+                        'msg_statement_origin_delete_cancel_draft',
+                        origin=origin.rec_name,
+                        sale=origin.statement.rec_name))
+        super().delete(origins)
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
@@ -1126,17 +1139,52 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         required=True, ondelete='CASCADE')
     company = fields.Function(fields.Many2One('company.company', "Company"),
         'on_change_with_company', searcher='search_company')
+    company_currency = fields.Function(
+        fields.Many2One('currency.currency', "Company Currency"),
+        'on_change_with_company_currency')
     party = fields.Many2One('party.party', "Party",
         context={
             'company': Eval('company', -1),
             },
         depends={'company'})
     date = fields.Date("Date")
+    account = fields.Many2One('account.account', "Account",
+        domain=[
+            ('company', '=', Eval('company', 0)),
+            ('type', '!=', None),
+            ('closed', '!=', True),
+            ])
+    amount = Monetary("Amount", currency='currency', digits='currency',
+        required=True)
+    currency = fields.Function(fields.Many2One('currency.currency',
+        "Currency"), 'on_change_with_currency')
+    second_currency = fields.Many2One(
+        'currency.currency', "Second Currency",
+        domain=[
+            ('id', '!=', Eval('currency', -1)),
+            If(Eval('currency', -1) != Eval('company_currency', -1),
+                ('id', '=', Eval('company_currency', -1)),
+                ()),
+            ])
     related_to = fields.Reference(
         "Related To", 'get_relations',
         domain={
             'account.invoice': [
                 ('company', '=', Eval('company', -1)),
+                If(Bool(Eval('second_currency')),
+                    ('currency', '=', Eval('second_currency', -1)),
+                    ('currency', '=', Eval('currency', -1))
+                    ),
+                If(Bool(Eval('party')),
+                    ['OR',
+                        ('party', '=', Eval('party', -1)),
+                        ('alternative_payees', '=', Eval('party', -1)),
+                        ],
+                    []),
+                If(Bool(Eval('account')),
+                    ('account', '=', Eval('account')),
+                    ()),
+                ('state', '=', 'posted'),
                 ],
             'account.payment': [
                 ('company', '=', Eval('company', -1)),
@@ -1144,24 +1192,25 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ],
             'account.payment.group': [
                 ('company', '=', Eval('company', -1)),
-                ('currency', '=', Eval('currency', -1)),
+                If(Bool(Eval('second_currency')),
+                    ('currency', '=', Eval('second_currency', -1)),
+                    ('currency', '=', Eval('currency', -1))),
                 ],
             'account.move.line': [
                 ('company', '=', Eval('company', -1)),
                 ('currency', '=', Eval('currency', -1)),
+                If(Bool(Eval('party')),
+                    ('party', '=', Eval('party')),
+                    ()),
+                If(Bool(Eval('account')),
+                    ('account', '=', Eval('account')),
+                    ()),
+                ('account.reconcile', '=', True),
+                ('state', '=', 'valid'),
+                ('reconciliation', '=', None),
+                ('move.origin', 'not like', 'account.invoice,%'),
                 ],
             })
-    account = fields.Many2One(
-        'account.account', "Account",
-        domain=[
-            ('company', '=', Eval('company', 0)),
-            ('type', '!=', None),
-            ('closed', '!=', True),
-            ])
-    currency = fields.Function(fields.Many2One('currency.currency',
-            "Currency"), 'on_change_with_currency')
-    amount = Monetary(
-        "Amount", currency='currency', digits='currency')
     state = fields.Selection([
             ('proposed', "Proposed"),
             ('used', "Used"),
@@ -1188,6 +1237,11 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     @fields.depends('origin', '_parent_origin.company')
     def on_change_with_company(self, name=None):
         return self.origin.company if self.origin else None
+
+    @fields.depends('origin', '_parent_origin.company')
+    def on_change_with_company_currency(self, name=None):
+        return (self.origin.company.currency
+            if self.origin and self.origin.company else None)
 
     @classmethod
     def search_company(cls, name, clause):
@@ -1308,7 +1362,7 @@ class Journal(metaclass=PoolMeta):
             ('bank', '=', self.bank_account.bank.id)], limit=1)
 
         if not eb_session:
-            raise UserError(
+            raise AccessError(
                 gettext('account_statement_enable_banking.msg_no_session'))
 
         # Search the account from the journal
@@ -1320,7 +1374,7 @@ class Journal(metaclass=PoolMeta):
                 account_id = account['uid']
                 break
         if not account_id:
-            raise UserError(
+            raise AccessError(
                 gettext('account_statement_enable_banking.'
                     'msg_account_not_found',
                     account=bank_numbers,
@@ -1336,10 +1390,12 @@ class Journal(metaclass=PoolMeta):
         statement = Statement()
         statement.company = self.company
         statement.name = self.name
-        statement.journal = self
         statement.date = Date.today()
+        statement.journal = self
+        statement.on_change_journal()
         statement.end_balance = Decimal(0)
-        statement.start_balance = Decimal(0)
+        if not statement.start_balance:
+            statement.start_balance = Decimal(0)
         statement.save()
 
         # Get the data, as we have a limit of transactions every query, we need
@@ -1361,7 +1417,7 @@ class Journal(metaclass=PoolMeta):
                 for transaction in response['transactions']:
                     if (transaction['transaction_amount']['currency'] !=
                             self.currency.code):
-                        raise UserError(gettext(
+                        raise AccessError(gettext(
                                 'account_statement_enable_banking.'
                                 'msg_currency_not_match'))
                     found_statement_origin = StatementOrigin.search([
@@ -1398,7 +1454,7 @@ class Journal(metaclass=PoolMeta):
                     statement.save()
                     break
             else:
-                raise UserError(
+                raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_error_get_statements',
                         error=str(r.status_code),
@@ -1445,7 +1501,7 @@ class SynchronizeStatementEnableBanking(Wizard):
 
         journal = Journal(Transaction().context['active_id'])
         if not journal.bank_account:
-            raise UserError(gettext(
+            raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
 
         eb_sessions = EBSession.search([
@@ -1480,7 +1536,7 @@ class SynchronizeStatementEnableBanking(Wizard):
         if journal.bank_account.bank.party.addresses:
             country = journal.bank_account.bank.party.addresses[0].country.code
         else:
-            raise UserError(gettext('account_statement_enable_banking.'
+            raise AccessError(gettext('account_statement_enable_banking.'
                     'msg_no_country'))
 
         # We fill the aspsp name and country using the bank account
@@ -1501,7 +1557,7 @@ class SynchronizeStatementEnableBanking(Wizard):
                 break
 
         if not aspsp_found:
-            raise UserError(
+            raise AccessError(
                 gettext('account_statement_enable_banking.msg_aspsp_not_found',
                     bank=journal.aspsp_name,
                     country_code=journal.aspsp_country))
@@ -1533,7 +1589,7 @@ class SynchronizeStatementEnableBanking(Wizard):
         if r.status_code == 200:
             action['url'] = r.json()['url']
         else:
-            raise UserError(
+            raise AccessError(
                 gettext('account_statement_enable_banking.'
                     'msg_error_create_session',
                     error_code=r.status_code,
