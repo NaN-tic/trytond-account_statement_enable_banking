@@ -42,9 +42,6 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_cancel_origin_line_with_move">
             <field name="text">The lines of this origin has moves "%(moves)s" related to them. Cancel the origin will unlink that moves and will create a cancell move for each related move. Do you want to continue?</field>
         </record>
-        <record model="ir.message" id="msg_no_allow_delete_only_cancel">
-            <field name="text">Since the statements and it's origins are created automatically, if they are deleted they will be created again, so they must be canceled to ensure not create them again.</field>
-        </record>
         <record model="ir.message" id="msg_suggested_line_related_to_statement_line">
             <field name="text">There is a suggested line relate to a statement line. Befeore make a new search, remove the statement line.</field>
         </record>
