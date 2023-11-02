@@ -3,6 +3,13 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
+        <!-- account.statement -->
+        <record model="ir.ui.view" id="statement_view_tree">
+            <field name="model">account.statement</field>
+            <field name="inherit" ref="account_statement.statement_view_tree"/>
+            <field name="name">statement_tree</field>
+        </record>
+
         <!-- account.statement.origin -->
         <record model="ir.action.act_window" id="act_statement_origin_form">
             <field name="name">Statement Origins</field>
