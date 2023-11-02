@@ -63,7 +63,10 @@ class Line(metaclass=PoolMeta):
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
-            ('move.origin', 'not like', 'account.invoice,%'),
+            ['OR',
+                ('move_origin', '=', None),
+                ('move.origin', 'not like', 'account.invoice,%'),
+                ],
             ]
 
     @classmethod
@@ -207,6 +210,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.number.search_unaccented = False
         cls._order.insert(0, ('date', 'ASC'))
         cls._order.insert(1, ('number', 'ASC'))
+        cls.lines.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
         cls._transitions |= set((
                 ('registered', 'posted'),
                 ('registered', 'cancelled'),
@@ -401,8 +407,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         move_lines = []
         for move, lines in moves:
-            amount = 0
-            amount_second_currency = 0
+            amount = _ZERO
+            amount_second_currency = _ZERO
             for line in lines:
                 move_line = line.get_move_line()
                 if not move_line:
@@ -508,7 +514,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 return True
         return False
 
-    def create_suggested_line(self, move_lines, amount):
+    def create_suggested_line(self, move_lines, amount, name=None,
+            payment=False):
         """
         Create one or more suggested registers based on the move_lines.
         If there are more than one move_line, it will be grouped.
@@ -531,13 +538,16 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         for line in move_lines:
             if line.move_origin and isinstance(line.move_origin, Invoice):
-                name = line.move_origin.rec_name
+                if not name:
+                    name = line.move_origin.rec_name
                 related_to = line.move_origin
-            elif line.payments:
-                name = line.payments[0].rec_name
+            elif payment and line.payments:
+                if not name:
+                    name = line.payments[0].rec_name
                 related_to = line.payments[0]
             else:
-                name = line.rec_name
+                if not name:
+                    name = line.rec_name
                 related_to = line
             if parent and parent.name is None:
                 parent.name = name
@@ -718,7 +728,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 parent, to_create = self.create_suggested_line(
                     values['lines'], pending_amount)
                 if not suggested_used:
-                    suggested_used = to_create[0]['name']
+                    suggested_used = (parent.name if parent
+                        else to_create[0]['name'])
                 suggesteds.extend(to_create)
 
         return suggesteds, suggested_used
@@ -731,23 +742,25 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('company', '=', self.company.id),
             ]
 
-    def _search_suggested_reconciliation_payment_group(self):
+    def _search_suggested_reconciliation_payment_group(self, exclude=None):
         pool = Pool()
         Group = pool.get('account.payment.group')
 
         suggesteds = []
         suggested_used = None
+        groups = []
 
         pending_amount = self.pending_amount
         if pending_amount == _ZERO:
-            return suggesteds, suggested_used
+            return suggesteds, suggested_used, groups
 
         kind = 'receivable' if pending_amount > _ZERO else 'payable'
         domain = self._search_payment_group_reconciliation_domain(
             abs(pending_amount), kind)
 
-        groups = []
         for group in Group.search(domain):
+            if group.journal.clearing_account is None:
+                continue
             found = True
             for payment in group.payments:
                 if (payment.state == 'failed' or (payment.line
@@ -789,92 +802,110 @@ class Origin(Workflow, metaclass=PoolMeta):
         suggested_used = None
 
         pending_amount = self.pending_amount
-        sign = -1 if pending_amount < 0 else 1
+        sign = -1 if pending_amount < _ZERO else 1
         if pending_amount == _ZERO:
             return suggesteds, suggested_used
 
         domain = self._search_payment_reconciliation_domain()
 
         payment_groups = {
-            'amount': 0,
+            'amount': _ZERO,
+            'groups': {}
+            }
+        payment_groups_clearing = {
+            'amount': _ZERO,
             'groups': {}
             }
         groups = []
         # TODO: Ensure what to do when payment is "exit"
         for payment in Payment.search(domain):
-            if payment.group and payment.group in groups:
-                continue
+            #if payment.group and payment.group in groups:
+            #    continue
             if (payment.line and payment.state != 'failed'
                     and payment.line.reconciliation is None):
-                payment_groups['amount'] += payment.amount
-                group = payment.group if payment.group else payment
-                if group in groups:
-                    payment_groups['groups'][group]['amount'] += payment.amount
-                    payment_groups['groups'][group]['payments'].append(payment)
+                amount = payment.amount
+                if payment.group in exclude:
+                    continue
+                if (not payment.journal
+                        or payment.journal.clearing_account is None):
+                    payment_groups['amount'] += amount
+                    group = payment.group if payment.group else payment
+                    if group in groups:
+                        payment_groups['groups'][group]['amount'] += amount
+                        payment_groups['groups'][group]['payments'].append(
+                            payment)
+                    else:
+                        payment_groups['groups'][group] = {
+                            'amount': amount,
+                            'payments': [payment],
+                            }
+                        groups.append(group)
                 else:
-                    payment_groups['groups'][group] = {
-                        'amount': payment.amount,
-                        'payments': [payment],
-                        }
-                    groups.append(group)
+                    payment_groups_clearing['amount'] += amount
+                    group = payment.group if payment.group else payment
+                    if group in groups:
+                        payment_groups_clearing['groups'][group][
+                            'amount'] += amount
+                        payment_groups_clearing['groups'][group][
+                            'payments'].append(payment)
+                    else:
+                        payment_groups_clearing['groups'][group] = {
+                            'amount': amount,
+                            'payments': [payment],
+                            }
+                        groups.append(group)
+
         if payment_groups['amount'] == abs(pending_amount):
-            parent = SuggestedLine()
+            name = gettext("Payments")
             if len(payment_groups['groups']) == 1:
                 key = payment_groups['group'].keys()[0]
                 if len(payment_groups['groups'][key]['payments']) == 1:
-                    parent = None
-            if parent:
-                parent.name = "Payments"
-                parent.origin = self
-                parent.amount = pending_amount
-                parent.state = 'proposed'
-                parent.save()
-            for vals in payment_groups['groups'].values():
-                for payment in vals['payments']:
-                    values = {
-                        'origin': self,
-                        'date': payment.date,
-                        'related_to': payment,
-                        'account': payment.account,
-                        'amount': payment.amount * sign,
-                        'second_currency': self.second_currency,
-                        'state': 'proposed'
-                        }
-                    if not parent:
-                        values['name'] = "Payments"
-                    else:
-                        values['parent'] = parent
-                    suggesteds.append(values)
+                    name = None
+            lines = [p.line for v in payment_groups['groups'].values()
+                for p in v['payments']]
+            parent, to_create = self.create_suggested_line(lines,
+                pending_amount, name=name)
             if not suggested_used:
-                suggested_used = "Payments"
-        else:
+                suggested_used = (parent.name if parent
+                    else to_create[0]['name'])
+            suggesteds.extend(to_create)
+        elif payment_groups['amount'] != _ZERO:
             for group, vals in payment_groups['groups'].items():
                 if vals['amount'] == abs(pending_amount):
-                    parent = None
-                    if len(vals['payments']) > 1:
-                        parent = SuggestedLine()
-                        parent.name = group.rec_name
-                        parent.origin = self
-                        parent.amount = pending_amount
-                        parent.state = 'proposed'
-                        parent.save()
-                    for payment in vals['payments']:
-                        values = {
-                            'origin': self,
-                            'date': payment.date,
-                            'related_to': payment,
-                            'account': payment.account,
-                            'amount': payment.amount * sign,
-                            'second_currency': self.second_currency,
-                            'state': 'proposed'
-                            }
-                        if not parent:
-                            values['name'] = group.rec_name
-                        else:
-                            values['parent'] = parent
-                        suggesteds.append(values)
-                        if not suggested_used:
-                            suggested_used = group
+                    lines = [x.line for x in vals['payments']]
+                    parent, to_create = self.create_suggested_line(
+                        lines, pending_amount, name=group.rec_name)
+                    if not suggested_used:
+                        suggested_used = (parent.name if parent
+                            else to_create[0]['name'])
+                    suggesteds.extend(to_create)
+
+        if payment_groups_clearing['amount'] == abs(pending_amount):
+            name = gettext("Payments")
+            if len(payment_groups_clearing['groups']) == 1:
+                key = payment_groups_clearing['group'].keys()[0]
+                if (len(payment_groups_clearing['groups'][key][
+                        'payments']) == 1):
+                    name = None
+            lines = [p.line for v in payment_groups_clearing['groups'].values()
+                for p in v['payments']]
+            parent, to_create = self.create_suggested_line(lines,
+                pending_amount, name=name, payment=True)
+            if not suggested_used:
+                suggested_used = (parent.name if parent
+                    else to_create[0]['name'])
+            suggesteds.extend(to_create)
+        elif payment_groups_clearing['amount'] != _ZERO:
+            for group, vals in payment_groups_clearing['groups'].items():
+                if vals['amount'] == abs(pending_amount):
+                    lines = [x.line for x in vals['payments']]
+                    parent, to_create = self.create_suggested_line(
+                        lines, pending_amount, name=group.rec_name,
+                        payment=True)
+                    if not suggested_used:
+                        suggested_used = (parent.name if parent
+                            else to_create[0]['name'])
+                    suggesteds.extend(to_create)
         return suggesteds, suggested_used
 
     def _search_suggested_reconciliation_by_move_line(self, exclude=None):
@@ -1208,7 +1239,10 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ('account.reconcile', '=', True),
                 ('state', '=', 'valid'),
                 ('reconciliation', '=', None),
-                ('move.origin', 'not like', 'account.invoice,%'),
+                ['OR',
+                    ('move_origin', '=', None),
+                    ('move.origin', 'not like', 'account.invoice,%'),
+                    ],
                 ],
             })
     state = fields.Selection([
@@ -1462,8 +1496,12 @@ class Journal(metaclass=PoolMeta):
                         error_message=str(r.text)))
 
         to_save.sort(key=lambda x: x.date)
+        # The set number function save the origins
         self.set_number(to_save)
 
+        # Get the suggested lines for each origin created
+        for origin in statement.origins:
+            origin._search_reconciliation()
 
     @classmethod
     def synchronize_enable_banking_journals(cls):
