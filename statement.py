@@ -1450,7 +1450,8 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
                 if not continuation_key:
-                    statement.end_balance = total_amount
+                    statement.end_balance = (
+                        statement.start_balance + total_amount)
                     statement.save()
                     break
             else:
