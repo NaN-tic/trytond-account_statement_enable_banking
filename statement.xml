@@ -140,12 +140,11 @@ this repository contains the full copyright notices and license terms. -->
             <field name="action" ref="act_origin_move_lines_form"/>
         </record>
 
-        <!--
         <record model="ir.action.act_window" id="act_origin_moves_form">
             <field name="name">Moves</field>
             <field name="res_model">account.move</field>
             <field name="domain"
-                eval="[If(Eval('active_ids', []) == [Eval('active_id')], ['OR', ('origin.origins.id', '=', Eval('active_id'), 'account.statement'), ('origin.id', '=', Eval('active_id'), 'account.statement.origin')], ['OR', ('origin.origins.id', 'in', Eval('active_ids'), 'account.statement'), ('origin.id', 'in', Eval('active_ids'), 'account.statement.origin')])]"
+                eval="[If(Eval('active_ids', []) == [Eval('active_id')], [('origin.id', '=', Eval('active_id'), 'account.statement.origin')], [('origin.id', 'in', Eval('active_ids'), 'account.statement.origin')])]"
                 pyson="1"/>
         </record>
         <record model="ir.action.keyword" id="act_origin_moves_form_keyword1">
@@ -153,7 +152,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="model">account.statement.origin,-1</field>
             <field name="action" ref="act_origin_moves_form"/>
         </record>
-        -->
 
         <!-- account.statement.line -->
         <record model="ir.ui.view" id="statement_line_view_tree_editable">
