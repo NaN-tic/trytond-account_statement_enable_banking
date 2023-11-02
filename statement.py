@@ -1,4 +1,4 @@
-# This file is part of Tryton.  The COPYRIGHT file at the top level oforigin.second_currency
+# This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
 from datetime import datetime, timezone, timedelta
@@ -536,11 +536,20 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent.state = 'proposed'
             parent.save()
 
+        second_currency = self.second_currency
+        amount_second_currency = self.amount_second_currency
         for line in move_lines:
             if line.move_origin and isinstance(line.move_origin, Invoice):
+                invoice = line.move_origin
                 if not name:
-                    name = line.move_origin.rec_name
-                related_to = line.move_origin
+                    name = invoice.rec_name
+                related_to = invoice
+                if (second_currency is None
+                        and invoice.currency != self.currency):
+                    second_currency = invoice.currency
+                    amount_second_currency = (invoice.total_amount
+                        if invoice.type == 'out'
+                        else -1 * invoice.total_amount)
             elif payment and line.payments:
                 if not name:
                     name = line.payments[0].rec_name
@@ -562,7 +571,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'related_to': related_to,
                 'account': line.account,
                 'amount': amount_line,
-                'second_currency': self.second_currency,
+                'second_currency': second_currency,
+                'amount_second_currency': amount_second_currency,
                 'state': 'proposed'
                 }
             to_create.append(values)
@@ -1136,6 +1146,12 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ('name', '=', suggested_use)
                     ], limit=1)
                 if suggest_lines:
+                    suggest_line = suggest_lines[0]
+                    if suggest_line.second_currency != self.second_currency:
+                        self.second_currency = suggest_line.second_currency
+                        self.amount_second_currency = (
+                            suggest_line.amount_second_currency)
+                        self.save()
                     SuggestedLine.use(suggest_lines)
 
     @classmethod
@@ -1189,6 +1205,11 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         required=True)
     currency = fields.Function(fields.Many2One('currency.currency',
         "Currency"), 'on_change_with_currency')
+    amount_second_currency = Monetary("Amount Second Currency",
+        currency='second_currency', digits='second_currency',
+        states={
+            'required': Bool(Eval('second_currency')),
+            })
     second_currency = fields.Many2One(
         'currency.currency', "Second Currency",
         domain=[
@@ -1331,6 +1352,8 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     'party': child.party,
                     'account': child.account,
                     'amount': child.amount,
+                    'second_currency': child.second_currency,
+                    'amount_second_currency': child.amount_second_currency,
                     'date': child.origin.date,
                     'description': description,
                     }
