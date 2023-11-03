@@ -986,6 +986,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             'COMISON': '626.0',
             'GESTION': '629.0',
             'IMPUESTO': '475%',
+            'TGSS': '476.0',
             }
         for text, code in texts.items():
             domain = self._search_account_reconciliation_domain()
