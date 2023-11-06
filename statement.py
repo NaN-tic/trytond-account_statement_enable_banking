@@ -73,16 +73,6 @@ class Line(metaclass=PoolMeta):
     def _get_relations(cls):
         return super()._get_relations() + ['account.move.line']
 
-    @fields.depends('origin', '_parent_origin.second_currency')
-    def on_change_with_second_currency(self, name=None):
-        if self.origin and self.origin.second_currency:
-            return self.origin.second_currency
-
-    @fields.depends('origin', '_parent_origin.amount_second_currency')
-    def on_change_with_amount_second_currency(self, name=None):
-        if self.origin and self.origin.amount_second_currency:
-            return self.origin.amount_second_currency
-
     @property
     @fields.depends('related_to')
     def move_line(self):
