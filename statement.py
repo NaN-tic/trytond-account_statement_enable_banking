@@ -1148,8 +1148,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             SuggestedLine.create(suggesteds)
             if suggested_use:
                 suggest_lines = SuggestedLine.search([
-                    ('origin', '=', self)
-                    ('name', '=', suggested_use)
+                    ('origin', '=', self),
+                    ('name', '=', suggested_use),
                     ], limit=1)
                 if suggest_lines:
                     suggest_line = suggest_lines[0]
