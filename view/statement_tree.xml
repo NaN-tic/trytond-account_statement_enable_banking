@@ -2,8 +2,11 @@
 <!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
 this repository contains the full copyright notices and license terms. -->
 <data>
-    <xpath expr="/tree/field[@name='date']" position="after">
-    <field name="start_balance" optional="0"/>
-    <field name="end_balance" optional="0"/>
+    <xpath expr="/tree/field[@name='date']" position="replace">
+        <field name="start_date" optional="0"/>
+        <field name="end_date" widget="date" optional="0"/>
+    <field name="end_date" widget="time" string="End Time" optional="0"/>
+        <field name="start_balance" optional="0"/>
+        <field name="end_balance" optional="0"/>
     </xpath>
 </data>
