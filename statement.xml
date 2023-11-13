@@ -9,6 +9,11 @@ this repository contains the full copyright notices and license terms. -->
             <field name="inherit" ref="account_statement.statement_view_tree"/>
             <field name="name">statement_tree</field>
         </record>
+        <record model="ir.ui.view" id="statement_view_form">
+            <field name="model">account.statement</field>
+            <field name="inherit" ref="account_statement.statement_view_form"/>
+            <field name="name">statement_form</field>
+        </record>
 
         <!-- account.statement.origin -->
         <record model="ir.action.act_window" id="act_statement_origin_form">
@@ -196,13 +201,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="group" ref="account.group_account"/>
         </record>
 
-        <!-- account.statement.journal -->
-        <record model="ir.ui.view" id="statement_journal_view_form">
-            <field name="model">account.statement.journal</field>
-            <field name="inherit" ref="account_statement.statement_journal_view_form"/>
-            <field name="name">statement_journal_form</field>
-        </record>
-
         <!-- enable_banking.synchronize_statement -->
         <record model="ir.ui.view" id="enable_banking_synchronize_statement_start_form">
             <field name="model">enable_banking.synchronize_statement.start</field>
@@ -343,7 +341,7 @@ this repository contains the full copyright notices and license terms. -->
             <field name="model">account.statement.origin.suggested.line</field>
             <field name="type">tree</field>
             <field name="field_childs">childs</field>
-            <field name="name">account_statement_origin_suggested_line_tree</field>
+            <field name="name">statement_origin_suggested_line_tree</field>
         </record>
 
         <record model="ir.action.act_window" id="act_account_statement_origin_suggested_line_view">

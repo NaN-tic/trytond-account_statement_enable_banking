@@ -45,5 +45,11 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_suggested_line_related_to_statement_line">
             <field name="text">There is a suggested line relate to a statement line. Befeore make a new search, remove the statement line.</field>
         </record>
+        <record model="ir.message" id="msg_payments">
+            <field name="text">Payments</field>
+        </record>
+        <record model="ir.message" id="msg_similarity">
+            <field name="text">Similarity</field>
+        </record>
     </data>
 </tryton>

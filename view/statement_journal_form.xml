@@ -3,6 +3,12 @@
 this repository contains the full copyright notices and license terms. -->
 <data>
     <xpath expr="/form/field[@name='validation']" position="after">
+        <separator id="threshold" string="Threshold in Search" colspan="4"/>
+        <label name="similarity_threshold"/>
+        <field name="similarity_threshold"/>
+        <label name="acceptable_similarity_threshold"/>
+        <field name="acceptable_similarity_threshold"/>
+        <separator id="enable_banking" string="Enable Banking" colspan="4"/>
         <label name="aspsp_name"/>
         <field name="aspsp_name"/>
         <label name="aspsp_country"/>

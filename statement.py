@@ -7,10 +7,10 @@ from secrets import token_hex
 from itertools import groupby
 from unidecode import unidecode
 import re
-
+from sql.functions import Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
-from trytond.pyson import Eval, Id, Bool, If
+from trytond.pyson import Eval, Bool, If
 from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
@@ -27,15 +27,28 @@ from trytond.modules.currency.fields import Monetary
 _ZERO = Decimal('0.0')
 
 
+class Similarity(Function):
+    __slots__ = ()
+    _function = 'SIMILARITY'
+
+
+class JsonbExtractPathText(Function):
+    __slots__ = ()
+    _function = 'JSONB_EXTRACT_PATH_TEXT'
+
+
 class Statement(metaclass=PoolMeta):
     __name__ = 'account.statement'
+
+    start_date = fields.Date("Start Date", readonly=True)
+    end_date = fields.DateTime("End Date", readonly=True)
 
     @classmethod
     def cancel(cls, statements):
         pool = Pool()
         Origin = pool.get('account.statement.origin')
 
-        origins = [s.origin for s in statements]
+        origins = [o for s in statements for o in s.origins]
         Origin.cancel(origins)
 
         super().cancel(statements)
@@ -498,6 +511,19 @@ class Origin(Workflow, metaclass=PoolMeta):
                     MoveLine.write(*to_write)
         StatementLine.write(lines, {'move': None})
 
+    @classmethod
+    def threshold_interval_date(cls, date, control_date, interval_date=None,
+        threshold=0.0):
+        if not interval_date:
+            interval_date = timedelta(days=3)
+        start_date = control_date - interval_date
+        end_date = control_date + interval_date
+        if date == control_date:
+            threshold += 0.2
+        elif start_date <= date <= end_date:
+            threshold += 0.1
+        return threshold
+
     def check_key_value_exists(self, key, value, dict_list):
         """Checks if a key exists and have a specifica value in a list of
         dictionaries.
@@ -508,10 +534,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         return False
 
     def create_suggested_line(self, move_lines, amount, name=None,
-            payment=False):
+            payment=False, threshold=0.0):
         """
         Create one or more suggested registers based on the move_lines.
-        If there are more than one move_line, it will be grouped.
+        If there are more than one move_line, it will be grouped under
+        parent.
         """
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
@@ -527,6 +554,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent.origin = self
             parent.amount = amount
             parent.state = 'proposed'
+            parent.similarity_threshold = threshold
             parent.save()
 
         second_currency = self.second_currency
@@ -566,19 +594,11 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'amount': amount_line,
                 'second_currency': second_currency,
                 'amount_second_currency': amount_second_currency,
-                'state': 'proposed'
+                'similarity_threshold': threshold,
+                'state': 'proposed',
                 }
             to_create.append(values)
         return parent, to_create
-
-    def _search_move_line_reconciliation_domain(self):
-        return [
-            ('move.company', '=', self.company.id),
-            ('currency', '=', self.currency),
-            ('move_state', '=', 'posted'),
-            ('reconciliation', '=', None),
-            ('account.reconcile', '=', True),
-            ]
 
     def _match_parties(self, text, domain=[]):
         pool = Pool()
@@ -609,6 +629,50 @@ class Origin(Workflow, metaclass=PoolMeta):
                 check_match_party(name)
         return match_parties
 
+    def _search_and_create_suggested(self, lines, pending_amount):
+        pool = Pool()
+        InvoiceTax = pool.get('account.invoice.tax')
+
+        suggesteds = []
+        lines_by_origin = {}
+        for line in lines:
+            if isinstance(line.origin, InvoiceTax):
+                continue
+            amount = line.debit - line.credit
+            if (line.move_origin
+                    and line.move_origin in lines_by_origin):
+                lines_by_origin[line.move_origin]['amount'] += amount
+                lines_by_origin[line.move_origin]['lines'].append(line)
+            elif line.move_origin:
+                lines_by_origin[line.move_origin] = {
+                    'amount': amount,
+                    'lines': [line]
+                        }
+            if amount == pending_amount:
+                threshold = Origin.threshold_interval_date(line.maturity_date,
+                    self.date, threshold=0.8)
+                parent, to_create = self.create_suggested_line([line],
+                    pending_amount, threshold=threshold)
+                suggesteds.extend(to_create)
+        # Check if there are more than one move from the same origin
+        # that sum the pending_amount
+        for values in lines_by_origin.values():
+            if (len(values['lines']) > 1
+                    and values['amount'] == pending_amount):
+                parent, to_create = self.create_suggested_line(
+                    values['lines'], pending_amount, threshold=0.9)
+                suggesteds.extend(to_create)
+        return suggesteds
+
+    def _search_move_line_reconciliation_domain(self):
+        return [
+            ('move.company', '=', self.company.id),
+            ('currency', '=', self.currency),
+            ('move_state', '=', 'posted'),
+            ('reconciliation', '=', None),
+            ('account.reconcile', '=', True),
+            ]
+
     def _search_suggested_reconciliation_by_party(self):
         """
         Search for the possible move line with the party that could be
@@ -621,13 +685,12 @@ class Origin(Workflow, metaclass=PoolMeta):
         MoveLine = pool.get('account.move.line')
 
         suggesteds = []
-        suggested_used = None
         move_lines_used = []
 
         # search only for the same ammount and possible party
         pending_amount = self.pending_amount
         if pending_amount == _ZERO:
-            return suggesteds, suggested_used
+            return suggesteds, move_lines_used
 
         # Prepapre the base domain
         domain = self._search_move_line_reconciliation_domain()
@@ -653,41 +716,14 @@ class Origin(Workflow, metaclass=PoolMeta):
         # and credit note/s.
         # TODO: Maybe use the algorithm in account_reconcile module used to
         # reconcile multiples lines separated in time.
-        used_parties = []
         for party in match_parties:
             party_lines = MoveLine.search(domain + [('party', '=', party)],
                 order=[('maturity_date', 'ASC')])
             if party_lines:
-                used_parties.append(party)
-                lines_by_origin = {}
-                for line in party_lines:
-                    amount = line.debit - line.credit
-                    if line.move_origin and line.move_origin in lines_by_origin:
-                        lines_by_origin[line.move_origin]['amount'] += amount
-                        lines_by_origin[line.move_origin]['lines'].append(line)
-                    elif line.move_origin:
-                        lines_by_origin[line.move_origin] = {
-                            'amount': amount,
-                            'lines': [line]
-                                }
-                    if amount == pending_amount:
-                        parent, to_create = self.create_suggested_line([line],
-                            pending_amount)
-                        suggested_used = to_create[0]['name']
-                        suggesteds.extend(to_create)
-                # Check if there are more than one move from the same origin
-                # that sum the pending_amount
-                for values in lines_by_origin.values():
-                    if (len(values['lines']) > 1
-                            and values['amount'] == pending_amount):
-                        parent, to_create = self.create_suggested_line(
-                            values['lines'], pending_amount)
-                        if not suggested_used:
-                            suggested_used = parent.name
-                        suggesteds.extend(to_create)
+                suggesteds.extend(self._search_and_create_suggested(
+                        party_lines, pending_amount))
             move_lines_used.extend(party_lines)
-        parties = list(set(match_parties) - set(used_parties))
-        return suggesteds, suggested_used, move_lines_used, parties
+        return suggesteds, move_lines_used
 
     def _search_suggested_reconciliation_by_invoice(self, exclude=None):
         """
@@ -697,14 +733,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         pool = Pool()
         MoveLine = pool.get('account.move.line')
-        InvoiceTax = pool.get('account.invoice.tax')
-
-        suggesteds = []
-        suggested_used = None
 
         pending_amount = self.pending_amount
         if pending_amount == _ZERO:
-            return suggesteds, suggested_used
+            return []
 
         # Prepapre the base domain
         domain = self._search_move_line_reconciliation_domain()
@@ -712,29 +744,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         if exclude and isinstance(exclude, list):
             domain.append(('id', 'not in', [x.id for x in exclude]))
 
-        lines_by_origin = {}
-        for line in MoveLine.search(domain, order=[('maturity_date', 'ASC')]):
-            if isinstance(line.origin, InvoiceTax):
-                continue
-            amount = line.debit - line.credit
-            if line.move_origin in lines_by_origin:
-                lines_by_origin[line.move_origin]['amount'] += amount
-                lines_by_origin[line.move_origin]['lines'].append(line)
-            else:
-                lines_by_origin[line.move_origin] = {
-                    'amount': amount,
-                    'lines': [line]
-                        }
-        for origin, values in lines_by_origin.items():
-            if pending_amount == values['amount']:
-                parent, to_create = self.create_suggested_line(
-                    values['lines'], pending_amount)
-                if not suggested_used:
-                    suggested_used = (parent.name if parent
-                        else to_create[0]['name'])
-                suggesteds.extend(to_create)
-
-        return suggesteds, suggested_used
+        lines = MoveLine.search(domain, order=[('maturity_date', 'ASC')])
+        return self._search_and_create_suggested(lines, pending_amount)
 
     def _search_payment_group_reconciliation_domain(self, amount, kind):
         return [
@@ -746,15 +757,15 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     def _search_suggested_reconciliation_payment_group(self, exclude=None):
         pool = Pool()
+        Origin = pool.get('account.statement.origin')
         Group = pool.get('account.payment.group')
 
         suggesteds = []
-        suggested_used = None
         groups = []
 
         pending_amount = self.pending_amount
         if pending_amount == _ZERO:
-            return suggesteds, suggested_used, groups
+            return suggesteds, groups
 
         kind = 'receivable' if pending_amount > _ZERO else 'payable'
         domain = self._search_payment_group_reconciliation_domain(
@@ -775,19 +786,21 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         for group in groups:
             name = group.rec_name
+            threshold = Origin.threshold_interval_date(group.planed_date,
+                self.date, threshold=0.8)
             values = {
                 'name': name,
                 'origin': self,
                 'date': group.planned_date,
                 'related_to': group,
                 'amount': pending_amount,
+                'account': group.journal.clearing_account,
                 'second_currency': self.second_currency,
-                'state': 'proposed'
+                'similarity_threshold': threshold,
+                'state': 'proposed',
                 }
             suggesteds.append(values)
-            if not suggested_used:
-                suggested_used = name
-        return suggesteds, suggested_used, groups
+        return suggesteds, groups
 
     def _search_payment_reconciliation_domain(self):
         return [
@@ -798,119 +811,108 @@ class Origin(Workflow, metaclass=PoolMeta):
     def _search_suggested_reconciliation_payment(self, exclude=None):
         pool = Pool()
         Payment = pool.get('account.payment')
-        Group = pool.get('account.payment.group')
-        SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
         suggesteds = []
-        suggested_used = None
 
         pending_amount = self.pending_amount
-        sign = -1 if pending_amount < _ZERO else 1
         if pending_amount == _ZERO:
-            return suggesteds, suggested_used
+            return suggesteds
 
         kind = 'receivable' if pending_amount > _ZERO else 'payable'
         domain = self._search_payment_reconciliation_domain()
 
-        payment_groups = {
+        groups = {
             'amount': _ZERO,
             'groups': {}
             }
-        payment_groups_clearing = {
+        groups_clearing = {
             'amount': _ZERO,
             'groups': {}
             }
-        groups = []
-        # TODO: Ensure what to do when payment is "exit"
         for payment in Payment.search(domain):
-            #if payment.group and payment.group in groups:
-            #    continue
+            if payment.group and payment.group in exclude:
+                continue
+            # TODO: Control when is using clearing and payment is set to "exit"
             if (payment.line and payment.state != 'failed'
                     and payment.line.reconciliation is None):
                 amount = payment.amount
                 if payment.group in exclude:
                     continue
+                group = payment.group if payment.group else payment
                 if (not payment.journal
                         or payment.journal.clearing_account is None):
-                    payment_groups['amount'] += amount
-                    group = payment.group if payment.group else payment
-                    if group in groups:
-                        payment_groups['groups'][group]['amount'] += amount
-                        payment_groups['groups'][group]['payments'].append(
+                    groups['amount'] += amount
+                    if (group in groups['groups']
+                            and groups['groups'][group]['date']
+                            == payment.date):
+                        groups['groups'][group]['amount'] += amount
+                        groups['groups'][group]['payments'].append(payment)
+                    else:
+                        groups['groups'][group] = {
+                            'date': payment.date,
+                            'amount': amount,
+                            'payments': [payment],
+                            }
+                else:
+                    groups_clearing['amount'] += amount
+                    if (group in groups_clearing['groups']
+                            and groups_clearing['groups'][group]['date']
+                            == payment.date):
+                        groups_clearing['groups'][group]['amount'] += amount
+                        groups_clearing['groups'][group]['payments'].append(
                             payment)
                     else:
-                        payment_groups['groups'][group] = {
+                        groups_clearing['groups'][group] = {
+                            'date': payment.date,
                             'amount': amount,
                             'payments': [payment],
                             }
-                        groups.append(group)
-                else:
-                    payment_groups_clearing['amount'] += amount
-                    group = payment.group if payment.group else payment
-                    if group in groups:
-                        payment_groups_clearing['groups'][group][
-                            'amount'] += amount
-                        payment_groups_clearing['groups'][group][
-                            'payments'].append(payment)
-                    else:
-                        payment_groups_clearing['groups'][group] = {
-                            'amount': amount,
-                            'payments': [payment],
-                            }
-                        groups.append(group)
 
-        if payment_groups['amount'] == abs(pending_amount):
-            name = gettext("Payments")
-            if len(payment_groups['groups']) == 1:
-                key = payment_groups['group'].keys()[0]
-                if len(payment_groups['groups'][key]['payments']) == 1:
+        if groups['amount'] == abs(pending_amount):
+            name = gettext('account_statement_enable_banking.msg_payments')
+            if len(groups['groups']) == 1:
+                key = groups['group'].keys()[0]
+                if len(groups['groups'][key]['payments']) == 1:
                     name = None
-            lines = [p.line for v in payment_groups['groups'].values()
+            lines = [p.line for v in groups['groups'].values()
                 for p in v['payments']]
             parent, to_create = self.create_suggested_line(lines,
-                pending_amount, name=name)
-            if not suggested_used:
-                suggested_used = (parent.name if parent
-                    else to_create[0]['name'])
+                pending_amount, name=name, threshold=0.7)
             suggesteds.extend(to_create)
-        elif payment_groups['amount'] != _ZERO:
-            for group, vals in payment_groups['groups'].items():
+        elif groups['amount'] != _ZERO:
+            for group, vals in groups['groups'].items():
                 if vals['amount'] == abs(pending_amount):
                     lines = [x.line for x in vals['payments']]
-                    parent, to_create = self.create_suggested_line(
-                        lines, pending_amount, name=group.rec_name)
-                    if not suggested_used:
-                        suggested_used = (parent.name if parent
-                            else to_create[0]['name'])
-                    suggesteds.extend(to_create)
-
-        if payment_groups_clearing['amount'] == abs(pending_amount):
-            name = gettext("Payments")
-            if len(payment_groups_clearing['groups']) == 1:
-                key = payment_groups_clearing['group'].keys()[0]
-                if (len(payment_groups_clearing['groups'][key][
-                        'payments']) == 1):
-                    name = None
-            lines = [p.line for v in payment_groups_clearing['groups'].values()
-                for p in v['payments']]
-            parent, to_create = self.create_suggested_line(lines,
-                pending_amount, name=name, payment=True)
-            if not suggested_used:
-                suggested_used = (parent.name if parent
-                    else to_create[0]['name'])
-            suggesteds.extend(to_create)
-        elif payment_groups_clearing['amount'] != _ZERO:
-            for group, vals in payment_groups_clearing['groups'].items():
-                if vals['amount'] == abs(pending_amount):
-                    lines = [x.line for x in vals['payments']]
+                    threshold = Origin.threshold_interval_date(vals['date'],
+                        self.date, threshold=0.8)
                     parent, to_create = self.create_suggested_line(
                         lines, pending_amount, name=group.rec_name,
-                        payment=True)
-                    if not suggested_used:
-                        suggested_used = (parent.name if parent
-                            else to_create[0]['name'])
+                        threshold=threshold)
                     suggesteds.extend(to_create)
-        return suggesteds, suggested_used
+
+        if groups_clearing['amount'] == abs(pending_amount):
+            name = gettext('account_statement_enable_banking.msg_payments')
+            if len(groups_clearing['groups']) == 1:
+                key = groups_clearing['group'].keys()[0]
+                if (len(groups_clearing['groups'][key][
+                        'payments']) == 1):
+                    name = None
+            lines = [p.line for v in groups_clearing['groups'].values()
+                for p in v['payments']]
+            parent, to_create = self.create_suggested_line(lines,
+                pending_amount, name=name, payment=True, threshold=0.7)
+            suggesteds.extend(to_create)
+        elif groups_clearing['amount'] != _ZERO:
+            for group, vals in groups_clearing['groups'].items():
+                if vals['amount'] == abs(pending_amount):
+                    lines = [x.line for x in vals['payments']]
+                    threshold = Origin.threshold_interval_date(vals['date'],
+                        self.date, threshold=0.8)
+                    parent, to_create = self.create_suggested_line(
+                        lines, pending_amount, name=group.rec_name,
+                        payment=True, threshold=threshold)
+                    suggesteds.extend(to_create)
+        return suggesteds
 
     def _search_suggested_reconciliation_by_move_line(self, exclude=None):
         """
@@ -921,12 +923,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         MoveLine = pool.get('account.move.line')
 
         suggesteds = []
-        suggested_used = None
 
         # search only for the same ammount and possible party
         pending_amount = self.pending_amount
         if pending_amount == _ZERO:
-            return suggesteds, suggested_used
+            return suggesteds
 
         # Prepapre the base domain
         domain = self._search_move_line_reconciliation_domain()
@@ -942,126 +943,77 @@ class Origin(Workflow, metaclass=PoolMeta):
             domain.append(('credit', '=', abs(pending_amount)))
 
         for line in MoveLine.search(domain, order=[('maturity_date', 'ASC')]):
+            threshold = Origin.threshold_interval_date(line.maturity_date,
+                self.date, threshold=0.7)
             parent, to_create = self.create_suggested_line([line],
-                pending_amount)
-            if not suggested_used:
-                suggested_used = to_create[0]['name']
+                pending_amount, threshold=threshold)
             suggesteds.extend(to_create)
+        return suggesteds
 
-        return suggesteds, suggested_used
-
-    def _search_suggested_reconciliation_by_text(self):
+    def _search_suggested_reconciliation_by_simlarity(self):
         """
-        Search by the text in Origin information field
+        Search for old origins lines. Reproducing the same line/s created.
         """
         pool = Pool()
-        Account = pool.get('account.account')
-        Config = pool.get('account.configuration')
-        config = Config(1)
+        Origin = pool.get('account.statement.origin')
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
+
+        origin_table = pool.get('account.statement.origin').__table__()
+        cursor = Transaction().connection.cursor()
 
         suggesteds = []
-        suggested_used = None
 
         pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
-            return suggesteds, suggested_used
-
         remittance_information = self.information.get(
             'remittance_information', None)
+        if pending_amount == _ZERO or not remittance_information:
+            return suggesteds
 
-        # TODO: If nothing is found search for some special chars:
-        #   - TARJ --> move line account 629.0
-        #   - COMISION DIVISA NO EURI --> move line account 626.0
-        #   - LIQUIDACION GESTION COBRO --> move line account 629.0
-        #   - TGSS REGIMEN GENERAL
-        # PROVE OF CONCEPT
-        texts = {
-            'TARJ': '629.0',
-            'COMISON': '626.0',
-            'GESTION': '629.0',
-            'IMPUESTO': '475%',
-            'TGSS': '476.0',
-            }
-        for text, code in texts.items():
-            domain = self._search_account_reconciliation_domain()
-            if '.' in code:
-                code_len = len(code) - 1
-                digits = config.default_account_code_digits - code_len
-                code = code.replace('.', ''.zfill(digits))
-            domain.append(('code', 'like', code))
-            accounts = Account.search(domain)
-            if not accounts:
-                continue
-            account = accounts[0]
-            # TODO: unaccent!
-            if text.upper() in remittance_information.upper():
-                name = "%s - %s" % (text.upper(), account.code)
+        threshold = self.statement.journal.similarity_threshold
+        similarity_column = Similarity(JsonbExtractPathText(
+                origin_table.information, 'remittance_information'),
+            remittance_information)
+        where = (similarity_column >= threshold) & (
+            origin_table.state == 'posted')
+        query = origin_table.select(origin_table.id, similarity_column,
+            where=where)
+        cursor.execute(*query)
+        name = gettext('account_statement_enable_banking.msg_similarity')
+        for origins in cursor.fetchall():
+            origin, = Origin.browse([origins[0]])
+            suggests = []
+            for line in origin.lines:
+                if line.related_to is not None:
+                    continue
                 values = {
                     'name': name,
+                    'parent': None,
                     'origin': self,
+                    'party': line.party,
                     'date': self.date,
-                    'account': account,
-                    'amount': self.pending_amount,
+                    'account': line.account,
+                    'amount': line.amount,
                     'second_currency': self.second_currency,
+                    'amount_second_currency': self.amount_second_currency,
+                    'similarity_threshold': origins[1],
                     'state': 'proposed'
                     }
-                name_exists = self.check_key_value_exists('name', name,
-                    suggesteds)
-                if not name_exists:
-                    suggesteds.append(values)
-                if not suggested_used:
-                    suggested_used = name
-        return suggesteds, suggested_used
-
-    def _search_account_reconciliation_domain(self):
-        return [
-            ('company', '=', self.company.id),
-            ('currency', '=', self.currency),
-            ('type', '!=', None),
-            ('closed', '!=', True),
-            ]
-
-    def _search_suggested_reconciliation_by_account(self, parties=None):
-        """
-        Search by the possiblity to have an account wit the aprty name
-        If party dose not found by invoice or move line.
-        """
-        pool = Pool()
-        Account = pool.get('account.account')
-
-        suggesteds = []
-        suggested_used = None
-
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO or parties is None:
-            return suggesteds, suggested_used
-
-        # TODO: For example, have the parties UB and GITHUB and the statement
-        # origin have the text "GITHUB", ensure to take the most exact result.
-        domain = self._search_account_reconciliation_domain()
-        for account in Account.search(domain):
-            dom = [
-                ('id', 'in', [x.id for x in parties])
-                ]
-            match_parties = self._match_parties(account.name, domain=dom)
-            for party in match_parties:
-                name = account.rec_name
-                values = {
-                    'name': name,
-                    'origin': self,
-                    'date': self.date,
-                    'account': account,
-                    'amount': self.pending_amount,
-                    'second_currency': self.second_currency,
-                    'state': 'proposed'
-                    }
-                name_exists = self.check_key_value_exists('name', name,
-                    suggesteds)
-                if not name_exists:
-                    suggesteds.append(values)
-                if not suggested_used:
-                    suggested_used = name
-        return suggesteds, suggested_used
+                suggests.append(values)
+            if len(suggests) == 1:
+                suggests[0]['amount'] = pending_amount
+            elif len(suggests) > 1:
+                parent = SuggestedLine()
+                parent.origin = self
+                parent.name = name
+                parent.amount = pending_amount
+                parent.state = 'proposed'
+                parent.similarity_threshold = origins[1],
+                parent.save()
+                for suggest in suggests:
+                    suggest['parent'] = parent
+                    suggest['name'] = ''
+            suggesteds.extend(suggests)
+        return suggesteds
 
     def _search_reconciliation(self):
         pool = Pool()
@@ -1083,72 +1035,66 @@ class Origin(Workflow, metaclass=PoolMeta):
                         'msg_suggested_line_related_to_statement_line'))
             SuggestedLine.delete(suggests)
 
+        suggesteds = []
         # Search by possible parties (controling if it is related to an invoice
         # or payments, or are move lines)
-        suggesteds, suggested_use, lines, unused_parties = (
+        suggest_lines, lines = (
             self._search_suggested_reconciliation_by_party())
+        suggesteds.extend(suggest_lines)
 
         # Search by possible invoices unknowing the party
-        suggest_lines, suggest_use = (
+        suggesteds.extend(
             self._search_suggested_reconciliation_by_invoice(exclude=lines))
-        suggesteds.extend(suggest_lines)
-        if not suggested_use:
-            suggested_use = suggest_use
 
         # Search by possible payment group
-        suggest_lines, suggest_use, used_groups = (
+        suggest_lines, used_groups = (
             self._search_suggested_reconciliation_payment_group())
         suggesteds.extend(suggest_lines)
-        if not suggested_use:
-            suggested_use = suggest_use
 
         # Search by possible part of payment group
-        # By the moment the payments must have the same date as the Origin
-        suggest_lines, suggest_use = (
+        # By the moment, the payments must have the same date as the Origin
+        suggesteds.extend(
             self._search_suggested_reconciliation_payment(exclude=used_groups))
-        suggesteds.extend(suggest_lines)
-        if not suggested_use:
-            suggested_use = suggest_use
 
         # Search by move_line without origin and unknowing party
-        suggest_lines, suggest_use = (
+        suggesteds.extend(
             self._search_suggested_reconciliation_by_move_line(exclude=lines))
-        suggesteds.extend(suggest_lines)
-        if not suggested_use:
-            suggested_use = suggest_use
 
-        # Search by any possibiity found in the Origin text information
-        suggest_lines, suggest_use = (
-            self._search_suggested_reconciliation_by_text())
-        suggesteds.extend(suggest_lines)
-        if not suggested_use:
-            suggested_use = suggest_use
-
-        if not suggesteds:
-            # At last search by account name like possible party base on the
-            # Origin text information
-            suggest_lines, suggest_use = (
-                self._search_suggested_reconciliation_by_account(
-                    parties=unused_parties))
-            suggesteds.extend(suggest_lines)
-            if not suggested_use:
-                suggested_use = suggest_use
+        # Search by simlarity, using the PostreSQL Trigram
+        suggesteds.extend(
+            self._search_suggested_reconciliation_by_simlarity())
 
         if suggesteds:
             SuggestedLine.create(suggesteds)
-            if suggested_use:
-                suggest_lines = SuggestedLine.search([
+            acceptable_similarty_threshold = (self.statement.journal.
+                acceptable_similarity_threshold)
+            suggested_use = None
+            before_similarity = 0.0
+            for suggest in SuggestedLine.search([
                     ('origin', '=', self),
-                    ('name', '=', suggested_use),
-                    ], limit=1)
-                if suggest_lines:
-                    suggest_line = suggest_lines[0]
-                    if suggest_line.second_currency != self.second_currency:
-                        self.second_currency = suggest_line.second_currency
-                        self.amount_second_currency = (
-                            suggest_line.amount_second_currency)
-                        self.save()
-                    SuggestedLine.use(suggest_lines)
+                    ('similarity_threshold', '>=',
+                        acceptable_similarty_threshold)
+                    ], order=[('similarity_threshold', 'DESC')]):
+                if (suggested_use and suggested_use.related_to != None
+                        and suggest.related_to == None):
+                    continue
+                if (suggest.similarity_threshold == before_similarity
+                        and suggest.related_to != None):
+                    suggested_use = None
+                    break
+                elif suggest.similarity_threshold < before_similarity:
+                    break
+                suggested_use = suggest
+                before_similarity = suggest.similarity_threshold
+            if suggested_use:
+                # Set the origin second_currency in case the line or lines
+                # finded have a different second currency
+                if suggested_use.second_currency != self.second_currency:
+                    self.second_currency = suggested_use.second_currency
+                    self.amount_second_currency = (
+                        suggested_use.amount_second_currency)
+                    self.save()
+                SuggestedLine.use([suggested_use])
 
     @classmethod
     @ModelView.button
@@ -1262,6 +1208,9 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     ],
                 ],
             })
+    similarity_threshold = fields.Float('Similarity Threshold',
+        help=('The thershold used for similarity function in origin lines '
+            'search'))
     state = fields.Selection([
             ('proposed', "Proposed"),
             ('used', "Used"),
@@ -1270,6 +1219,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     @classmethod
     def __setup__(cls):
         super().__setup__()
+        cls._order.insert(0, ('similarity_threshold', 'DESC'))
         cls._transitions |= set((
                 ('proposed', 'used'),
                 ('used', 'proposed'),
@@ -1357,177 +1307,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             if len(childs) > 1:
                 cls.write(list(childs), {'state': 'used'})
         StatementLine.create(to_create)
-
-
-class Journal(metaclass=PoolMeta):
-    __name__ = 'account.statement.journal'
-
-    aspsp_name = fields.Char("ASPSP Name", readonly=True)
-    aspsp_country = fields.Char("ASPSP Country", readonly=True)
-    synchronize_journal = fields.Boolean("Synchronize Journal")
-    account_statement_origin_sequence = fields.Many2One(
-        'ir.sequence', "Account Statement Origin Sequence", required=True,
-        domain=[
-            ('sequence_type', '=',
-                Id('account_statement_enable_banking',
-                    'sequence_type_account_statement_origin')),
-            ('company', '=', Eval('company')),
-            ])
-
-    @classmethod
-    def __setup__(cls):
-        super(Journal, cls).__setup__()
-        cls._buttons.update({
-            'synchronize_statement_enable_banking': {},
-        })
-
-    def set_number(self, origins):
-        '''
-        Fill the number field with the statement origin sequence
-        '''
-        pool = Pool()
-        StatementOrigin = pool.get('account.statement.origin')
-
-        for origin in origins:
-            if origin.number:
-                continue
-            origin.number = self.account_statement_origin_sequence.get()
-        StatementOrigin.save(origins)
-
-    @classmethod
-    @ModelView.button_action('account_statement_enable_banking.'
-        'act_enable_banking_synchronize_statement')
-    def synchronize_statement_enable_banking(cls, journals):
-        pass
-
-    def synchronize_statements_enable_banking(self):
-        pool = Pool()
-        EBSession = pool.get('enable_banking.session')
-        EBConfiguration = pool.get('enable_banking.configuration')
-        Statement = pool.get('account.statement')
-        StatementOrigin = pool.get('account.statement.origin')
-        Date = Pool().get('ir.date')
-
-        ebconfig = EBConfiguration(1)
-        # Get the session
-        eb_session = EBSession.search([
-            ('company', '=', self.company.id),
-            ('bank', '=', self.bank_account.bank.id)], limit=1)
-
-        if not eb_session:
-            raise AccessError(
-                gettext('account_statement_enable_banking.msg_no_session'))
-
-        # Search the account from the journal
-        session = eval(eb_session[0].session)
-        bank_numbers = [x.number_compact for x in self.bank_account.numbers]
-        account_id = None
-        for account in session['accounts']:
-            if account['account_id']['iban'] in bank_numbers:
-                account_id = account['uid']
-                break
-        if not account_id:
-            raise AccessError(
-                gettext('account_statement_enable_banking.'
-                    'msg_account_not_found',
-                    account=bank_numbers,
-                    bank=eb_session.bank.party.name))
-
-        # Prepare request
-        base_headers = get_base_header()
-        query = {
-            "date_from": (datetime.now(timezone.utc) - timedelta(
-                    days=ebconfig.offset)).date().isoformat()}
-
-        # We need to create an statement, as is a required field for the origin
-        statement = Statement()
-        statement.company = self.company
-        statement.name = self.name
-        statement.date = Date.today()
-        statement.journal = self
-        statement.on_change_journal()
-        statement.end_balance = Decimal(0)
-        if not statement.start_balance:
-            statement.start_balance = Decimal(0)
-        statement.save()
-
-        # Get the data, as we have a limit of transactions every query, we need
-        # to do a while loop to get all the transactions
-        continuation_key = None
-        to_save = []
-        total_amount = 0
-        while True:
-            if continuation_key:
-                query["continuation_key"] = continuation_key
-
-            r = requests.get(
-                f"{config.get('enable_banking', 'api_origin')}"
-                f"/accounts/{account_id}/transactions",
-                params=query, headers=base_headers)
-            if r.status_code == 200:
-                response = r.json()
-                continuation_key = response.get('continuation_key')
-                for transaction in response['transactions']:
-                    if (transaction['transaction_amount']['currency'] !=
-                            self.currency.code):
-                        raise AccessError(gettext(
-                                'account_statement_enable_banking.'
-                                'msg_currency_not_match'))
-                    found_statement_origin = StatementOrigin.search([
-                        ('entry_reference', '=',
-                            transaction['entry_reference']),
-                        ])
-                    if found_statement_origin:
-                        continue
-                    statement_origin = StatementOrigin()
-                    statement_origin.number = None
-                    statement_origin.state = 'registered'
-                    statement_origin.statement = statement
-                    statement_origin.company = self.company
-                    statement_origin.currency = self.currency
-                    statement_origin.amount = (
-                            transaction['transaction_amount']['amount'])
-                    if (transaction['credit_debit_indicator'] and
-                            transaction['credit_debit_indicator'] == 'DBIT'):
-                        statement_origin.amount = -statement_origin.amount
-                    total_amount += statement_origin.amount
-                    statement_origin.entry_reference = transaction[
-                        'entry_reference']
-                    statement_origin.date = datetime.strptime(
-                        transaction[ebconfig.date_field], '%Y-%m-%d')
-                    information_dict = {}
-                    for key, value in transaction.items():
-                        if value is None:
-                            continue
-                        information_dict[key] = str(value)
-                    statement_origin.information = information_dict
-                    to_save.append(statement_origin)
-                if not continuation_key:
-                    statement.end_balance = (
-                        statement.start_balance + total_amount)
-                    statement.save()
-                    break
-            else:
-                raise AccessError(
-                    gettext('account_statement_enable_banking.'
-                        'msg_error_get_statements',
-                        error=str(r.status_code),
-                        error_message=str(r.text)))
-
-        to_save.sort(key=lambda x: x.date)
-        # The set number function save the origins
-        self.set_number(to_save)
-
-        # Get the suggested lines for each origin created
-        for origin in statement.origins:
-            origin._search_reconciliation()
-
-    @classmethod
-    def synchronize_enable_banking_journals(cls):
-        pool = Pool()
-        Journal = pool.get('account.statement.journal')
-        for journal in Journal.search([('synchronize_journal', '=', True)]):
-            journal.synchronize_statements_enable_banking()
 
 
 class SynchronizeStatementEnableBankingStart(ModelView):

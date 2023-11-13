@@ -3,8 +3,9 @@
 this repository contains the full copyright notices and license terms. -->
 <tree>
     <field name="name" expand="1"/>
-    <field name="party" expand="1"/>
     <field name="date"/>
+    <field name="party" expand="1"/>
+    <field name="account"/>
     <field name="amount"/>
     <button name="use"/>
     <field name="parent" tree_invisible="1"/>
