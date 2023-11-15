@@ -514,6 +514,8 @@ class Origin(Workflow, metaclass=PoolMeta):
     @classmethod
     def threshold_interval_date(cls, date, control_date, interval_date=None,
         threshold=0.0):
+        if not date:
+            return threshold
         if not interval_date:
             interval_date = timedelta(days=3)
         start_date = control_date - interval_date
