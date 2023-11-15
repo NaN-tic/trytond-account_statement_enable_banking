@@ -1015,7 +1015,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 parent.name = name
                 parent.amount = pending_amount
                 parent.state = 'proposed'
-                parent.similarity_threshold = origins[1],
+                parent.similarity_threshold = origins[1]
                 parent.save()
                 for suggest in suggests:
                     suggest['parent'] = parent
