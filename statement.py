@@ -1067,6 +1067,10 @@ class Origin(Workflow, metaclass=PoolMeta):
             self._search_suggested_reconciliation_by_simlarity())
 
         if suggesteds:
+            # Remove duplicate suggestions
+            suggesteds = [tuple(x.items()) for x in suggesteds]
+            suggesteds = list(set(suggesteds))
+            suggesteds = [dict(x) for x in suggesteds]
             SuggestedLine.create(suggesteds)
             acceptable_similarty_threshold = (self.statement.journal.
                 acceptable_similarity_threshold)
