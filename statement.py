@@ -624,9 +624,12 @@ class Origin(Workflow, metaclass=PoolMeta):
                     name = line.payments[0].rec_name
                 related_to = line.payments[0]
             else:
+                related_to = line.move_origin if line.move_origin else line
+                if line.second_currency != self.currency:
+                    second_currency = line.second_currency
+                    amount_second_currency = line.amount_second_currency
                 if not parent and not name:
                     name = line.rec_name
-                related_to = line
             amount_line = line.debit - line.credit
             values = {
                 'name': '' if parent else name,
@@ -876,6 +879,10 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('move_state', '=', 'posted'),
             ('reconciliation', '=', None),
             ('account.reconcile', '=', True),
+            ['OR',
+                ('account.type.receivable', '=', True),
+                ('account.type.payable', '=', True)
+                ],
             ['OR',
                 ('origin', '=', None),
                 ('origin', 'like', 'account.invoice,%')
@@ -1528,72 +1535,3 @@ class Cron(metaclass=PoolMeta):
             ('account.statement.journal|synchronize_enable_banking_journals',
                 "Synchronize Enable Banking Journals"),
             ])
-
-
-
-
-
-    def _search_suggested_reconciliation_by_invoice(self):
-        """
-        Search for the possible move line with invoice as origin and without
-        party that could be realted to this Origin, and add all them in the
-        suggested field.
-        """
-        pool = Pool()
-        MoveLine = pool.get('account.move.line')
-
-        suggesteds = []
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
-            return suggesteds
-
-        remittance_information = self.information.get(
-            'remittance_information', None)
-
-        # Prepapre the base domain
-        domain = self._search_move_line_reconciliation_domain(lines_ids)
-        domain.append(('move_origin', 'like', 'account.invoice,%'))
-
-        lines = MoveLine.search(domain, order=[('maturity_date', 'ASC')])
-        #return self._search_and_create_suggested(lines, pending_amount)
-        lines_by_origin = {}
-        for line in lines:
-            amount = line.debit - line.credit
-            if (line.move_origin
-                    and line.move_origin in lines_by_origin):
-                lines_by_origin[line.move_origin]['amount'] += amount
-                lines_by_origin[line.move_origin]['lines'].append(line)
-            else:
-                lines_by_origin[line.move_origin] = {
-                    'party': line.party.id if line.party else None,
-                    'amount': amount,
-                    'lines': [line]
-                        }
-            if amount == pending_amount:
-                threshold_parties = {}
-                threshold = self.threshold_interval_date(line.maturity_date,
-                    self.date, threshold=0.6)
-                if line.party:
-                    threshold_parties = {line.party.id: threshold}
-                    self.similarity_parties(self, threshold_parties,
-                        remittance_information, threshold=threshold)
-                    threshold = threshold_parties[line.party.id]
-                parent, to_create = self.create_suggested_line([line],
-                    pending_amount, threshold=threshold)
-                suggesteds.extend(to_create)
-        # Check if there are more than one move from the same origin
-        # that sum the pending_amount
-        for values in lines_by_origin.values():
-            if (len(values['lines']) > 1
-                    and values['amount'] == pending_amount):
-                threshold = 0.6
-                if values['party']:
-                    threshold_parties = {line.party.id: threshold}
-                    self.similarity_parties(self, threshold_parties,
-                        remittance_information, threshold=threshold)
-                    threshold = threshold_parties[line.party.id]
-                parent, to_create = self.create_suggested_line(
-                    values['lines'], pending_amount, threshold=threshold)
-                suggesteds.extend(to_create)
-        return suggesteds, lines
-

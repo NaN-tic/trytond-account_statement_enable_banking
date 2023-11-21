@@ -54,7 +54,7 @@ class Journal(metaclass=PoolMeta):
         return 5
 
     @staticmethod
-    def default_acceptable_similarity_threshold():
+    def default_acceptable_similarity():
         return 8
 
     def set_number(self, origins):
@@ -133,8 +133,8 @@ class Journal(metaclass=PoolMeta):
         statement.end_balance = Decimal(0)
         if not statement.start_balance:
             statement.start_balance = Decimal(0)
-        statement.start_date = Date.today()
-        statement.end_date = datetime.now(timezone.utc) - timedelta(
+        statement.end_date = Date.today()
+        statement.start_date = datetime.now(timezone.utc) - timedelta(
             days=ebconfig.offset)
         statement.save()
 
