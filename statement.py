@@ -86,6 +86,16 @@ class Line(metaclass=PoolMeta):
     def _get_relations(cls):
         return super()._get_relations() + ['account.move.line']
 
+    @fields.depends('origin', '_parent_origin.second_currency')
+    def on_change_with_second_currency(self, name=None):
+        if self.origin and self.origin.second_currency:
+            return self.origin.second_currency
+
+    @fields.depends('origin', '_parent_origin.amount_second_currency')
+    def on_change_with_amount_second_currency(self, name=None):
+        if self.origin and self.origin.amount_second_currency:
+            return self.origin.amount_second_currency
+
     @property
     @fields.depends('related_to')
     def move_line(self):
@@ -130,7 +140,6 @@ class Line(metaclass=PoolMeta):
                 # lines
                 to_unpay = [x for x in move.lines if x.invoice_payment]
                 if to_unpay:
-                    #to_unpay = [MoveLine(x.id) for x in to_unpay]
                     Invoice.remove_payment_lines(to_unpay)
 
                 cancel_move = move.cancel()
@@ -354,7 +363,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Lang = pool.get('ir.lang')
 
-        amount = sum(l.amount for l in self.lines)
+        amount = sum(x.amount for x in self.lines)
         if amount != self.amount:
             lang = Lang.get()
             total_amount = lang.currency(
@@ -378,8 +387,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         paid_cancelled_invoice_lines = []
         for origin in origins:
             origin.validate_amount()
-            paid_cancelled_invoice_lines.extend(l for l in origin.lines
-                if l.invoice and l.invoice.state in {'cancelled', 'paid'})
+            paid_cancelled_invoice_lines.extend(x for x in origin.lines
+                if x.invoice and x.invoice.state in {'cancelled', 'paid'})
 
         if paid_cancelled_invoice_lines:
             warning_key = Warning.format(
@@ -440,7 +449,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             move_line.move = move
             move_lines.append((move_line, None))
 
-        MoveLine.save([l for l, _ in move_lines])
+        MoveLine.save([x for x, _ in move_lines])
         StatementLine.reconcile(move_lines)
         return moves
 
@@ -457,13 +466,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
-        Move = pool.get('account.move')
-        MoveLine = pool.get('account.move.line')
 
         cls.validate_origin(origins)
         cls.create_moves(origins)
 
-        lines = [l for o in origins for l in o.lines]
+        lines = [x for o in origins for x in o.lines]
         # It's an awfull hack to sate the state, but it's needed to ensure the
         # Error of statement state in Move.post is not applied when try to
         # concile and individual origin. For this, need the state == 'posted'.
