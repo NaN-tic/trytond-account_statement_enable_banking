@@ -41,7 +41,7 @@ class Statement(metaclass=PoolMeta):
     __name__ = 'account.statement'
 
     start_date = fields.DateTime("Start Date", readonly=True)
-    end_date = fields.Date("End Date", readonly=True)
+    end_date = fields.DateTime("End Date", readonly=True)
 
     @classmethod
     def cancel(cls, statements):

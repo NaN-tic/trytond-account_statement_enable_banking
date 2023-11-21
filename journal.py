@@ -135,7 +135,7 @@ class Journal(metaclass=PoolMeta):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.now(timezone.utc) - timedelta(
             days=ebconfig.offset)
-        statement.end_date = Date.today()
+        statement.end_date = datetime.now(timezone.utc)
         statement.save()
 
         # Get the data, as we have a limit of transactions every query, we need
