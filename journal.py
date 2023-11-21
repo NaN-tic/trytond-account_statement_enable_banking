@@ -10,18 +10,25 @@ from trytond.config import config
 from trytond.i18n import gettext
 from trytond.model.exceptions import AccessError
 from .common import get_base_header
-from trytond.transaction import Transaction
 
 
 class Journal(metaclass=PoolMeta):
     __name__ = 'account.statement.journal'
 
-    similarity_threshold = fields.Float('Similarity Threshold', required=True,
+    similarity_threshold = fields.Integer('Similarity Threshold', required=True,
+        domain=[
+            ('similarity_threshold', '>', 0),
+            ('similarity_threshold', '<=', 10),
+            ],
         help='The thershold used for similarity function in origin lines '
         'search')
-    acceptable_similarity_threshold = fields.Float(
-        'Acceptable Similarity Threshold', required=True,
-        help='The minimum thershold allowed to set the statement line '
+    acceptable_similarity = fields.Integer(
+        'Acceptable Similarity', required=True,
+        domain=[
+            ('acceptable_similarity', '>', 0),
+            ('acceptable_similarity', '<=', 10),
+            ],
+        help='The minimum similarity allowed to set the statement line '
         'direclty from suggested lines.')
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
@@ -44,11 +51,11 @@ class Journal(metaclass=PoolMeta):
 
     @staticmethod
     def default_similarity_threshold():
-        return 0.5
+        return 5
 
     @staticmethod
     def default_acceptable_similarity_threshold():
-        return 0.8
+        return 8
 
     def set_number(self, origins):
         '''
@@ -62,6 +69,14 @@ class Journal(metaclass=PoolMeta):
                 continue
             origin.number = self.account_statement_origin_sequence.get()
         StatementOrigin.save(origins)
+
+    def _keys_not_needed(self):
+        return [
+            'balance_after_transaction',
+            'transaction_amount',
+            'credit_debit_indicator',
+            'status'
+            ]
 
     @classmethod
     @ModelView.button_action('account_statement_enable_banking.'
@@ -169,9 +184,20 @@ class Journal(metaclass=PoolMeta):
                         transaction[ebconfig.date_field], '%Y-%m-%d')
                     information_dict = {}
                     for key, value in transaction.items():
-                        if value is None:
+                        if value is None or key in self._keys_not_needed():
                             continue
-                        information_dict[key] = str(value)
+                        if isinstance(value, str):
+                            information_dict[key] = value
+                        if isinstance(value, bytes):
+                            information_dict[key] = str(value)
+                        if isinstance(value, dict):
+                            for k, v in value.items():
+                                if value is None:
+                                    continue
+                                tag = "%s - %s" % (key, k)
+                                information_dict[tag] = str(value)
+                        if isinstance(value, list):
+                            information_dict[key] = ", ".join(value)
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
                 if not continuation_key:
@@ -191,8 +217,7 @@ class Journal(metaclass=PoolMeta):
         self.set_number(to_save)
 
         # Get the suggested lines for each origin created
-        for origin in statement.origins:
-            origin._search_reconciliation()
+        StatementOrigin._search_reconciliation(statement.origins)
 
     @classmethod
     def synchronize_enable_banking_journals(cls):
