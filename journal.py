@@ -15,7 +15,8 @@ from .common import get_base_header
 class Journal(metaclass=PoolMeta):
     __name__ = 'account.statement.journal'
 
-    similarity_threshold = fields.Integer('Similarity Threshold', required=True,
+    similarity_threshold = fields.Integer('Similarity Threshold',
+        required=True,
         domain=[
             ('similarity_threshold', '>', 0),
             ('similarity_threshold', '<=', 10),

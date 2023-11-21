@@ -5,8 +5,6 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from secrets import token_hex
 from itertools import groupby
-from unidecode import unidecode
-import re
 from sql.functions import Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
@@ -171,8 +169,7 @@ class Line(metaclass=PoolMeta):
                     raise StatementValidateWarning(warning_key,
                         gettext('account_statement_enable_banking.'
                             'msg_origin_line_with_move',
-                            move=line.move.rec_name,
-                            ))
+                            move=line.move.rec_name))
                 for mline in line.move.lines:
                     if mline.origin == line:
                         mline.origin = line.origin
@@ -505,7 +502,6 @@ class Origin(Workflow, metaclass=PoolMeta):
     def cancel(cls, origins):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
-        Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
         Warning = pool.get('res.user.warning')
 
@@ -603,7 +599,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
-        Invoice = pool.get('account.invoice')
 
         parent = None
         to_create = []
@@ -619,6 +614,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent.save()
 
         for line in move_lines:
+            second_currency = self.second_currency
+            amount_second_currency = self.amount_second_currency
             if payment and line.payments:
                 if not parent and not name:
                     name = line.payments[0].rec_name
@@ -640,8 +637,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'related_to': related_to,
                 'account': line.account,
                 'amount': amount_line,
-                'second_currency': self.second_currency,
-                'amount_second_currency': self.amount_second_currency,
+                'second_currency': second_currency,
+                'amount_second_currency': amount_second_currency,
                 'similarity': similarity,
                 'state': 'proposed',
                 }
@@ -959,7 +956,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 similarity = acceptable
                 line_parties = [x.party for x in values['lines']]
                 party = (line_parties[0]
-                    if line_partes.count(line_parties[0]) == len(line_parties)
+                    if line_parties.count(line_parties[0]) == len(line_parties)
                     else None)
                 dates = [x.maturity_date for x in values['lines']]
                 date = (dates[0] if dates.count(dates[0]) == len(dates)
