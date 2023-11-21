@@ -246,6 +246,18 @@ class Origin(Workflow, metaclass=PoolMeta):
                     readonly=False, instantiate=0, fresh_session=True),
                 })
 
+    @property
+    @fields.depends('statement', '_parent_statement.journal')
+    def similarity_threshold(self):
+        return (self.statement.journal.similarity_threshold
+            if self.statement and self.statement.journal else None)
+
+    @property
+    @fields.depends('statement', '_parent_statement.journal')
+    def acceptable_similarity(self):
+        return (self.statement.journal.acceptable_similarity
+            if self.statement and self.statement.journal else None)
+
     def get_suggested_lines_tree(self, name):
         # return only parent lines in origin suggested lines
         # Not children.
@@ -511,32 +523,72 @@ class Origin(Workflow, metaclass=PoolMeta):
                     MoveLine.write(*to_write)
         StatementLine.write(lines, {'move': None})
 
-    @classmethod
-    def threshold_interval_date(cls, date, control_date, interval_date=None,
-        threshold=0.0):
-        if not date:
-            return threshold
-        if not interval_date:
-            interval_date = timedelta(days=3)
-        start_date = control_date - interval_date
-        end_date = control_date + interval_date
-        if date == control_date:
-            threshold += 0.2
-        elif start_date <= date <= end_date:
-            threshold += 0.1
-        return threshold
-
-    def check_key_value_exists(self, key, value, dict_list):
-        """Checks if a key exists and have a specifica value in a list of
-        dictionaries.
+    def similarity_parties(self, compare):
         """
-        for d in dict_list:
-            if d.get(key, None) == value:
-                return True
-        return False
+        This function return a dictionary with the possible parties ID on
+        'key' and the similairty on 'value'.
+        It compare the 'compare' value with the parties name, based on the
+        similarities journal deffined values.
+        """
+        pool = Pool()
+        Party = pool.get('party.party')
+        party_table = Party.__table__()
+        cursor = Transaction().connection.cursor()
 
-    def create_suggested_line(self, move_lines, amount, name=None,
-            payment=False, threshold=0.0):
+        if not compare:
+            return
+
+        similarity_parties = {}
+        similarity_party = Similarity(party_table.name, compare)
+        if hasattr(Party, 'trade_name'):
+            similarity_party_trade = Similarity(party_table.trade_name,
+                compare)
+            where = ((similarity_party >= self.similarity_threshold) | (
+                    (party_table.trade_name != None)
+                    & (similarity_party_trade >= self.similarity_threshold)))
+        else:
+            where = (similarity_party >= self.similarity_threshold)
+        query = party_table.select(party_table.id, similarity_party,
+            where=where)
+        cursor.execute(*query)
+        for similarity in cursor.fetchall():
+            similarity_parties[similarity[0]] = round(similarity[1] * 10)
+        return similarity_parties
+
+    def increase_similarity_by_interval_date(self, date, interval_date=None,
+            similarity=0):
+        """
+        This funtion increase the similarity if the dates are equal or in the
+        interval.
+        """
+        if date:
+            control_date = self.date
+            if not interval_date:
+                interval_date = timedelta(days=3)
+            start_date = control_date - interval_date
+            end_date = control_date + interval_date
+            if date == control_date:
+                similarity += 2
+            elif start_date <= date <= end_date:
+                similarity += 1
+        return similarity
+
+    def increase_similarity_by_party(self, party, similarity_parties,
+            similarity=0):
+        """
+        This funtion increase the similarity if the party are similar.
+        """
+        if party:
+            party_id = party.id
+            if party_id in similarity_parties:
+                if similarity_parties[party_id] >= self.acceptable_similarity:
+                    similarity += 2
+                else:
+                    similarity += 1
+        return similarity
+
+    def create_payment_suggested_line(self, move_lines, amount, name,
+            payment=False, similarity=0):
         """
         Create one or more suggested registers based on the move_lines.
         If there are more than one move_line, it will be grouped under
@@ -550,40 +602,71 @@ class Origin(Workflow, metaclass=PoolMeta):
         to_create = []
         if not move_lines:
             return parent, to_create
-
         elif len(move_lines) > 1:
             parent = SuggestedLine()
             parent.origin = self
+            parent.name = name
             parent.amount = amount
             parent.state = 'proposed'
-            parent.similarity_threshold = threshold
+            parent.similarity = similarity
             parent.save()
 
-        second_currency = self.second_currency
-        amount_second_currency = self.amount_second_currency
         for line in move_lines:
-            if line.move_origin and isinstance(line.move_origin, Invoice):
-                invoice = line.move_origin
-                if not name:
-                    name = invoice.rec_name
-                related_to = invoice
-                if (second_currency is None
-                        and invoice.currency != self.currency):
-                    second_currency = invoice.currency
-                    amount_second_currency = (invoice.total_amount
-                        if invoice.type == 'out'
-                        else -1 * invoice.total_amount)
-            elif payment and line.payments:
-                if not name:
+            if payment and line.payments:
+                if not parent and not name:
                     name = line.payments[0].rec_name
                 related_to = line.payments[0]
             else:
-                if not name:
+                if not parent and not name:
                     name = line.rec_name
                 related_to = line
-            if parent and parent.name is None:
-                parent.name = name
-                parent.save()
+            amount_line = line.debit - line.credit
+            values = {
+                'name': '' if parent else name,
+                'parent': parent,
+                'origin': self,
+                'party': line.party,
+                'date': line.maturity_date,
+                'related_to': related_to,
+                'account': line.account,
+                'amount': amount_line,
+                'second_currency': self.second_currency,
+                'amount_second_currency': self.amount_second_currency,
+                'similarity': similarity,
+                'state': 'proposed',
+                }
+            to_create.append(values)
+        return parent, to_create
+
+    def create_move_suggested_line(self, move_lines, amount, name,
+            similarity=0):
+        """
+        Create one or more suggested registers based on the move_lines.
+        If there are more than one move_line, it will be grouped under
+        parent.
+        """
+        pool = Pool()
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
+
+        parent = None
+        to_create = []
+        if not move_lines:
+            return parent, to_create
+        elif len(move_lines) > 1:
+            parent = SuggestedLine()
+            parent.origin = self
+            parent.name = name
+            parent.amount = amount
+            parent.state = 'proposed'
+            parent.similarity = similarity
+            parent.save()
+        second_currency = self.second_currency
+        amount_second_currency = self.amount_second_currency
+        for line in move_lines:
+            related_to = line.move_origin if line.move_origin else line
+            if line.second_currency != self.currency:
+                second_currency = line.second_currency
+                amount_second_currency = line.amount_second_currency
             amount_line = line.debit - line.credit
             values = {
                 'name': '' if parent else name,
@@ -596,327 +679,212 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'amount': amount_line,
                 'second_currency': second_currency,
                 'amount_second_currency': amount_second_currency,
-                'similarity_threshold': threshold,
+                'similarity': similarity,
                 'state': 'proposed',
                 }
             to_create.append(values)
         return parent, to_create
 
-    def _match_parties(self, text, domain=[]):
-        pool = Pool()
-        Party = pool.get('party.party')
-
-        match_parties = []
-        text = unidecode(text).upper()
-
-        def check_match_party(name):
-            if name in text and party not in match_parties:
-                match_parties.append(party)
-
-        for party in Party.search(domain):
-            name = unidecode(party.name).upper()
-            check_match_party(name)
-            name = name.replace(',', '').replace('.', '')
-            check_match_party(name)
-            # Try to remove the most used type of comapny at the end
-            patern = r'\s(SL|SA|SLU|SAU|COOP|SLL|SAL|SLP|SLNE|SC|SCCL|INC'\
-                '|LLC|CO)$'
-            name = re.sub(patern, '', name, count=1)
-            name = name.strip()
-            check_match_party(name)
-            if hasattr(party, 'trade_name') and party.trade_name:
-                name = unidecode(party.trade_name).upper()
-                check_match_party(name)
-                name = name.replace(',', '').replace('.', '')
-                check_match_party(name)
-        return match_parties
-
-    def _search_and_create_suggested(self, lines, pending_amount):
-        pool = Pool()
-        InvoiceTax = pool.get('account.invoice.tax')
-
-        suggesteds = []
-        lines_by_origin = {}
-        for line in lines:
-            if isinstance(line.origin, InvoiceTax):
-                continue
-            amount = line.debit - line.credit
-            if (line.move_origin
-                    and line.move_origin in lines_by_origin):
-                lines_by_origin[line.move_origin]['amount'] += amount
-                lines_by_origin[line.move_origin]['lines'].append(line)
-            elif line.move_origin:
-                lines_by_origin[line.move_origin] = {
-                    'amount': amount,
-                    'lines': [line]
-                        }
-            if amount == pending_amount:
-                threshold = Origin.threshold_interval_date(line.maturity_date,
-                    self.date, threshold=0.8)
-                parent, to_create = self.create_suggested_line([line],
-                    pending_amount, threshold=threshold)
-                suggesteds.extend(to_create)
-        # Check if there are more than one move from the same origin
-        # that sum the pending_amount
-        for values in lines_by_origin.values():
-            if (len(values['lines']) > 1
-                    and values['amount'] == pending_amount):
-                parent, to_create = self.create_suggested_line(
-                    values['lines'], pending_amount, threshold=0.9)
-                suggesteds.extend(to_create)
-        return suggesteds
-
-    def _search_move_line_reconciliation_domain(self):
-        return [
-            ('move.company', '=', self.company.id),
-            ('currency', '=', self.currency),
-            ('move_state', '=', 'posted'),
-            ('reconciliation', '=', None),
-            ('account.reconcile', '=', True),
-            ]
-
-    def _search_suggested_reconciliation_by_party(self):
-        """
-        Search for the possible move line with the party that could be
-        realted to this Origin, and add all them in the suggested field.
-        Return a list with suggested lines to save, the possible suggested
-        line to use as default, the move lines used and the parties found
-        in Origin information, but not found a move line.
-        """
-        pool = Pool()
-        MoveLine = pool.get('account.move.line')
-
-        suggesteds = []
-        move_lines_used = []
-
-        # search only for the same ammount and possible party
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
-            return suggesteds, move_lines_used
-
-        # Prepapre the base domain
-        domain = self._search_move_line_reconciliation_domain()
-
-        # Get from account statement origin the possible party name download
-        # from the Bank. In Spain this information is setted in the field
-        # called remittance_information. In this fild are more information,
-        # but one of the possible information is the aprty name.
-        remittance_information = self.information.get(
-            'remittance_information', None)
-
-        # If exist the 'remittance_information' field it may be contain the
-        # name of the party which recive or do the payment.
-        # Prepare a list with the possible parties that match with the possible
-        # text in the 'remittance_information' field.
-        match_parties = []
-        if remittance_information:
-            match_parties = self._match_parties(remittance_information)
-
-        # Check if the possible matched names and the default information
-        # found any move line.
-        # TODO: Not control the amount, to try to find a possible invoice/s
-        # and credit note/s.
-        # TODO: Maybe use the algorithm in account_reconcile module used to
-        # reconcile multiples lines separated in time.
-        for party in match_parties:
-            party_lines = MoveLine.search(domain + [('party', '=', party)],
-                order=[('maturity_date', 'ASC')])
-            if party_lines:
-                suggesteds.extend(self._search_and_create_suggested(
-                        party_lines, pending_amount))
-            move_lines_used.extend(party_lines)
-        return suggesteds, move_lines_used
-
-    def _search_suggested_reconciliation_by_invoice(self, exclude=None):
-        """
-        Search for the possible move line with invoice as origin and without
-        party that could be realted to this Origin, and add all them in the
-        suggested field.
-        """
-        pool = Pool()
-        MoveLine = pool.get('account.move.line')
-
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
-            return []
-
-        # Prepapre the base domain
-        domain = self._search_move_line_reconciliation_domain()
-        domain.append(('move_origin', 'like', 'account.invoice,%'))
-        if exclude and isinstance(exclude, list):
-            domain.append(('id', 'not in', [x.id for x in exclude]))
-
-        lines = MoveLine.search(domain, order=[('maturity_date', 'ASC')])
-        return self._search_and_create_suggested(lines, pending_amount)
-
-    def _search_payment_group_reconciliation_domain(self, amount, kind):
-        return [
+    def _search_clearing_payment_group_reconciliation_domain(self, amount=None,
+            kind=None):
+        domain = [
             ('journal.currency', '=', self.currency),
-            ('kind', '=', kind),
-            ('total_amount', '=', amount),
+            ('journal.clearing_account', '!=', None),
             ('company', '=', self.company.id),
             ]
+        if amount:
+            domain.append(('total_amount', '=', amount))
+        if kind is not None:
+            domain.append(('kind', '=', kind))
 
-    def _search_suggested_reconciliation_payment_group(self, exclude=None):
+        return domain
+
+    def _search_suggested_reconciliation_clearing_payment_group(self, amount,
+            acceptable=0):
         pool = Pool()
-        Origin = pool.get('account.statement.origin')
         Group = pool.get('account.payment.group')
 
         suggesteds = []
         groups = []
 
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
+        if not amount:
             return suggesteds, groups
 
-        kind = 'receivable' if pending_amount > _ZERO else 'payable'
-        domain = self._search_payment_group_reconciliation_domain(
-            abs(pending_amount), kind)
+        kind = 'receivable' if amount > _ZERO else 'payable'
+        domain = self._search_clearing_payment_group_reconciliation_domain(
+            abs(amount), kind)
 
         for group in Group.search(domain):
-            if group.journal.clearing_account is None:
-                continue
             found = True
             for payment in group.payments:
-                if (payment.state == 'failed' or (payment.line
-                            and payment.state != 'failed'
-                            and payment.line.reconciliation)):
+                if (payment.state == 'failed' or (payment.state != 'failed'
+                            and payment.line and payment.line.reconciliation)):
                     found = False
                     break
             if found:
                 groups.append(group)
 
         for group in groups:
-            name = group.rec_name
-            threshold = Origin.threshold_interval_date(group.planed_date,
-                self.date, threshold=0.8)
+            similarity = self.increase_similarity_by_interval_date(
+                group.planned_date, similarity=acceptable)
             values = {
-                'name': name,
+                'name': group.rec_name,
                 'origin': self,
                 'date': group.planned_date,
                 'related_to': group,
-                'amount': pending_amount,
+                'amount': amount,
                 'account': group.journal.clearing_account,
                 'second_currency': self.second_currency,
-                'similarity_threshold': threshold,
+                'similarity': similarity,
                 'state': 'proposed',
                 }
             suggesteds.append(values)
         return suggesteds, groups
 
-    def _search_payment_reconciliation_domain(self):
-        return [
+    def _search_clearing_payment_reconciliation_domain(self, amount=None,
+            exclude=None):
+        domain = [
             ('currency', '=', self.currency),
             ('company', '=', self.company.id),
+            ('state', '!=', 'failed'),
+            ('journal.clearing_account', '!=', None),
+            ('clearing_move', '!=', None),
             ]
+        if amount:
+            domain.append(('total_amount', '=', amount))
+        if exclude:
+            domain.append(('group', 'not in', exclude))
+        return domain
 
-    def _search_suggested_reconciliation_payment(self, exclude=None):
+    def _search_suggested_reconciliation_clearing_payment(self, amount,
+            acceptable=0, parties=None, exclude=None):
         pool = Pool()
         Payment = pool.get('account.payment')
 
         suggesteds = []
+        move_lines = []
 
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
-            return suggesteds
+        if not amount:
+            return suggesteds, move_lines
 
-        kind = 'receivable' if pending_amount > _ZERO else 'payable'
-        domain = self._search_payment_reconciliation_domain()
+        domain = self._search_clearing_payment_reconciliation_domain(amount,
+            exclude)
+        for payment in Payment.search(domain):
+            name = (payment.group.rec_name
+                if payment.group
+                else gettext('account_statement_enable_banking.msg_payments'))
+            move_lines.append(payment.line)
+            similarity = self.increase_similarity_by_interval_date(
+                payment.date, similarity=acceptable)
+            party = payment.party
+            if party:
+                similarity = self.increase_similarity_by_party(
+                    party, parties, similarity=similarity)
+            parent, to_create = self.create_payment_suggested_line(
+                move_lines, amount, name=name, payment=True,
+                similarity=similarity)
+            suggesteds.extend(to_create)
+        return suggesteds, move_lines
+
+    def _search_payment_reconciliation_domain(self, exclude_groups=None,
+            exclude_lines=None):
+        domain = [
+            ('currency', '=', self.currency),
+            ('company', '=', self.company.id),
+            ('state', '!=', 'failed'),
+            ('line', '!=', None),
+            ('line.reconciliation', '=', None),
+            ]
+        if exclude_groups:
+            domain.append(('group', 'not in', exclude_groups))
+        if exclude_lines:
+            domain.append(('line', 'not in', exclude_lines))
+        return domain
+
+    def _search_suggested_reconciliation_payment(self, amount, acceptable=0,
+            parties=None, exclude_groups=None, exclude_lines=None):
+        pool = Pool()
+        Payment = pool.get('account.payment')
+
+        suggesteds = []
+        move_lines = []
+
+        if not amount:
+            return suggesteds, move_lines
+
+        domain = self._search_payment_reconciliation_domain(exclude_groups,
+            exclude_lines)
 
         groups = {
             'amount': _ZERO,
             'groups': {}
             }
-        groups_clearing = {
-            'amount': _ZERO,
-            'groups': {}
-            }
         for payment in Payment.search(domain):
-            if payment.group and payment.group in exclude:
-                continue
-            # TODO: Control when is using clearing and payment is set to "exit"
-            if (payment.line and payment.state != 'failed'
-                    and payment.line.reconciliation is None):
-                amount = payment.amount
-                if payment.group in exclude:
-                    continue
-                group = payment.group if payment.group else payment
-                if (not payment.journal
-                        or payment.journal.clearing_account is None):
-                    groups['amount'] += amount
-                    if (group in groups['groups']
-                            and groups['groups'][group]['date']
-                            == payment.date):
-                        groups['groups'][group]['amount'] += amount
-                        groups['groups'][group]['payments'].append(payment)
-                    else:
-                        groups['groups'][group] = {
-                            'date': payment.date,
-                            'amount': amount,
-                            'payments': [payment],
-                            }
-                else:
-                    groups_clearing['amount'] += amount
-                    if (group in groups_clearing['groups']
-                            and groups_clearing['groups'][group]['date']
-                            == payment.date):
-                        groups_clearing['groups'][group]['amount'] += amount
-                        groups_clearing['groups'][group]['payments'].append(
-                            payment)
-                    else:
-                        groups_clearing['groups'][group] = {
-                            'date': payment.date,
-                            'amount': amount,
-                            'payments': [payment],
-                            }
-
-        if groups['amount'] == abs(pending_amount):
+            payment_amount = payment.amount
+            payment_date = payment.date
+            group = payment.group if payment.group else payment
+            groups['amount'] += payment_amount
+            key = (group, payment_date)
+            if key in groups['groups']:
+                groups['groups'][key]['amount'] += payment_amount
+                groups['groups'][key]['payments'].append(payment)
+            else:
+                groups['groups'][key] = {
+                    'amount': payment_amount,
+                    'payments': [payment],
+                    }
+        if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
             name = gettext('account_statement_enable_banking.msg_payments')
-            if len(groups['groups']) == 1:
-                key = groups['group'].keys()[0]
-                if len(groups['groups'][key]['payments']) == 1:
-                    name = None
-            lines = [p.line for v in groups['groups'].values()
-                for p in v['payments']]
-            parent, to_create = self.create_suggested_line(lines,
-                pending_amount, name=name, threshold=0.7)
+            move_lines.extend([p.line for v in groups['groups'].values()
+                for p in v['payments']])
+            parent, to_create = self.create_payment_suggested_line(move_lines,
+                amount, name=name, similarity=acceptable)
             suggesteds.extend(to_create)
         elif groups['amount'] != _ZERO:
-            for group, vals in groups['groups'].items():
-                if vals['amount'] == abs(pending_amount):
-                    lines = [x.line for x in vals['payments']]
-                    threshold = Origin.threshold_interval_date(vals['date'],
-                        self.date, threshold=0.8)
-                    parent, to_create = self.create_suggested_line(
-                        lines, pending_amount, name=group.rec_name,
-                        threshold=threshold)
+            lines = []
+            for key, vals in groups['groups'].items():
+                group = key[0]
+                date = key[1]
+                if vals['amount'] == abs(amount):
+                    similarity = self.increase_similarity_by_interval_date(
+                        date, similarity=acceptable)
+                    lines.extend([x.line for x in vals['payments']])
+                    # Only check the party similarity if have one payment
+                    if len(groups['groups']) == 1 and len(lines) == 1:
+                        party = vals['payments'][0].party
+                        if party and parties:
+                            similarity = self.increase_similarity_by_party(
+                                party, parties, similarity=similarity)
+                    parent, to_create = self.create_payment_suggested_line(
+                        lines, amount, name=group.rec_name,
+                        similarity=similarity)
                     suggesteds.extend(to_create)
+            move_lines.extend(lines)
+        return suggesteds, move_lines
 
-        if groups_clearing['amount'] == abs(pending_amount):
-            name = gettext('account_statement_enable_banking.msg_payments')
-            if len(groups_clearing['groups']) == 1:
-                key = groups_clearing['group'].keys()[0]
-                if (len(groups_clearing['groups'][key][
-                        'payments']) == 1):
-                    name = None
-            lines = [p.line for v in groups_clearing['groups'].values()
-                for p in v['payments']]
-            parent, to_create = self.create_suggested_line(lines,
-                pending_amount, name=name, payment=True, threshold=0.7)
-            suggesteds.extend(to_create)
-        elif groups_clearing['amount'] != _ZERO:
-            for group, vals in groups_clearing['groups'].items():
-                if vals['amount'] == abs(pending_amount):
-                    lines = [x.line for x in vals['payments']]
-                    threshold = Origin.threshold_interval_date(vals['date'],
-                        self.date, threshold=0.8)
-                    parent, to_create = self.create_suggested_line(
-                        lines, pending_amount, name=group.rec_name,
-                        payment=True, threshold=threshold)
-                    suggesteds.extend(to_create)
-        return suggesteds
+    def _search_move_line_reconciliation_domain(self, exclude_ids=None):
+        domain = [
+            ('move.company', '=', self.company.id),
+            ('currency', '=', self.currency),
+            ('move_state', '=', 'posted'),
+            ('reconciliation', '=', None),
+            ('account.reconcile', '=', True),
+            ['OR',
+                ('origin', '=', None),
+                ('origin', 'like', 'account.invoice,%')
+                ],
+            #['OR',
+            #    ('origin', '=', None),
+            #    ('origin', 'not like', 'account.invoice.tax,%')
+            #    ('origin', 'not like', 'account.bank.statements,%')
+            #    ],
+            ]
+        if exclude_ids:
+            domain.append(('id', 'not in', exclude_ids))
+        return domain
 
-    def _search_suggested_reconciliation_by_move_line(self, exclude=None):
+    def _search_suggested_reconciliation_move_line(self, amount, acceptable=0,
+            parties=None, exclude=None):
         """
         Search for any move line, not related to invoice or payments that the
         amount it the origin pending_amount
@@ -927,32 +895,94 @@ class Origin(Workflow, metaclass=PoolMeta):
         suggesteds = []
 
         # search only for the same ammount and possible party
-        pending_amount = self.pending_amount
-        if pending_amount == _ZERO:
+        if not amount:
             return suggesteds
 
         # Prepapre the base domain
-        domain = self._search_move_line_reconciliation_domain()
-        domain.extend((
-                ('move_origin', 'not like', 'account.invoice,%'),
-                ('payments', '=', None),
-                ))
-        if exclude:
-            domain.append(('id', 'not in', [x.id for x in exclude]))
-        if pending_amount > 0:
-            domain.append(('debit', '=', abs(pending_amount)))
-        else:
-            domain.append(('credit', '=', abs(pending_amount)))
-
+        line_ids = [x.id for x in exclude] if exclude else None
+        domain = self._search_move_line_reconciliation_domain(line_ids)
+        lines_by_origin = {}
+        lines_by_party = {}
         for line in MoveLine.search(domain, order=[('maturity_date', 'ASC')]):
-            threshold = Origin.threshold_interval_date(line.maturity_date,
-                self.date, threshold=0.7)
-            parent, to_create = self.create_suggested_line([line],
-                pending_amount, threshold=threshold)
-            suggesteds.extend(to_create)
+            move_amount = line.debit - line.credit
+            if move_amount == amount:
+                similarity = self.increase_similarity_by_interval_date(
+                    line.maturity_date, similarity=acceptable)
+                party = line.party
+                if party and parties:
+                    similarity = self.increase_similarity_by_party(party,
+                        parties, similarity=similarity)
+                name = line.origin.rec_name if line.origin else (party.rec_name
+                    if party else None)
+                parent, to_create = self.create_move_suggested_line([line],
+                    amount, name=name, similarity=similarity)
+                suggesteds.extend(to_create)
+            else:
+                party = line.party
+                origin = line.move_origin
+                if origin:
+                    if origin in lines_by_origin:
+                        lines_by_origin[origin]['amount'] += move_amount
+                        lines_by_origin[origin]['lines'].append(line)
+                    else:
+                        lines_by_origin[origin] = {
+                            'amount': move_amount,
+                            'lines': [line]
+                                }
+                elif party:
+                    if party in lines_by_party:
+                        lines_by_party[party]['amount'] += move_amount
+                        lines_by_party[party]['lines'].append(line)
+                    else:
+                        lines_by_party[party] = {
+                            'amount': move_amount,
+                            'lines': [line]
+                                }
+        # Check if there are more than one move from the same origin
+        # that sum the pending_amount
+        for origin, values in lines_by_origin.items():
+            if values['amount'] == amount:
+                similarity = acceptable
+                line_parties = [x.party for x in values['lines']]
+                party = (line_parties[0]
+                    if line_partes.count(line_parties[0]) == len(line_parties)
+                    else None)
+                dates = [x.maturity_date for x in values['lines']]
+                date = (dates[0] if dates.count(dates[0]) == len(dates)
+                    else None)
+                if date:
+                    similarity = self.increase_similarity_by_interval_date(
+                        date, similarity=similarity)
+                if party and parties:
+                    similarity = self.increase_similarity_by_party(party,
+                        parties, similarity=similarity)
+                parent, to_create = self.create_move_suggested_line(
+                    values['lines'], amount, name=origin.rec_name,
+                    similarity=similarity)
+                suggesteds.extend(to_create)
+
+        # Check if there are more than one move from the same party
+        # that sum the pending_amount
+        for party, values in lines_by_party.items():
+            if values['amount'] == amount:
+                similarity = acceptable
+                dates = [x.maturity_date for x in values['lines']]
+                date = (dates[0] if dates.count(dates[0]) == len(dates)
+                    else None)
+                if date:
+                    similarity = self.increase_similarity_by_interval_date(
+                        date, similarity=similarity)
+                if parties:
+                    similarity = self.increase_similarity_by_party(party,
+                        parties, similarity=similarity)
+                name = party.rec_name
+                parent, to_create = self.create_move_suggested_line(
+                    values['lines'], amount, name=name, similarity=similarity)
+                suggesteds.extend(to_create)
         return suggesteds
 
-    def _search_suggested_reconciliation_by_simlarity(self):
+    def _search_suggested_reconciliation_simlarity(self, amount,
+            information=None, threshold=0, acceptable=0):
         """
         Search for old origins lines. Reproducing the same line/s created.
         """
@@ -961,32 +991,30 @@ class Origin(Workflow, metaclass=PoolMeta):
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
         origin_table = pool.get('account.statement.origin').__table__()
+        line_table = pool.get('account.statement.line').__table__()
         cursor = Transaction().connection.cursor()
 
         suggesteds = []
 
-        pending_amount = self.pending_amount
-        remittance_information = self.information.get(
-            'remittance_information', None)
-        if pending_amount == _ZERO or not remittance_information:
+        if not amount or not information:
             return suggesteds
 
-        threshold = self.statement.journal.similarity_threshold
         similarity_column = Similarity(JsonbExtractPathText(
                 origin_table.information, 'remittance_information'),
-            remittance_information)
-        where = (similarity_column >= threshold) & (
-            origin_table.state == 'posted')
-        query = origin_table.select(origin_table.id, similarity_column,
-            where=where)
+            information)
+        query = origin_table.join(line_table,
+            condition=origin_table.id == line_table.move).select(
+            origin_table.id, similarity_column,
+            where=((similarity_column >= threshold)
+                & (origin_table.state == 'posted')
+                & (line_table.related_to == None))
+                )
         cursor.execute(*query)
         name = gettext('account_statement_enable_banking.msg_similarity')
         for origins in cursor.fetchall():
             origin, = Origin.browse([origins[0]])
             suggests = []
             for line in origin.lines:
-                if line.related_to is not None:
-                    continue
                 values = {
                     'name': name,
                     'parent': None,
@@ -1002,12 +1030,12 @@ class Origin(Workflow, metaclass=PoolMeta):
                     }
                 suggests.append(values)
             if len(suggests) == 1:
-                suggests[0]['amount'] = pending_amount
+                suggests[0]['amount'] = amount
             elif len(suggests) > 1:
                 parent = SuggestedLine()
                 parent.origin = self
                 parent.name = name
-                parent.amount = pending_amount
+                parent.amount = amount
                 parent.state = 'proposed'
                 parent.similarity_threshold = origins[1]
                 parent.save()
@@ -1017,15 +1045,23 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggesteds.extend(suggests)
         return suggesteds
 
-    def _search_reconciliation(self):
+    @classmethod
+    def _search_reconciliation(cls, origins):
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
         StatementLine = pool.get('account.statement.line')
+        try:
+            Clearing = pool.get('account.payment.clearing')
+        except:
+            Clearing = None
+
+        if not origins:
+            return
 
         # Before a new search remove all suggested lines, but control if any
         # of them are related to a statement line.
         suggests = SuggestedLine.search([
-                ('origin', '=', self),
+                ('origin', 'in', origins),
                 ])
         if suggests:
             lines = StatementLine.search([
@@ -1037,76 +1073,104 @@ class Origin(Workflow, metaclass=PoolMeta):
                         'msg_suggested_line_related_to_statement_line'))
             SuggestedLine.delete(suggests)
 
-        suggesteds = []
-        # Search by possible parties (controling if it is related to an invoice
-        # or payments, or are move lines)
-        suggest_lines, lines = (
-            self._search_suggested_reconciliation_by_party())
-        suggesteds.extend(suggest_lines)
+        suggesteds_to_create = []
+        for origin in origins:
+            pending_amount = origin.pending_amount
+            if pending_amount == _ZERO:
+                return
 
-        # Search by possible invoices unknowing the party
-        suggesteds.extend(
-            self._search_suggested_reconciliation_by_invoice(exclude=lines))
+            information = origin.information.get('remittance_information',
+                None)
+            similarity_parties = origin.similarity_parties(information)
+            threshold = origin.similarity_threshold
+            acceptable = origin.acceptable_similarity
+            groups = []
+            move_lines = []
 
-        # Search by possible payment group
-        suggest_lines, used_groups = (
-            self._search_suggested_reconciliation_payment_group())
-        suggesteds.extend(suggest_lines)
+            # If account_pauyment_clearing modules is isntalled search first
+            # for the groups or payments
+            if Clearing:
+                # Search by possible payment groups with clearing journal
+                # deffined
+                suggest_lines, used_groups = (
+                    origin.
+                    _search_suggested_reconciliation_clearing_payment_group(
+                        pending_amount, acceptable=acceptable,
+                        parties=similarity_parties))
+                suggesteds_to_create.extend(suggest_lines)
+                groups.extend(used_groups)
 
-        # Search by possible part of payment group
-        # By the moment, the payments must have the same date as the Origin
-        suggesteds.extend(
-            self._search_suggested_reconciliation_payment(exclude=used_groups))
+                # Search by possible payments with clearing journal deffined
+                suggest_lines, used_move_lines = (
+                    origin._search_suggested_reconciliation_clearing_payment(
+                        pending_amount, acceptable=acceptable,
+                        parties=similarity_parties, exclude=groups))
+                suggesteds_to_create.extend(suggest_lines)
+                move_lines.extend(used_move_lines)
 
-        # Search by move_line without origin and unknowing party
-        suggesteds.extend(
-            self._search_suggested_reconciliation_by_move_line(exclude=lines))
+            # Search by possible part or all of payment groups
+            suggest_lines, used_move_lines = (
+                origin._search_suggested_reconciliation_payment(pending_amount,
+                    acceptable=acceptable, parties=similarity_parties,
+                    exclude_groups=groups, exclude_lines=move_lines))
+            suggesteds_to_create.extend(suggest_lines)
+            move_lines.extend(used_move_lines)
 
-        # Search by simlarity, using the PostreSQL Trigram
-        suggesteds.extend(
-            self._search_suggested_reconciliation_by_simlarity())
+            # Search by move_line, with or without origin and party
+            suggest_lines = (
+                origin._search_suggested_reconciliation_move_line(
+                    pending_amount, acceptable=acceptable,
+                    parties=similarity_parties, exclude=move_lines))
+            suggesteds_to_create.extend(suggest_lines)
+            move_lines.extend(used_move_lines)
 
-        if suggesteds:
+            # Search by simlarity, using the PostreSQL Trigram
+            suggesteds_to_create.extend(
+                origin._search_suggested_reconciliation_simlarity(
+                        pending_amount, information=information,
+                        threshold=threshold, acceptable=acceptable))
+
+        suggesteds_use = []
+        to_save = []
+        if suggesteds_to_create:
             # Remove duplicate suggestions
-            suggesteds = [tuple(x.items()) for x in suggesteds]
-            suggesteds = list(set(suggesteds))
-            suggesteds = [dict(x) for x in suggesteds]
-            SuggestedLine.create(suggesteds)
-            acceptable_similarty_threshold = (self.statement.journal.
-                acceptable_similarity_threshold)
-            suggested_use = None
-            before_similarity = 0.0
-            for suggest in SuggestedLine.search([
-                    ('origin', '=', self),
-                    ('similarity_threshold', '>=',
-                        acceptable_similarty_threshold)
-                    ], order=[('similarity_threshold', 'DESC')]):
-                if (suggested_use and suggested_use.related_to != None
-                        and suggest.related_to == None):
-                    continue
-                if (suggest.similarity_threshold == before_similarity
-                        and suggest.related_to != None):
-                    suggested_use = None
-                    break
-                elif suggest.similarity_threshold < before_similarity:
-                    break
-                suggested_use = suggest
-                before_similarity = suggest.similarity_threshold
-            if suggested_use:
-                # Set the origin second_currency in case the line or lines
-                # finded have a different second currency
-                if suggested_use.second_currency != self.second_currency:
-                    self.second_currency = suggested_use.second_currency
-                    self.amount_second_currency = (
-                        suggested_use.amount_second_currency)
-                    self.save()
-                SuggestedLine.use([suggested_use])
+            suggesteds_to_create = list(set(
+                    [tuple(x.items()) for x in suggesteds_to_create]))
+            suggesteds_to_create = [dict(x) for x in suggesteds_to_create]
+            SuggestedLine.create(suggesteds_to_create)
+            for origin in origins:
+                suggested_use = None
+                before_similarity = 0.0
+                for suggest in SuggestedLine.search([
+                        ('origin', '=', origin),
+                        ('parent', '=', None),
+                        ('similarity', '>=', acceptable)
+                        ]):
+                    if suggest.similarity == before_similarity:
+                        suggested_use = None
+                        break
+                    elif suggest.similarity < before_similarity:
+                        break
+                    suggested_use = suggest
+                    before_similarity = suggest.similarity
+                if suggested_use:
+                    # Set the origin second_currency in case the line or lines
+                    # finded have a different second currency
+                    if suggested_use.second_currency != origin.second_currency:
+                        origin.second_currency = suggested_use.second_currency
+                        origin.amount_second_currency = (
+                            suggested_use.amount_second_currency)
+                        to_save.append(origin)
+                    suggesteds_use.append(suggested_use)
+        if to_save:
+            cls.save(to_save)
+        if suggesteds_use:
+            SuggestedLine.use(suggesteds_use)
 
     @classmethod
     @ModelView.button
     def search_suggestions(cls, origins):
-        for origin in origins:
-            origin._search_reconciliation()
+        cls._search_reconciliation(origins)
 
     @classmethod
     def delete(cls, origins):
@@ -1214,7 +1278,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     ],
                 ],
             })
-    similarity_threshold = fields.Float('Similarity Threshold',
+    similarity = fields.Integer('Similarity',
         help=('The thershold used for similarity function in origin lines '
             'search'))
     state = fields.Selection([
@@ -1225,7 +1289,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     @classmethod
     def __setup__(cls):
         super().__setup__()
-        cls._order.insert(0, ('similarity_threshold', 'DESC'))
+        cls._order.insert(0, ('similarity', 'DESC'))
         cls._transitions |= set((
                 ('proposed', 'used'),
                 ('used', 'proposed'),
@@ -1457,3 +1521,72 @@ class Cron(metaclass=PoolMeta):
             ('account.statement.journal|synchronize_enable_banking_journals',
                 "Synchronize Enable Banking Journals"),
             ])
+
+
+
+
+
+    def _search_suggested_reconciliation_by_invoice(self):
+        """
+        Search for the possible move line with invoice as origin and without
+        party that could be realted to this Origin, and add all them in the
+        suggested field.
+        """
+        pool = Pool()
+        MoveLine = pool.get('account.move.line')
+
+        suggesteds = []
+        pending_amount = self.pending_amount
+        if pending_amount == _ZERO:
+            return suggesteds
+
+        remittance_information = self.information.get(
+            'remittance_information', None)
+
+        # Prepapre the base domain
+        domain = self._search_move_line_reconciliation_domain(lines_ids)
+        domain.append(('move_origin', 'like', 'account.invoice,%'))
+
+        lines = MoveLine.search(domain, order=[('maturity_date', 'ASC')])
+        #return self._search_and_create_suggested(lines, pending_amount)
+        lines_by_origin = {}
+        for line in lines:
+            amount = line.debit - line.credit
+            if (line.move_origin
+                    and line.move_origin in lines_by_origin):
+                lines_by_origin[line.move_origin]['amount'] += amount
+                lines_by_origin[line.move_origin]['lines'].append(line)
+            else:
+                lines_by_origin[line.move_origin] = {
+                    'party': line.party.id if line.party else None,
+                    'amount': amount,
+                    'lines': [line]
+                        }
+            if amount == pending_amount:
+                threshold_parties = {}
+                threshold = self.threshold_interval_date(line.maturity_date,
+                    self.date, threshold=0.6)
+                if line.party:
+                    threshold_parties = {line.party.id: threshold}
+                    self.similarity_parties(self, threshold_parties,
+                        remittance_information, threshold=threshold)
+                    threshold = threshold_parties[line.party.id]
+                parent, to_create = self.create_suggested_line([line],
+                    pending_amount, threshold=threshold)
+                suggesteds.extend(to_create)
+        # Check if there are more than one move from the same origin
+        # that sum the pending_amount
+        for values in lines_by_origin.values():
+            if (len(values['lines']) > 1
+                    and values['amount'] == pending_amount):
+                threshold = 0.6
+                if values['party']:
+                    threshold_parties = {line.party.id: threshold}
+                    self.similarity_parties(self, threshold_parties,
+                        remittance_information, threshold=threshold)
+                    threshold = threshold_parties[line.party.id]
+                parent, to_create = self.create_suggested_line(
+                    values['lines'], pending_amount, threshold=threshold)
+                suggesteds.extend(to_create)
+        return suggesteds, lines
+
