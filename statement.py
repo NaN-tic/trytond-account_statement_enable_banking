@@ -831,6 +831,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             payment_date = payment.date
             group = payment.group if payment.group else payment
             groups['amount'] += payment_amount
+
+            # Group by group and date
             key = (group, payment_date)
             if key in groups['groups']:
                 groups['groups'][key]['amount'] += payment_amount
@@ -840,8 +842,36 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'amount': payment_amount,
                     'payments': [payment],
                     }
+
+            # Group by date
+            key = (None, payment_date)
+            if key in groups['groups']:
+                groups['groups'][key]['amount'] += payment_amount
+                groups['groups'][key]['payments'].append(payment)
+            else:
+                groups['groups'][key] = {
+                    'amount': payment_amount,
+                    'payments': [payment],
+                    }
+
+            # Some Bancs group payments from differnt, but consecutive dates.
+            # Normally the day before the payment value date + the date.
+            delta = timedelta(days=1)
+            origin_date = self.date
+            if (payment_date == origin_date
+                    or payment_date + delta == origin_date):
+                key = (None, origin_date, delta)
+                if key in groups['groups']:
+                    groups['groups'][key]['amount'] += payment_amount
+                    groups['groups'][key]['payments'].append(payment)
+                else:
+                    groups['groups'][key] = {
+                        'amount': payment_amount,
+                        'payments': [payment],
+                        }
+
+        name = gettext('account_statement_enable_banking.msg_payments')
         if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
-            name = gettext('account_statement_enable_banking.msg_payments')
             move_lines.extend([p.line for v in groups['groups'].values()
                 for p in v['payments']])
             parent, to_create = self.create_payment_suggested_line(move_lines,
@@ -862,8 +892,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                         if party and parties:
                             similarity = self.increase_similarity_by_party(
                                 party, parties, similarity=similarity)
+                    name = group.rec_name if group else name
                     parent, to_create = self.create_payment_suggested_line(
-                        lines, amount, name=group.rec_name,
+                        lines, amount, name=name,
                         similarity=similarity)
                     suggesteds.extend(to_create)
             move_lines.extend(lines)
