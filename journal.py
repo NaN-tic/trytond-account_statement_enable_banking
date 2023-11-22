@@ -189,15 +189,18 @@ class Journal(metaclass=PoolMeta):
                             continue
                         if isinstance(value, str):
                             information_dict[key] = value
-                        if isinstance(value, bytes):
+                        elif isinstance(value, bytes):
                             information_dict[key] = str(value)
-                        if isinstance(value, dict):
+                        elif isinstance(value, dict):
                             for k, v in value.items():
-                                if value is None:
+                                if v is None:
                                     continue
                                 tag = "%s - %s" % (key, k)
-                                information_dict[tag] = str(value)
-                        if isinstance(value, list):
+                                if isinstance(v, str):
+                                    information_dict[tag] = v
+                                elif isinstance(v, bytes):
+                                    information_dict[tag] = str(v)
+                        elif isinstance(value, list):
                             information_dict[key] = ", ".join(value)
                     statement_origin.information = information_dict
                     to_save.append(statement_origin)
