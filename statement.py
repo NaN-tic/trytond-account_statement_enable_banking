@@ -877,18 +877,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('reconciliation', '=', None),
             ('account.reconcile', '=', True),
             ['OR',
-                ('account.type.receivable', '=', True),
-                ('account.type.payable', '=', True)
-                ],
-            ['OR',
                 ('origin', '=', None),
                 ('origin', 'like', 'account.invoice,%')
                 ],
-            #['OR',
-            #    ('origin', '=', None),
-            #    ('origin', 'not like', 'account.invoice.tax,%')
-            #    ('origin', 'not like', 'account.bank.statements,%')
-            #    ],
             ]
         if exclude_ids:
             domain.append(('id', 'not in', exclude_ids))
