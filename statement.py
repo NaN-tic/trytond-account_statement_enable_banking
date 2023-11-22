@@ -984,7 +984,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         return suggesteds
 
     def _search_suggested_reconciliation_simlarity(self, amount,
-            information=None, threshold=0, acceptable=0):
+            information=None, threshold=0):
         """
         Search for old origins lines. Reproducing the same line/s created.
         """
@@ -1005,16 +1005,20 @@ class Origin(Workflow, metaclass=PoolMeta):
                 origin_table.information, 'remittance_information'),
             information)
         query = origin_table.join(line_table,
-            condition=origin_table.id == line_table.move).select(
+            condition=origin_table.id == line_table.origin).select(
             origin_table.id, similarity_column,
-            where=((similarity_column >= threshold)
+            where=((similarity_column >= threshold/10)
                 & (origin_table.state == 'posted')
                 & (line_table.related_to == None))
                 )
         cursor.execute(*query)
         name = gettext('account_statement_enable_banking.msg_similarity')
+        last_similarity = 0
         for origins in cursor.fetchall():
             origin, = Origin.browse([origins[0]])
+            acceptable = int(origins[1] * 10)
+            if acceptable == last_similarity:
+                continue
             suggests = []
             for line in origin.lines:
                 values = {
@@ -1027,7 +1031,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'amount': line.amount,
                     'second_currency': self.second_currency,
                     'amount_second_currency': self.amount_second_currency,
-                    'similarity_threshold': origins[1],
+                    'similarity': acceptable,
                     'state': 'proposed'
                     }
                 suggests.append(values)
@@ -1039,12 +1043,13 @@ class Origin(Workflow, metaclass=PoolMeta):
                 parent.name = name
                 parent.amount = amount
                 parent.state = 'proposed'
-                parent.similarity_threshold = origins[1]
+                parent.similarity = acceptable
                 parent.save()
                 for suggest in suggests:
                     suggest['parent'] = parent
                     suggest['name'] = ''
             suggesteds.extend(suggests)
+            last_similarity = acceptable
         return suggesteds
 
     @classmethod
@@ -1130,7 +1135,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggesteds_to_create.extend(
                 origin._search_suggested_reconciliation_simlarity(
                         pending_amount, information=information,
-                        threshold=threshold, acceptable=acceptable))
+                        threshold=threshold))
 
         suggesteds_use = []
         to_save = []
