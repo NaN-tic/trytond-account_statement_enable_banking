@@ -84,28 +84,28 @@ class Line(metaclass=PoolMeta):
                 ],
             ]
         cls.number.states['readonly'] = (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.party.states['readonly'] = (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.related_to.states['readonly'] |= (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.account.states['readonly'] |= (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.amount.states['readonly'] |= (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.amount_second_currency.states['readonly'] |= (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.second_currency.states['readonly'] |= (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
         cls.description.states['readonly'] |= (
-            (Eval('state') != 'registered')
+            (Eval('origin_state') != 'registered')
             )
 
     @classmethod
