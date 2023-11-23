@@ -76,7 +76,8 @@ class Line(metaclass=PoolMeta):
             ('reconciliation', '=', None),
             ['OR',
                 ('move_origin', '=', None),
-                ('move.origin', 'not like', 'account.invoice,%'),
+                ('move_origin', 'not like', 'account.invoice,%'),
+                ('move_origin', 'not like', 'account.statement.origin,%'),
                 ],
             ]
 
@@ -1332,7 +1333,8 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ('reconciliation', '=', None),
                 ['OR',
                     ('move_origin', '=', None),
-                    ('move.origin', 'not like', 'account.invoice,%'),
+                    ('move_origin', 'not like', 'account.invoice,%'),
+                    ('move_origin', 'not like', 'account.statement.origin,%'),
                     ],
                 ],
             })
