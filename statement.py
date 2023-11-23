@@ -57,6 +57,9 @@ class Line(metaclass=PoolMeta):
 
     suggested_line = fields.Many2One('account.statement.origin.suggested.line',
         'Suggested Lines', ondelete="RESTRICT")
+    origin_state = fields.Function(
+        fields.Selection('get_origin_states', "Origin State"),
+        'on_change_with_origin_state')
 
     @classmethod
     def __setup__(cls):
@@ -80,10 +83,45 @@ class Line(metaclass=PoolMeta):
                 ('move_origin', 'not like', 'account.statement.origin,%'),
                 ],
             ]
+        cls.number.states['readonly'] = (
+            (Eval('state') != 'registered')
+            )
+        cls.party.states['readonly'] = (
+            (Eval('state') != 'registered')
+            )
+        cls.related_to.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
+        cls.account.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
+        cls.amount.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
+        cls.amount_second_currency.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
+        cls.second_currency.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
+        cls.description.states['readonly'] |= (
+            (Eval('state') != 'registered')
+            )
 
     @classmethod
     def _get_relations(cls):
         return super()._get_relations() + ['account.move.line']
+
+    @classmethod
+    def get_origin_states(cls):
+        pool = Pool()
+        Origin = pool.get('account.statement.origin')
+        return Origin.fields_get(['state'])['state']['selection']
+
+    @fields.depends('origin', '_parent_origin.state')
+    def on_change_with_origin_state(self, name=None):
+        if self.origin:
+            return self.origin.state
 
     @fields.depends('origin', '_parent_origin.second_currency')
     def on_change_with_second_currency(self, name=None):
@@ -219,13 +257,15 @@ class Line(metaclass=PoolMeta):
 class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
 
+    _states = {'readonly': Eval('state') != 'registered'}
+
     entry_reference = fields.Char("Entry Reference", readonly=True)
     suggested_lines = fields.One2Many(
         'account.statement.origin.suggested.line', 'origin',
-        'Suggested Lines')
+        'Suggested Lines', states=_states)
     suggested_lines_tree = fields.Function(
         fields.Many2Many('account.statement.origin.suggested.line', None, None,
-            'Suggested Lines'), 'get_suggested_lines_tree')
+            'Suggested Lines', states=_states), 'get_suggested_lines_tree')
     state = fields.Selection([
             ('registered', "Registered"),
             ('cancelled', "Cancelled"),
@@ -883,6 +923,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                         }
 
         name = gettext('account_statement_enable_banking.msg_payments')
+        used_payments = []
         if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
             move_lines.extend([p.line for v in groups['groups'].values()
                 for p in v['payments']])
@@ -894,6 +935,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             for key, vals in groups['groups'].items():
                 group = key[0]
                 date = key[1]
+                if vals['payments'] in used_payments:
+                    continue
                 if vals['amount'] == abs(amount):
                     similarity = self.increase_similarity_by_interval_date(
                         date, similarity=acceptable)
@@ -910,6 +953,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                         payment_lines, amount, name=name,
                         similarity=similarity)
                     suggesteds.extend(to_create)
+                    used_payments.append(vals['payments'])
             move_lines.extend(lines)
         return suggesteds, move_lines
 
