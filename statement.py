@@ -843,6 +843,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'payments': [payment],
                     }
 
+            if payment_amount == abs(amount):
+                continue
+
             # Group by date
             key = (None, payment_date)
             if key in groups['groups']:
@@ -885,16 +888,17 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if vals['amount'] == abs(amount):
                     similarity = self.increase_similarity_by_interval_date(
                         date, similarity=acceptable)
-                    lines.extend([x.line for x in vals['payments']])
+                    payment_lines = [x.line for x in vals['payments']]
+                    lines.extend(payment_lines)
                     # Only check the party similarity if have one payment
-                    if len(groups['groups']) == 1 and len(lines) == 1:
+                    if len(groups['groups']) == 1 and len(payment_lines) == 1:
                         party = vals['payments'][0].party
                         if party and parties:
                             similarity = self.increase_similarity_by_party(
                                 party, parties, similarity=similarity)
                     name = group.rec_name if group else name
                     parent, to_create = self.create_payment_suggested_line(
-                        lines, amount, name=name,
+                        payment_lines, amount, name=name,
                         similarity=similarity)
                     suggesteds.extend(to_create)
             move_lines.extend(lines)
@@ -1106,9 +1110,12 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ('suggested_line', 'in', [x.id for x in suggests])
                 ])
             if lines:
+                origins_name = ", ".join([x.origin.rec_name
+                        for x in lines if x.origin])
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
-                        'msg_suggested_line_related_to_statement_line'))
+                        'msg_suggested_line_related_to_statement_line',
+                        origins_name=origins_name))
             SuggestedLine.delete(suggests)
 
         suggesteds_to_create = []
@@ -1160,7 +1167,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                     pending_amount, acceptable=acceptable,
                     parties=similarity_parties, exclude=move_lines))
             suggesteds_to_create.extend(suggest_lines)
-            move_lines.extend(used_move_lines)
 
             # Search by simlarity, using the PostreSQL Trigram
             suggesteds_to_create.extend(

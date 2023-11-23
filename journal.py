@@ -8,6 +8,7 @@ from trytond.model import ModelView, fields
 from trytond.pyson import Eval, Id
 from trytond.config import config
 from trytond.i18n import gettext
+from trytond.transaction import Transaction
 from trytond.model.exceptions import AccessError
 from .common import get_base_header
 
@@ -33,7 +34,10 @@ class Journal(metaclass=PoolMeta):
         'direclty from suggested lines.')
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
-    synchronize_journal = fields.Boolean("Synchronize Journal")
+    synchronize_journal = fields.Boolean("Synchronize Journal",
+        help="Check if want to synchronize automatically. When is "
+        "automatically the offset is not used and tak the las "
+        "statement synched date.")
     account_statement_origin_sequence = fields.Many2One(
         'ir.sequence', "Account Statement Origin Sequence", required=True,
         domain=[
@@ -120,9 +124,26 @@ class Journal(metaclass=PoolMeta):
 
         # Prepare request
         base_headers = get_base_header()
+        if Transaction().context.get('synch_enable_banking_manual', False):
+            date_from = (datetime.now(timezone.utc) - timedelta(
+                    days=ebconfig.offset)).date().isoformat()
+        else:
+            statements = Statement.search([
+                    ('journal', '=', self),
+                    ], order=[('end_date', 'DESC')], limit=1)
+            if statements:
+                last_statement, _ = statements
+                # When synch automatically, by crons, take the last Statement
+                # of the same journal and get it's end_date to sych from there,
+                # to ensure not lost any thing in the same minute add a delta
+                # of -1 hour.
+                date_from = last_statement.end_date -timedelta(hours=1)
+            else:
+                date_from = (datetime.now(timezone.utc) - timedelta(
+                        days=ebconfig.offset)).date().isoformat()
         query = {
-            "date_from": (datetime.now(timezone.utc) - timedelta(
-                    days=ebconfig.offset)).date().isoformat()}
+            "date_from": date_from
+            }
 
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
@@ -228,4 +249,5 @@ class Journal(metaclass=PoolMeta):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         for journal in Journal.search([('synchronize_journal', '=', True)]):
-            journal.synchronize_statements_enable_banking()
+            with Transaction().set_context(synch_enable_banking_manual=True):
+                journal.synchronize_statements_enable_banking()
