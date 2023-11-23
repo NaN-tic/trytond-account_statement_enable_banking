@@ -834,7 +834,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
             # Group by group and date
             key = (group, payment_date)
-            if key in groups['groups']:
+            if (key in groups['groups']
+                    and groups['groups'][key]['amount'] < abs(amount)):
                 groups['groups'][key]['amount'] += payment_amount
                 groups['groups'][key]['payments'].append(payment)
             else:
@@ -848,7 +849,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
             # Group by date
             key = (None, payment_date)
-            if key in groups['groups']:
+            if (key in groups['groups']
+                    and groups['groups'][key]['amount'] < abs(amount)):
                 groups['groups'][key]['amount'] += payment_amount
                 groups['groups'][key]['payments'].append(payment)
             else:
@@ -864,7 +866,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             if (payment_date == origin_date
                     or payment_date + delta == origin_date):
                 key = (None, origin_date, delta)
-                if key in groups['groups']:
+                if (key in groups['groups']
+                        and groups['groups'][key]['amount'] < abs(amount)):
                     groups['groups'][key]['amount'] += payment_amount
                     groups['groups'][key]['payments'].append(payment)
                 else:
