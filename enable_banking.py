@@ -21,7 +21,7 @@ class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
         ('value_date', 'Value Date'),
     ], "Date Field", help='Choose which date to use when importing statements')
     offset = fields.Integer("Offset Days",
-        help="Offset in days to apply when importing statements")
+        help="Offset in days to apply when importing statements manually")
 
     @classmethod
     def default_date_field(cls):
