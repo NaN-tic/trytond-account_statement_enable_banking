@@ -188,6 +188,23 @@ class Line(metaclass=PoolMeta):
             SuggestedLine.propose(suggested_lines)
 
     @classmethod
+    def reconcile(cls, move_lines):
+        pool = Pool()
+        Invoice = pool.get('account.invoice')
+        MoveLine = pool.get('account.move.line')
+
+        super().reconcile(move_lines)
+
+        to_reconcile = []
+        for move_line, line in move_lines:
+            if not line or not line.move_line:
+                continue
+            assert move_line.account == line.move_line.account
+            to_reconcile.append([move_line, line.move_line])
+        if to_reconcile:
+            MoveLine.reconcile(*to_reconcile)
+
+    @classmethod
     def delete(cls, lines):
         cls.cancel_lines(lines)
         super().delete(lines)
@@ -314,44 +331,32 @@ class Origin(Workflow, metaclass=PoolMeta):
         move_line_id2amount = (dict((x.id, x.amount) for x in move_lines)
             if move_lines else {})
 
+        # As a 'core' difference, the value of the line amount must be the
+        # amount of the movement, invoice or payment. Not the line amount
+        # pending. It could induce an incorrect concept nad misunderstunding.
         lines = list(self.lines)
         for line in lines:
-            if (line.invoice
-                    and line.id
+            if (line.invoice and line.id
                     and line.invoice.id in invoice_id2amount_to_pay):
                 amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
                 if (amount_to_pay
                         and getattr(line, 'amount', None)
                         and (line.amount >= 0) == (amount_to_pay <= 0)):
-                    if abs(line.amount) > abs(amount_to_pay):
-                        line.amount = amount_to_pay.copy_sign(line.amount)
-                    else:
-                        invoice_id2amount_to_pay[line.invoice.id] = (
-                            line.amount + amount_to_pay)
+                    line.amount = amount_to_pay.copy_sign(line.amount)
                 else:
                     line.invoice = None
-            if (line.payment
-                    and line.id
+            if (line.payment and line.id
                     and line.payment.id in payment_id2amount):
                 amount = payment_id2amount[line.payment.id]
                 if amount and getattr(line, 'amount', None):
-                    if abs(line.amount) > abs(amount):
-                        line.amount = amount.copy_sign(line.amount)
-                    else:
-                        payment_id2amount[line.payment.id] = (
-                            line.amount + amount)
+                    line.amount = amount.copy_sign(line.amount)
                 else:
                     line.payment = None
-            if (line.move_line
-                    and line.id
+            if (line.move_line and line.id
                     and line.move_line.id in move_line_id2amount):
                 amount = move_line_id2amount[line.move_line.id]
                 if amount and getattr(line, 'amount', None):
-                    if abs(line.amount) > abs(amount):
-                        line.amount = amount.copy_sign(line.amount)
-                    else:
-                        move_line_id2amount[line.move_line.id] = (
-                            line.amount + amount)
+                    line.amount = amount.copy_sign(line.amount)
                 else:
                     line.move_line = None
         self.lines = lines
