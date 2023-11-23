@@ -957,8 +957,13 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if party and parties:
                     similarity = self.increase_similarity_by_party(party,
                         parties, similarity=similarity)
-                name = line.origin.rec_name if line.origin else (party.rec_name
-                    if party else None)
+                name = None
+                if line.origin:
+                    name = line.origin.rec_name
+                elif line.move_origin:
+                    name = line.move_origin.rec_name
+                elif party:
+                    name = line.party.rec_name
                 parent, to_create = self.create_move_suggested_line([line],
                     amount, name=name, similarity=similarity)
                 suggesteds.extend(to_create)
