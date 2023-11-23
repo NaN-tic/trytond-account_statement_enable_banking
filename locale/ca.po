@@ -179,7 +179,7 @@ msgid ""
 " is not used and tak the las statement synched date."
 msgstr ""
 "Marcar si voleu sincronitzar automàticament. Quan és automàticament no "
-"s'utilitza l'offset i agafa la data de sincronització de l'últim exttacte."
+"s'utilitza l'offset i agafa la data de sincronització de l'últim extracte."
 
 msgctxt "help:account.statement.origin.suggested.line,similarity:"
 msgid "The thershold used for similarity function in origin lines search"
