@@ -229,7 +229,6 @@ class Line(metaclass=PoolMeta):
     @classmethod
     def reconcile(cls, move_lines):
         pool = Pool()
-        Invoice = pool.get('account.invoice')
         MoveLine = pool.get('account.move.line')
 
         super().reconcile(move_lines)
