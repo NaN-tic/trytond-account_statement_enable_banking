@@ -921,8 +921,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('account.reconcile', '=', True),
             ['OR',
                 ('move_origin', '=', None),
-                ('move_origin', 'like', 'account.invoice,%')
-                ('move_origin', 'like', 'account.statement.origin,%')
+                ('move_origin', 'like', 'account.invoice,%'),
+                ('move_origin', 'like', 'account.statement.origin,%'),
                 ],
             ]
         if exclude_ids:
