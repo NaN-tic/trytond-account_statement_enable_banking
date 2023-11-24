@@ -125,24 +125,23 @@ class Journal(metaclass=PoolMeta):
         # Prepare request
         base_headers = get_base_header()
         if Transaction().context.get('synch_enable_banking_manual', False):
-            date_from = (datetime.now(timezone.utc) - timedelta(
-                    days=ebconfig.offset)).date().isoformat()
+            date = datetime.now(timezone.utc)
         else:
             statements = Statement.search([
                     ('journal', '=', self),
                     ], order=[('end_date', 'DESC')], limit=1)
             if statements:
-                last_statement, _ = statements
+                last_statement, = statements
                 # When synch automatically, by crons, take the last Statement
                 # of the same journal and get it's end_date to sych from there,
                 # to ensure not lost any thing in the same minute add a delta
                 # of -1 hour.
-                date_from = last_statement.end_date -timedelta(hours=1)
+                date = last_statement.end_date
             else:
-                date_from = (datetime.now(timezone.utc) - timedelta(
-                        days=ebconfig.offset)).date().isoformat()
+                date = datetime.now(timezone.utc)
+        date_from = (date - timedelta(days=ebconfig.offset)).date()
         query = {
-            "date_from": date_from
+            "date_from": date_from.isoformat()
             }
 
         # We need to create an statement, as is a required field for the origin
@@ -155,8 +154,7 @@ class Journal(metaclass=PoolMeta):
         statement.end_balance = Decimal(0)
         if not statement.start_balance:
             statement.start_balance = Decimal(0)
-        statement.start_date = datetime.now(timezone.utc) - timedelta(
-            days=ebconfig.offset)
+        statement.start_date = datetime.combine(date_from, datetime.min.time())
         statement.end_date = datetime.now(timezone.utc)
         statement.save()
 
