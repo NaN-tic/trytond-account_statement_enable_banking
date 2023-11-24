@@ -1377,7 +1377,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ['OR',
                     ('move_origin', '=', None),
                     ('move_origin', 'not like', 'account.invoice,%'),
-                    ('move_origin', 'not like', 'account.statement.origin,%'),
+                    ('move_origin', 'like', 'account.statement.origin,%'),
                     ],
                 ],
             })
