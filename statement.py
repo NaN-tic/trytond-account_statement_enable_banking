@@ -80,7 +80,6 @@ class Line(metaclass=PoolMeta):
             ['OR',
                 ('move_origin', '=', None),
                 ('move_origin', 'not like', 'account.invoice,%'),
-                ('move_origin', 'like', 'account.statement.origin,%'),
                 ],
             ]
         cls.number.states['readonly'] = (
@@ -699,6 +698,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
+        Invoice = pool.get('account.invoice')
 
         parent = None
         to_create = []
@@ -715,7 +715,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         second_currency = self.second_currency
         amount_second_currency = self.amount_second_currency
         for line in move_lines:
-            related_to = line.move_origin if line.move_origin else line
+            related_to = (line.move_origin if line.move_origin
+                and isinstance(line.move_origin, Invoice) else line)
             if line.second_currency != self.currency:
                 second_currency = line.second_currency
                 amount_second_currency = line.amount_second_currency
@@ -1377,7 +1378,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ['OR',
                     ('move_origin', '=', None),
                     ('move_origin', 'not like', 'account.invoice,%'),
-                    ('move_origin', 'like', 'account.statement.origin,%'),
                     ],
                 ],
             })
@@ -1610,7 +1610,8 @@ class SynchronizeStatementEnableBanking(Wizard):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         journal = Journal(Transaction().context['active_id'])
-        journal.synchronize_statements_enable_banking()
+        with Transaction().set_context(synch_enable_banking_manual=True):
+            journal.synchronize_statements_enable_banking()
         return 'end'
 
 
