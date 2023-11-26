@@ -247,5 +247,4 @@ class Journal(metaclass=PoolMeta):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         for journal in Journal.search([('synchronize_journal', '=', True)]):
-            with Transaction().set_context(synch_enable_banking_manual=True):
-                journal.synchronize_statements_enable_banking()
+            journal.synchronize_statements_enable_banking()
