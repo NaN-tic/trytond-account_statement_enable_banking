@@ -236,7 +236,7 @@ this repository contains the full copyright notices and license terms. -->
             <field name="type_">char</field>
         </record>
         <record model="account.statement.origin.information" id="eb_bank_transaction_code_code">
-            <field name="name">bank_transaction_code</field>
+            <field name="name">bank_transaction_code_code</field>
             <field name="string">Bank Transaction Code</field>
             <field name="type_">char</field>
         </record>
