@@ -205,9 +205,19 @@ msgid "Balance After Transaction"
 msgstr "Saldo després de la transacció"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code"
+"model:account.statement.origin.information,string:eb_bank_transaction_code_code"
 msgid "Bank Transaction Code"
-msgstr "Codi de transacció bancaria"
+msgstr "Codi de transacció bancària"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_bank_transaction_code_description"
+msgid "Bank Transaction Code Description"
+msgstr "Descripció del codi de transacció bancària"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_bank_transaction_code_sub_code"
+msgid "Bank Transaction Code Sub Code"
+msgstr "Subcodi del codi de transacció bancària"
 
 msgctxt "model:account.statement.origin.information,string:eb_booking_date"
 msgid "Booking Date"

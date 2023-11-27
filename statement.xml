@@ -230,11 +230,22 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Balance After Transaction</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_bank_transaction_code">
+        <record model="account.statement.origin.information" id="eb_bank_transaction_code_description">
+            <field name="name">bank_transaction_code</field>
+            <field name="string">Bank Transaction Code Description</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_bank_transaction_code_code">
             <field name="name">bank_transaction_code</field>
             <field name="string">Bank Transaction Code</field>
             <field name="type_">char</field>
         </record>
+        <record model="account.statement.origin.information" id="eb_bank_transaction_code_sub_code">
+            <field name="name">bank_transaction_code_sub_code</field>
+            <field name="string">Bank Transaction Code Sub Code</field>
+            <field name="type_">char</field>
+        </record>
+
         <record model="account.statement.origin.information" id="eb_booking_date">
             <field name="name">booking_date</field>
             <field name="string">Booking Date</field>
