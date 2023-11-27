@@ -76,12 +76,20 @@ class Journal(metaclass=PoolMeta):
         StatementOrigin.save(origins)
 
     def _keys_not_needed(self):
-        return [
+        # Main keys
+        keys = [
             'balance_after_transaction',
             'transaction_amount',
             'credit_debit_indicator',
             'status'
             ]
+        # Sub keys
+        keys += [
+            'organisation_id',
+            'private_id',
+            'clearing_system_member_id',
+            ]
+        return keys
 
     @classmethod
     @ModelView.button_action('account_statement_enable_banking.'
@@ -186,6 +194,8 @@ class Journal(metaclass=PoolMeta):
                         ])
                     if found_statement_origin:
                         continue
+                    # TODO:
+                    # Ensure transaction_amount.currency == origin.currency
                     statement_origin = StatementOrigin()
                     statement_origin.number = None
                     statement_origin.state = 'registered'
@@ -212,9 +222,9 @@ class Journal(metaclass=PoolMeta):
                             information_dict[key] = str(value)
                         elif isinstance(value, dict):
                             for k, v in value.items():
-                                if v is None:
+                                if v is None or k in self._keys_not_needed():
                                     continue
-                                tag = "%s - %s" % (key, k)
+                                tag = "%s_%s" % (key, k)
                                 if isinstance(v, str):
                                     information_dict[tag] = v
                                 elif isinstance(v, bytes):

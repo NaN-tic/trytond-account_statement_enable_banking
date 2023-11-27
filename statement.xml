@@ -245,14 +245,24 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Credit Debit Indicator</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_creditor">
-            <field name="name">creditor</field>
-            <field name="string">Creditor</field>
+        <record model="account.statement.origin.information" id="eb_creditor_name">
+            <field name="name">creditor_name</field>
+            <field name="string">Creditor Name</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_creditor_account">
-            <field name="name">creditor_account</field>
-            <field name="string">Creditor Account</field>
+        <record model="account.statement.origin.information" id="eb_creditor_postal_address">
+            <field name="name">creditor_postal_address</field>
+            <field name="string">Creditor Postal Address</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_creditor_account_iban">
+            <field name="name">creditor_account_iban</field>
+            <field name="string">Creditor Account IBAN</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_creditor_account_other">
+            <field name="name">creditor_account_other</field>
+            <field name="string">Creditor Account Other</field>
             <field name="type_">char</field>
         </record>
         <record model="account.statement.origin.information" id="eb_creditor_account_additional_identification">
@@ -260,19 +270,34 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Creditor Account Additional Identification</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_creditor_agent">
-            <field name="name">creditor_agent</field>
-            <field name="string">Creditor Agent</field>
+        <record model="account.statement.origin.information" id="eb_creditor_agent_bic_fi">
+            <field name="name">creditor_agent_bic_fi</field>
+            <field name="string">Creditor Agent BIC FI</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_debtor">
-            <field name="name">debtor</field>
-            <field name="string">Debtor</field>
+        <record model="account.statement.origin.information" id="eb_creditor_agent_name">
+            <field name="name">creditor_agent_name</field>
+            <field name="string">Creditor Agent Name</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_debtor_account">
-            <field name="name">debtor_account</field>
-            <field name="string">Debtor Account</field>
+        <record model="account.statement.origin.information" id="eb_debtor_name">
+            <field name="name">debtor_name</field>
+            <field name="string">Debtor Name</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor_postal_address">
+            <field name="name">debtor_postal_address</field>
+            <field name="string">Debtor Postal Address</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor_account_iban">
+            <field name="name">debtor_account_iban</field>
+            <field name="string">Debtor Account IBAN</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_debtor_account_other">
+            <field name="name">debtor_account_other</field>
+            <field name="string">Debtor Account Other</field>
             <field name="type_">char</field>
         </record>
         <record model="account.statement.origin.information" id="eb_debtor_account_additional_identification">
@@ -280,14 +305,39 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Debtor Account Additional Identification</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_debtor_agent">
-            <field name="name">debtor_agent</field>
-            <field name="string">Debtor Agent</field>
+        <record model="account.statement.origin.information" id="eb_debtor_agent_bic_fi">
+            <field name="name">debtor_agent_bic_fi</field>
+            <field name="string">Debtor Agent BIC FI</field>
             <field name="type_">char</field>
         </record>
-        <record model="account.statement.origin.information" id="eb_entry_reference">
-            <field name="name">entry_reference</field>
-            <field name="string">Entry Reference</field>
+        <record model="account.statement.origin.information" id="eb_debtor_agent_name">
+            <field name="name">debtor_agent_name</field>
+            <field name="string">Debtor Agent Name</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_exchange_rate_unit_currency">
+            <field name="name">exchange_rate_unit_currency</field>
+            <field name="string">Exchange Rate Unit Currency</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_exchange_rate_exchange_rate">
+            <field name="name">exchange_rate_exchange_rate</field>
+            <field name="string">Exchange Rate</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_exchange_rate_rate_type">
+            <field name="name">exchange_rate_rate_type</field>
+            <field name="string">Exchange Rate Type</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_exchange_rate_contract_identification">
+            <field name="name">exchange_rate_contract_identification</field>
+            <field name="string">Exchange Rate Contract Identification</field>
+            <field name="type_">char</field>
+        </record>
+        <record model="account.statement.origin.information" id="eb_exchange_rate_instructed_amount">
+            <field name="name">exchange_rate_instructed_amount</field>
+            <field name="string">Exchange Rate Instructed Amount</field>
             <field name="type_">char</field>
         </record>
         <record model="account.statement.origin.information" id="eb_exchange_rate">
