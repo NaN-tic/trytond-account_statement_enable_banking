@@ -78,6 +78,7 @@ class Journal(metaclass=PoolMeta):
     def _keys_not_needed(self):
         # Main keys
         keys = [
+            'entry_reference',
             'balance_after_transaction',
             'transaction_amount',
             'credit_debit_indicator',
