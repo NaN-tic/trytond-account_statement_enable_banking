@@ -531,20 +531,14 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         # Check if the statement of the origin has all the origins posted, so
         # the statement could be posted too.
-        statements = []
-        statements_used = []
-        for origin in origins:
-            statement = origin.statement
-            if statement in statements_used:
-                continue
-            try:
+        statements_to_post = []
+        for statement in statements:
+            if all(x.state == 'posted'
+                    for x in statement.origins if x not in origins):
                 getattr(statement, 'validate_%s' % statement.validation)()
-                statements.append(origin.statement)
-            except StatementValidateError:
-                pass
-            statements_used.append(origin.statement)
-        if statements:
-            Statement.post(statements)
+                statements_to_post.append(statement)
+        if statements_to_post:
+            Statement.write(statements_to_post, {'state': 'posted'})
 
     @classmethod
     @ModelView.button
