@@ -49,10 +49,14 @@ class Journal(metaclass=PoolMeta):
 
     @classmethod
     def __setup__(cls):
-        super(Journal, cls).__setup__()
+        super().__setup__()
         cls._buttons.update({
             'synchronize_statement_enable_banking': {},
         })
+
+    @staticmethod
+    def default_validation():
+        return 'balance'
 
     @staticmethod
     def default_similarity_threshold():
@@ -137,8 +141,11 @@ class Journal(metaclass=PoolMeta):
             date = datetime.now(timezone.utc)
         else:
             statements = Statement.search([
-                    ('journal', '=', self),
-                    ], order=[('end_date', 'DESC')], limit=1)
+                    ('journal', '=', self.id),
+                    ], order=[
+                    ('end_date', 'DESC'),
+                    ('id', 'DESC'),
+                    ], limit=1)
             if statements:
                 last_statement, = statements
                 # When synch automatically, by crons, take the last Statement
@@ -161,7 +168,7 @@ class Journal(metaclass=PoolMeta):
         statement.journal = self
         statement.on_change_journal()
         statement.end_balance = Decimal(0)
-        if not statement.start_balance:
+        if statement.start_balance is None:
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
         statement.end_date = datetime.now(timezone.utc)
@@ -184,14 +191,19 @@ class Journal(metaclass=PoolMeta):
                 response = r.json()
                 continuation_key = response.get('continuation_key')
                 for transaction in response['transactions']:
+                    entry_reference = transaction.get('entry_reference', None)
+                    # The entry_reference is set to None if not exist in
+                    # transaction result, but could exist and be and empty
+                    # string so control the "not", instead of "is None".
+                    if not entry_reference:
+                        continue
                     if (transaction['transaction_amount']['currency'] !=
                             self.currency.code):
                         raise AccessError(gettext(
                                 'account_statement_enable_banking.'
                                 'msg_currency_not_match'))
                     found_statement_origin = StatementOrigin.search([
-                        ('entry_reference', '=',
-                            transaction['entry_reference']),
+                        ('entry_reference', '=', entry_reference),
                         ])
                     if found_statement_origin:
                         continue
@@ -209,8 +221,7 @@ class Journal(metaclass=PoolMeta):
                             transaction['credit_debit_indicator'] == 'DBIT'):
                         statement_origin.amount = -statement_origin.amount
                     total_amount += statement_origin.amount
-                    statement_origin.entry_reference = transaction[
-                        'entry_reference']
+                    statement_origin.entry_reference = entry_reference
                     statement_origin.date = datetime.strptime(
                         transaction[ebconfig.date_field], '%Y-%m-%d')
                     information_dict = {}

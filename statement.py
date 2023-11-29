@@ -529,14 +529,20 @@ class Origin(Workflow, metaclass=PoolMeta):
             Statement.write(*statement_state)
         # End awful hack
 
+        # Check if the statement of the origin has all the origins posted, so
+        # the statement could be posted too.
         statements = []
+        statements_used = []
         for origin in origins:
             statement = origin.statement
+            if statement in statements_used:
+                continue
             try:
                 getattr(statement, 'validate_%s' % statement.validation)()
                 statements.append(origin.statement)
             except StatementValidateError:
                 pass
+            statements_used.append(origin.statement)
         if statements:
             Statement.post(statements)
 
