@@ -152,6 +152,9 @@ class Line(metaclass=PoolMeta):
         if self.move_line:
             if not self.party:
                 self.party = self.move_line.party
+            if not self.description:
+                self.description = (self.move_line.description
+                    or self.move_line.move_description)
             self.account = self.move_line.account
 
     @classmethod
