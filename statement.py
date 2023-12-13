@@ -181,7 +181,7 @@ class Line(metaclass=PoolMeta):
                 if to_unpay:
                     Invoice.remove_payment_lines(to_unpay)
 
-                cancel_move = move.cancel()
+                cancel_move = move.cancel(reversal=True)
                 cancel_move.origin = line.origin
                 Move.post([cancel_move])
                 mlines = [l for m in [move, cancel_move]
