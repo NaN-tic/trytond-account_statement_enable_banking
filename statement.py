@@ -8,7 +8,7 @@ from itertools import groupby
 from sql.functions import Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
-from trytond.pyson import Eval, Bool, If
+from trytond.pyson import Eval, Bool, If, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
@@ -1508,23 +1508,22 @@ class SynchronizeStatementEnableBanking(Wizard):
 
     def transition_check_session(self):
         pool = Pool()
+        Date = pool.get('ir.date')
         Journal = pool.get('account.statement.journal')
         EBSession = pool.get('enable_banking.session')
         base_headers = get_base_header()
+        today = Date.today()
 
         journal = Journal(Transaction().context['active_id'])
         if not journal.bank_account:
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
 
-        eb_sessions = EBSession.search([
-            ('company', '=', journal.company.id),
-            ('bank', '=', journal.bank_account.bank.id)], limit=1)
-        if eb_sessions:
+        if journal.enable_banking_session:
             # We need to check the date and if we have the field session, if
             # not the session was not created correctly and need to be deleted
-            eb_session = eb_sessions[0]
-            if eb_session.session:
+            eb_session = journal.enable_banking_session
+            if eb_session.session and eb_session.valid_until.date() >= today:
                 session = eval(eb_session.session)
                 r = requests.get(
                     f"{config.get('enable_banking', 'api_origin')}"
@@ -1536,13 +1535,14 @@ class SynchronizeStatementEnableBanking(Wizard):
                             datetime.now() < eb_session.valid_until and
                             eb_session.session):
                         return 'sync_statements'
-            EBSession.delete(eb_sessions)
+            EBSession.delete([eb_session])
         return 'create_session'
 
     def do_create_session(self, action):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         EBSession = pool.get('enable_banking.session')
+
         journal = Journal(Transaction().context['active_id'])
         bank_name = journal.bank_account.bank.party.name.lower()
         bic = (journal.bank_account.bank.bic or '').lower()
@@ -1565,7 +1565,6 @@ class SynchronizeStatementEnableBanking(Wizard):
                     or aspsp.get("bic", " ").lower() == bic):
                 journal.aspsp_name = aspsp["name"]
                 journal.aspsp_country = aspsp["country"]
-                Journal.save([journal])
                 aspsp_found = True
                 break
 
@@ -1607,6 +1606,8 @@ class SynchronizeStatementEnableBanking(Wizard):
                     'msg_error_create_session',
                     error_code=r.status_code,
                     error_message=r.text))
+        journal.enable_banking_session = eb_session
+        journal.save()
         return action, {}
 
     def transition_sync_statements(self):
@@ -1614,8 +1615,77 @@ class SynchronizeStatementEnableBanking(Wizard):
         Journal = pool.get('account.statement.journal')
         journal = Journal(Transaction().context['active_id'])
         with Transaction().set_context(synch_enable_banking_manual=True):
+            if not journal.enable_banking_session:
+                raise AccessError(
+                    gettext('account_statement_enable_banking.msg_no_session'))
             journal.synchronize_statements_enable_banking()
         return 'end'
+
+
+class OriginSynchronizeStatementEnableBankingAsk(ModelView):
+    "Statement Origin or Synchronize Statement Enable Banking Ask"
+    __name__ = 'enable_banking.origin_synchronize_statement.ask'
+
+    journals = fields.Many2Many('account.statement.journal', None, None,
+        'Journals', readonly=True, states={
+            'invisible': True,
+            })
+
+
+class OriginSynchronizeStatementEnableBanking(Wizard):
+    "Statement Origin or Synchronize Statement Enable Banking"
+    __name__ = 'enable_banking.origin_synchronize_statement'
+
+    start = StateTransition()
+    ask = StateView('enable_banking.origin_synchronize_statement.ask',
+        'account_statement_enable_banking.'
+        'origin_synchronize_statement_ask_view_form', [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('Origin', 'origin', 'tryton-cancel'),
+            Button('Journal', 'journal', 'tryton-ok', default=True),
+            ])
+    origin = StateAction('account_statement_enable_banking.'
+        'act_statement_origin_form')
+    journal = StateAction('account_statement.act_statement_journal_form')
+
+    def get_journals_unsynchonized(self):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        Date = pool.get('ir.date')
+        today = Date.today()
+
+        journal_unsynchronized = []
+        company_id = Transaction().context.get('company')
+        if not company_id:
+            return []
+        for journal in Journal.search([('company.id', '=', company_id)]):
+            if (journal.enable_banking_session
+                    and journal.enable_banking_session.valid_until.date()
+                    < today):
+                journal_unsynchronized.append(journal)
+        return journal_unsynchronized
+
+    def transition_start(self):
+        journal_unsynchronized = self.get_journals_unsynchonized()
+        if journal_unsynchronized:
+            return 'ask'
+        return 'origin'
+
+    def default_ask(self, fields):
+        journal_unsynchronized = self.get_journals_unsynchonized()
+        return {
+            'journals': [x.id for x in journal_unsynchronized],
+            }
+
+    def do_origin(self, action):
+        return action, {}
+
+    def do_journal(self, action):
+        journal_ids = [x.id for x in self.ask.journals]
+        action['pyson_domain'] = PYSONEncoder().encode([
+            ('id', 'in', journal_ids),
+            ])
+        return action, {}
 
 
 class Cron(metaclass=PoolMeta):

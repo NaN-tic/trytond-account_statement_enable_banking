@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<form>
+    <label string="There are one or more Statement Journal with the Enable Banking Session expired. Do you want to go to the Origins or to the Journals to updat the sessions?" id="enable_banking_unsynchronized"/>
+    <field name='journals'/>
+</form>
