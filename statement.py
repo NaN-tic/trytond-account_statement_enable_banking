@@ -146,7 +146,7 @@ class Line(metaclass=PoolMeta):
     def move_line(self, value):
         self.related_to = value
 
-    @fields.depends('party', methods=['move_line'])
+    @fields.depends('party', 'description', methods=['move_line'])
     def on_change_related_to(self):
         super().on_change_related_to()
         if self.move_line:
