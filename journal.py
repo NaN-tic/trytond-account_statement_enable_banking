@@ -46,6 +46,8 @@ class Journal(metaclass=PoolMeta):
                     'sequence_type_account_statement_origin')),
             ('company', '=', Eval('company')),
             ])
+    enable_banking_session = fields.Many2One('enable_banking.session',
+        'Enable Banking Session', readonly=True)
 
     @classmethod
     def __setup__(cls):
@@ -104,24 +106,20 @@ class Journal(metaclass=PoolMeta):
 
     def synchronize_statements_enable_banking(self):
         pool = Pool()
-        EBSession = pool.get('enable_banking.session')
         EBConfiguration = pool.get('enable_banking.configuration')
         Statement = pool.get('account.statement')
         StatementOrigin = pool.get('account.statement.origin')
         Date = Pool().get('ir.date')
 
+        today = Date.today()
         ebconfig = EBConfiguration(1)
-        # Get the session
-        eb_session = EBSession.search([
-            ('company', '=', self.company.id),
-            ('bank', '=', self.bank_account.bank.id)], limit=1)
 
-        if not eb_session:
-            raise AccessError(
-                gettext('account_statement_enable_banking.msg_no_session'))
+        if (not self.enable_banking_session
+                or self.enable_banking_session.valid_until.date() <= today):
+            return
 
         # Search the account from the journal
-        session = eval(eb_session[0].session)
+        session = eval(self.enable_banking_session.session)
         bank_numbers = [x.number_compact for x in self.bank_account.numbers]
         account_id = None
         for account in session['accounts']:
@@ -133,7 +131,7 @@ class Journal(metaclass=PoolMeta):
                 gettext('account_statement_enable_banking.'
                     'msg_account_not_found',
                     account=bank_numbers,
-                    bank=eb_session.bank.party.name))
+                    bank=self.enable_banking_session.bank.party.name))
 
         # Prepare request
         base_headers = get_base_header()

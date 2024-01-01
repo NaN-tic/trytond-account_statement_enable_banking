@@ -52,9 +52,19 @@ this repository contains the full copyright notices and license terms. -->
             <field name="domain"></field>
             <field name="act_window" ref="act_statement_origin_form"/>
         </record>
+
+        <record model="ir.ui.view" id="origin_synchronize_statement_ask_view_form">
+            <field name="model">enable_banking.origin_synchronize_statement.ask</field>
+            <field name="type">form</field>
+            <field name="name">origin_synchronize_statement_ask_form</field>
+        </record>
+        <record model="ir.action.wizard" id="act_origin_synchronize_statement">
+            <field name="name">Statement Origins</field>
+            <field name="wiz_name">enable_banking.origin_synchronize_statement</field>
+        </record>
         <menuitem
             parent="account_statement.menu_statements"
-            action="act_statement_origin_form"
+	    action="act_origin_synchronize_statement"
             sequence="10"
             id="menu_statement_form"
             icon="tryton-list"/>

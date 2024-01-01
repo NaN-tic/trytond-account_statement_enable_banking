@@ -11,7 +11,6 @@ from trytond.config import config
 from .common import get_base_header
 
 
-
 @app.route('/<database_name>/enable_banking/redirect')
 @allow_null_origin
 @with_pool
