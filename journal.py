@@ -257,12 +257,17 @@ class Journal(metaclass=PoolMeta):
                         error=str(r.status_code),
                         error_message=str(r.text)))
 
-        to_save.sort(key=lambda x: x.date)
-        # The set number function save the origins
-        self.set_number(to_save)
+        if to_save:
+            to_save.sort(key=lambda x: x.date)
+            # The set number function save the origins
+            self.set_number(to_save)
 
-        # Get the suggested lines for each origin created
-        StatementOrigin._search_reconciliation(statement.origins)
+            # Get the suggested lines for each origin created
+            StatementOrigin._search_reconciliation(statement.origins)
+        else:
+            with Transaction().set_context(_skip_warnings=True):
+                Statement.validate_statement()
+                Statement.post()
 
     @classmethod
     def synchronize_enable_banking_journals(cls):
