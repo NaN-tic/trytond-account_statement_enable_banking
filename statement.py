@@ -122,13 +122,18 @@ class Line(metaclass=PoolMeta):
         if self.origin:
             return self.origin.state
 
-    @fields.depends('origin', '_parent_origin.second_currency')
+    @fields.depends('origin', 'related_to', '_parent_origin.second_currency')
     def on_change_with_second_currency(self, name=None):
+        if not self.related_to:
+            return None
         if self.origin and self.origin.second_currency:
             return self.origin.second_currency
 
-    @fields.depends('origin', '_parent_origin.amount_second_currency')
+    @fields.depends('origin', 'related_to',
+        '_parent_origin.amount_second_currency')
     def on_change_with_amount_second_currency(self, name=None):
+        if not self.related_to:
+            return None
         if self.origin and self.origin.amount_second_currency:
             return self.origin.amount_second_currency
 
@@ -350,8 +355,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         payments = set()
         move_lines = set()
         for line in self.lines:
-            if (line.invoice
-                    and line.invoice.currency == self.company.currency):
+            if line.invoice:
                 invoices.add(line.invoice)
             if (line.payment
                     and line.payment.currency == self.company.currency):
@@ -365,7 +369,19 @@ class Origin(Workflow, metaclass=PoolMeta):
                 sign = -1
             else:
                 sign = 1
-            invoice_id2amount_to_pay[invoice.id] = sign * invoice.amount_to_pay
+            if invoice.currency == self.company.currency:
+                invoice_id2amount_to_pay[invoice.id] = sign * invoice.amount_to_pay
+            else:
+                amount = Decimal(0)
+                for line in invoice.lines_to_pay:
+                    if line.reconciliation:
+                        continue
+                    amount += line.debit - line.credit
+                for line in invoice.payment_lines:
+                    if line.reconciliation:
+                        continue
+                    amount += line.debit - line.credit
+                invoice_id2amount_to_pay[invoice.id] = sign * amount
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
@@ -381,9 +397,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             if (line.invoice and line.id
                     and line.invoice.id in invoice_id2amount_to_pay):
                 amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
-                if (amount_to_pay
-                        and getattr(line, 'amount', None)
-                        and (line.amount >= 0) == (amount_to_pay <= 0)):
+                if amount_to_pay and getattr(line, 'amount', None):
                     line.amount = amount_to_pay.copy_sign(line.amount)
                 else:
                     line.invoice = None
