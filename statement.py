@@ -515,7 +515,15 @@ class Origin(Workflow, metaclass=PoolMeta):
     @ModelView.button
     @Workflow.transition('registered')
     def register(cls, origins):
-        pass
+        pool = Pool()
+        Statement = pool.get('account.statement')
+
+        # Control the statement state.
+        # Statement is a required field in Origin class
+        statements = [x.statement for x in origins
+            if x.statement.state == 'posted']
+        if statements:
+            Statement.write(statements, {'state': 'draft'})
 
     @classmethod
     @ModelView.button
