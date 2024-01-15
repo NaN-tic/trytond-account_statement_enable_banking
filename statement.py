@@ -276,7 +276,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('registered', "Registered"),
             ('cancelled', "Cancelled"),
             ('posted', "Posted"),
-            ], "State", readonly=True, sort=False)
+            ], "State", readonly=True, required=True, sort=False)
 
     @classmethod
     def __setup__(cls):
