@@ -316,6 +316,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     readonly=False, instantiate=0, fresh_session=True),
                 })
 
+    @staticmethod
+    def default_state():
+        return 'registered'
+
     @property
     @fields.depends('statement', '_parent_statement.journal')
     def similarity_threshold(self):
