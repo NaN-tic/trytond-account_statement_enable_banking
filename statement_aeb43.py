@@ -18,4 +18,7 @@ class ImportStatement(metaclass=PoolMeta):
     def aeb43_origin(self, statement, transaction):
         origin, = super().aeb43_origin(statement, transaction)
         origin.state = 'registered'
+        if origin.number is None and statement and statement.journal:
+            journal = statement.journal
+            origin.number = journal.account_statement_origin_sequence.get()
         return [origin]
