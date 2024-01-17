@@ -276,7 +276,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('registered', "Registered"),
             ('cancelled', "Cancelled"),
             ('posted', "Posted"),
-            ], "State", readonly=True, sort=False)
+            ], "State", readonly=True, required=True, sort=False)
 
     @classmethod
     def __setup__(cls):
@@ -315,6 +315,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'post': RPC(
                     readonly=False, instantiate=0, fresh_session=True),
                 })
+
+    @staticmethod
+    def default_state():
+        return 'registered'
 
     @property
     @fields.depends('statement', '_parent_statement.journal')
