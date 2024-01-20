@@ -16,9 +16,17 @@ class ImportStatement(metaclass=PoolMeta):
         return statement
 
     def aeb43_origin(self, statement, transaction):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+
         origin, = super().aeb43_origin(statement, transaction)
         origin.state = 'registered'
         if origin.number is None and statement and statement.journal:
             journal = statement.journal
             origin.number = journal.account_statement_origin_sequence.get()
-        return [origin]
+
+        origins = [origin]
+        # Get the suggested lines for each origin created
+        StatementOrigin._search_reconciliation(origins)
+
+        return origins
