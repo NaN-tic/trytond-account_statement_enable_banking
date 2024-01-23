@@ -48,6 +48,10 @@ class Journal(metaclass=PoolMeta):
             ])
     enable_banking_session = fields.Many2One('enable_banking.session',
         'Enable Banking Session', readonly=True)
+    one_move_per_origin = fields.Boolean("One Move per Origin",
+        help="Check if want to create only one move per origin when post it "
+        "even it has more than one line. Else it create one move for eaach "
+        "line.")
 
     @classmethod
     def __setup__(cls):
@@ -67,6 +71,10 @@ class Journal(metaclass=PoolMeta):
     @staticmethod
     def default_acceptable_similarity():
         return 8
+
+    @staticmethod
+    def default_one_move_per_origin():
+        return False
 
     def set_number(self, origins):
         '''

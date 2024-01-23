@@ -20,6 +20,7 @@ from trytond.model.exceptions import AccessError
 from trytond.modules.account_statement.exceptions import (
     StatementValidateError, StatementValidateWarning)
 from trytond.modules.currency.fields import Monetary
+from trytond.modules.account_statement.statement import Unequal
 
 
 _ZERO = Decimal('0.0')
@@ -40,6 +41,20 @@ class Statement(metaclass=PoolMeta):
 
     start_date = fields.DateTime("Start Date", readonly=True)
     end_date = fields.DateTime("End Date", readonly=True)
+
+    def _group_key(self, line):
+        one_move = (line.statement.journal.one_move_per_origin
+            if line.statement else None)
+        if one_move:
+            key = (
+                ('number', line.origin.description or line.origin.number
+                    or Unequal()),
+                ('date', line.origin.date),
+                ('origin', line.origin),
+                )
+        else:
+            key = super()._group_key(line)
+        return key
 
     @classmethod
     def cancel(cls, statements):
@@ -367,6 +382,11 @@ class Origin(Workflow, metaclass=PoolMeta):
             if (line.move_line
                     and line.move_line.currency == self.company.currency):
                 move_lines.add(line.move_line)
+            if (not line.description and line.origin
+                    and line.origin.information):
+                line.description = line.origin.information.get(
+                    'remittance_information', '')
+
         invoice_id2amount_to_pay = {}
         for invoice in invoices:
             if invoice.type == 'out':
@@ -374,7 +394,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             else:
                 sign = 1
             if invoice.currency == self.company.currency:
-                invoice_id2amount_to_pay[invoice.id] = sign * invoice.amount_to_pay
+                invoice_id2amount_to_pay[invoice.id] = (
+                    sign * invoice.amount_to_pay)
             else:
                 amount = Decimal(0)
                 for line in invoice.lines_to_pay:
@@ -541,7 +562,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.create_moves(origins)
 
         lines = [x for o in origins for x in o.lines]
-        # It's an awfull hack to sate the state, but it's needed to ensure the
+        # It's an awfull hack to set the state, but it's needed to ensure the
         # Error of statement state in Move.post is not applied when try to
         # concile and individual origin. For this, need the state == 'posted'.
         statements = [o.statement for o in origins]
@@ -599,12 +620,14 @@ class Origin(Workflow, metaclass=PoolMeta):
                     MoveLine.write(*to_write)
         StatementLine.write(lines, {'move': None})
 
-    def similarity_parties(self, compare):
+    def similarity_parties(self, compare, similarity_threshold=0.13):
         """
         This function return a dictionary with the possible parties ID on
         'key' and the similairty on 'value'.
         It compare the 'compare' value with the parties name, based on the
         similarities journal deffined values.
+        Set the similarity threshold to 0.13 as is the minimum value detecte
+        that return a correct match wiht multiples words in compare field.
         """
         pool = Pool()
         Party = pool.get('party.party')
@@ -619,16 +642,21 @@ class Origin(Workflow, metaclass=PoolMeta):
         if hasattr(Party, 'trade_name'):
             similarity_party_trade = Similarity(party_table.trade_name,
                 compare)
-            where = ((similarity_party >= self.similarity_threshold) | (
+            where = ((similarity_party >= similarity_threshold) | (
                     (party_table.trade_name != None)
-                    & (similarity_party_trade >= self.similarity_threshold)))
+                    & (similarity_party_trade >= similarity_threshold)))
         else:
-            where = (similarity_party >= self.similarity_threshold)
+            where = (similarity_party >= similarity_threshold)
         query = party_table.select(party_table.id, similarity_party,
             where=where)
         cursor.execute(*query)
         for similarity in cursor.fetchall():
             similarity_parties[similarity[0]] = round(similarity[1] * 10)
+        if not similarity_parties:
+            compare_split = compare.split()
+            if len(compare_split) > 1:
+                for compare in compare_split:
+                    self.similarity_parties(compare, 0.3)
         return similarity_parties
 
     def increase_similarity_by_interval_date(self, date, interval_date=None,
@@ -638,15 +666,21 @@ class Origin(Workflow, metaclass=PoolMeta):
         interval.
         """
         if date:
-            control_date = self.date
+            control_dates = [self.date]
+            if self.information.get('value_date'):
+                control_dates.append(datetime.strptime(
+                        self.information['value_date'], '%Y-%m-%d').date())
             if not interval_date:
                 interval_date = timedelta(days=3)
-            start_date = control_date - interval_date
-            end_date = control_date + interval_date
-            if date == control_date:
-                similarity += 2
-            elif start_date <= date <= end_date:
-                similarity += 1
+            if date in control_dates:
+                similarity += 3
+            else:
+                for control_date in control_dates:
+                    start_date = control_date - interval_date
+                    end_date = control_date + interval_date
+                    if start_date <= date <= end_date:
+                        similarity += 2
+                        break
         return similarity
 
     def increase_similarity_by_party(self, party, similarity_parties,
@@ -658,9 +692,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             party_id = party.id
             if party_id in similarity_parties:
                 if similarity_parties[party_id] >= self.acceptable_similarity:
-                    similarity += 2
+                    similarity += 3
                 else:
-                    similarity += 1
+                    similarity += 2
         return similarity
 
     def create_payment_suggested_line(self, move_lines, amount, name,
@@ -986,7 +1020,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             move_lines.extend(lines)
         return suggesteds, move_lines
 
-    def _search_move_line_reconciliation_domain(self, exclude_ids=None):
+    def _search_move_line_reconciliation_domain(self, exclude_ids=None,
+            second_currency=None):
         domain = [
             ('move.company', '=', self.company.id),
             ('currency', '=', self.currency),
@@ -999,12 +1034,14 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('move_origin', 'like', 'account.statement.origin,%'),
                 ],
             ]
+        if second_currency:
+            domain.append(('second_currency', '=', second_currency))
         if exclude_ids:
             domain.append(('id', 'not in', exclude_ids))
         return domain
 
     def _search_suggested_reconciliation_move_line(self, amount, acceptable=0,
-            parties=None, exclude=None):
+            parties=None, exclude=None, second_currency=None):
         """
         Search for any move line, not related to invoice or payments that the
         amount it the origin pending_amount
@@ -1020,11 +1057,15 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         # Prepapre the base domain
         line_ids = [x.id for x in exclude] if exclude else None
-        domain = self._search_move_line_reconciliation_domain(line_ids)
+        domain = self._search_move_line_reconciliation_domain(
+            exclude_ids=line_ids, second_currency=second_currency)
         lines_by_origin = {}
         lines_by_party = {}
         for line in MoveLine.search(domain, order=[('maturity_date', 'ASC')]):
-            move_amount = line.debit - line.credit
+            if second_currency and second_currency != self.currency:
+                move_amount = line.amount_second_currency
+            else:
+                move_amount = line.debit - line.credit
             if move_amount == amount:
                 similarity = self.increase_similarity_by_interval_date(
                     line.maturity_date, similarity=acceptable)
@@ -1228,8 +1269,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 suggest_lines, used_groups = (
                     origin.
                     _search_suggested_reconciliation_clearing_payment_group(
-                        pending_amount, acceptable=acceptable,
-                        parties=similarity_parties))
+                        pending_amount, acceptable=acceptable))
                 suggesteds_to_create.extend(suggest_lines)
                 groups.extend(used_groups)
 
@@ -1255,6 +1295,15 @@ class Origin(Workflow, metaclass=PoolMeta):
                     pending_amount, acceptable=acceptable,
                     parties=similarity_parties, exclude=move_lines))
             suggesteds_to_create.extend(suggest_lines)
+
+            # Search by second currency
+            if origin.second_currency and origin.amount_second_currency != 0:
+                suggest_lines = (
+                    origin._search_suggested_reconciliation_move_line(
+                        origin.amount_second_currency, acceptable=acceptable,
+                        parties=similarity_parties,
+                        second_currency=origin.second_currency))
+                suggesteds_to_create.extend(suggest_lines)
 
             # Search by simlarity, using the PostreSQL Trigram
             suggesteds_to_create.extend(
@@ -1286,13 +1335,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                     suggested_use = suggest
                     before_similarity = suggest.similarity
                 if suggested_use:
-                    # Set the origin second_currency in case the line or lines
-                    # finded have a different second currency
-                    if suggested_use.second_currency != origin.second_currency:
-                        origin.second_currency = suggested_use.second_currency
-                        origin.amount_second_currency = (
-                            suggested_use.amount_second_currency)
-                        to_save.append(origin)
                     suggesteds_use.append(suggested_use)
         if to_save:
             cls.save(to_save)
