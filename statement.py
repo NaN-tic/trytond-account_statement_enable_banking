@@ -95,6 +95,8 @@ class Line(metaclass=PoolMeta):
             ['OR',
                 ('move_origin', '=', None),
                 ('move_origin', 'not like', 'account.invoice,%'),
+                [('move_origin', 'like', 'account.invoice,%'),
+                    ('origin', 'like', 'account.invoice.tax,%')]
                 ],
             ]
         cls.number.states['readonly'] = (
