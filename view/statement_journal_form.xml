@@ -3,6 +3,8 @@
 this repository contains the full copyright notices and license terms. -->
 <data>
     <xpath expr="/form/field[@name='validation']" position="after">
+        <label name="one_move_per_origin"/>
+        <field name="one_move_per_origin"/>
         <separator id="similarity" string="Similarity in Search" colspan="4"/>
         <label name="similarity_threshold"/>
         <field name="similarity_threshold"/>
