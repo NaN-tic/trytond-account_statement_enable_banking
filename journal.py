@@ -272,7 +272,7 @@ class Journal(metaclass=PoolMeta):
             StatementOrigin._search_reconciliation(statement.origins)
         else:
             with Transaction().set_context(_skip_warnings=True):
-                Statement.validate_statement()
+                Statement.validate_statement([statement])
                 Statement.post()
 
     @classmethod
