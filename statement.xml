@@ -142,6 +142,11 @@ this repository contains the full copyright notices and license terms. -->
             <field name="group" ref="account.group_account_admin"/>
         </record>
 
+        <record model="ir.sequence" id="sequence_account_statement_origin">
+            <field name="name">Account Statement Origin</field>
+            <field name="sequence_type" ref="sequence_type_account_statement_origin"/>
+        </record>
+
         <record model="ir.action.act_window" id="act_origin_move_lines_form">
             <field name="name">Move Lines</field>
             <field name="res_model">account.move.line</field>

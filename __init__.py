@@ -9,6 +9,8 @@ from . import routes
 from . import statement
 from . import statement_aeb43
 
+__all__ = ['register', 'routes']
+
 def register():
     Pool.register(
         account.Move,

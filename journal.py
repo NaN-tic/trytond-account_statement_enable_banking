@@ -44,8 +44,10 @@ class Journal(metaclass=PoolMeta):
             ('sequence_type', '=',
                 Id('account_statement_enable_banking',
                     'sequence_type_account_statement_origin')),
-            ('company', '=', Eval('company')),
-            ])
+            ['OR',
+                ('company', '=', Eval('company')),
+                ('company', '=', None),
+            ]])
     enable_banking_session = fields.Many2One('enable_banking.session',
         'Enable Banking Session', readonly=True)
     one_move_per_origin = fields.Boolean("One Move per Origin",
