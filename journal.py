@@ -275,7 +275,7 @@ class Journal(metaclass=PoolMeta):
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])
-                Statement.post()
+                Statement.post([statement])
 
     @classmethod
     def synchronize_enable_banking_journals(cls):
