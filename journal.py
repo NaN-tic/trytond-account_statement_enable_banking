@@ -176,7 +176,8 @@ class Journal(metaclass=PoolMeta):
         statement.journal = self
         statement.on_change_journal()
         statement.end_balance = Decimal(0)
-        if statement.start_balance is None:
+        if (not hasattr(statement, 'start_balance')
+                or statement.start_balance is None):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
         statement.end_date = datetime.now(timezone.utc)
