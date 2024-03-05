@@ -22,7 +22,7 @@ this repository contains the full copyright notices and license terms. -->
             <field name="text">Country not found in bank party, please, make sure the bank party have at least one address with country.</field>
         </record>
         <record model="ir.message" id="msg_aspsp_not_found">
-            <field name="text">Bank "%(bank)s" from country "%(country_code)s" not found in Enable Banking compatible banks.</field>
+            <field name="text">Bank "%(bank)s" from country "%(country_code)s" not found in Enable Banking compatible banks.\n%(message)s</field>
         </record>
         <record model="ir.message" id="msg_error_create_session">
             <field name="text">Error creating the session: "%(error_code)s" "%(error_message)s"</field>

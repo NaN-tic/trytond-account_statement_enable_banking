@@ -1627,8 +1627,9 @@ class SynchronizeStatementEnableBanking(Wizard):
         r = requests.get(
             f"{config.get('enable_banking', 'api_origin')}/aspsps",
             headers=base_headers)
+        response = r.json()
         aspsp_found = False
-        for aspsp in r.json().get("aspsps", []):
+        for aspsp in response.get("aspsps", []):
             if aspsp["country"] != country:
                 continue
             if (aspsp["name"].lower() == bank_name
@@ -1639,10 +1640,12 @@ class SynchronizeStatementEnableBanking(Wizard):
                 break
 
         if not aspsp_found:
+            message = response.get('message', '')
             raise AccessError(
                 gettext('account_statement_enable_banking.msg_aspsp_not_found',
                     bank=journal.aspsp_name,
-                    country_code=journal.aspsp_country))
+                    country_code=journal.aspsp_country),
+                    message=message)
 
         eb_session = EBSession()
         eb_session.company = journal.company
