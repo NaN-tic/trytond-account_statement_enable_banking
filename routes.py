@@ -19,6 +19,7 @@ def redirect(request, pool):
     EBSession = pool.get('enable_banking.session')
     EBSessionReportOK = pool.get('enable_banking.session_ok', type='report')
     EBSessionReportKO = pool.get('enable_banking.session_ko', type='report')
+    auth_code = None
     if 'code' in request.args.keys():
         auth_code = request.args['code']
     base_headers = get_base_header()
