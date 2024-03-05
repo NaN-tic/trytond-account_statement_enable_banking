@@ -1628,7 +1628,7 @@ class SynchronizeStatementEnableBanking(Wizard):
             f"{config.get('enable_banking', 'api_origin')}/aspsps",
             headers=base_headers)
         aspsp_found = False
-        for aspsp in r.json()["aspsps"]:
+        for aspsp in r.json().get("aspsps", []):
             if aspsp["country"] != country:
                 continue
             if (aspsp["name"].lower() == bank_name
