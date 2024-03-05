@@ -263,7 +263,7 @@ class Journal(metaclass=PoolMeta):
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_error_get_statements',
-                        error=str(r.status_code),
+                        error_code=str(r.status_code),
                         error_message=str(r.text)))
 
         if to_save:
