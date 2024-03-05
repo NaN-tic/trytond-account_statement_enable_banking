@@ -1644,8 +1644,8 @@ class SynchronizeStatementEnableBanking(Wizard):
             raise AccessError(
                 gettext('account_statement_enable_banking.msg_aspsp_not_found',
                     bank=journal.aspsp_name,
-                    country_code=journal.aspsp_country),
-                    message=message)
+                    country_code=journal.aspsp_country,
+                    message=message))
 
         eb_session = EBSession()
         eb_session.company = journal.company
