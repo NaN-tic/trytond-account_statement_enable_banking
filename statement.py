@@ -730,7 +730,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     name = line.payments[0].rec_name
                 related_to = line.payments[0]
             else:
-                related_to = line.move_origin if line.move_origin else line
+                accepted_origins = SuggestedLine.related_to.domain.keys()
+                related_to = (line.move_origin if line.move_origin
+                    and line.move_origin.__name__ in accepted_origins
+                    else line)
                 if line.second_currency != self.currency:
                     second_currency = line.second_currency
                     amount_second_currency = line.amount_second_currency
@@ -970,7 +973,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'payments': [payment],
                     }
 
-            # Some Bancs group payments from differnt, but consecutive dates.
+            # Some Bancs group payments from different, but consecutive dates.
             # Normally the day before the payment value date + the date.
             delta = timedelta(days=1)
             origin_date = self.date
