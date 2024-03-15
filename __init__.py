@@ -8,6 +8,7 @@ from . import journal
 from . import routes
 from . import statement
 from . import statement_aeb43
+from . import statement_analytic
 
 __all__ = ['register', 'routes']
 
@@ -38,3 +39,10 @@ def register():
         statement_aeb43.ImportStatement,
         depends=['account_statement_aeb43'],
         module='account_statement_enable_banking', type_='wizard')
+    Pool.register(
+        statement_analytic.Line,
+        statement_analytic.Origin,
+        statement_analytic.OriginSuggestedLine,
+        statement_analytic.AnalyticAccountEntry,
+        depends=['analytic_account'],
+        module='account_statement_enable_banking', type_='model')

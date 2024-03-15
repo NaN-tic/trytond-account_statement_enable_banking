@@ -7,5 +7,6 @@ from trytond.tests.test_tryton import ModuleTestCase
 class AccountStatementEnableBankingTestCase(ModuleTestCase):
     'Test Account Statement Enable Banking module'
     module = 'account_statement_enable_banking'
+    extras = ['account_statement_aeb43', 'analytic_account']
 
 del ModuleTestCase
