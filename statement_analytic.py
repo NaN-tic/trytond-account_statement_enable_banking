@@ -57,7 +57,7 @@ class Origin(metaclass=PoolMeta):
 
         values = super()._get_suggested_values(parent, name, line, amount,
             related_to, similarity)
-        if line.analytic_accounts:
+        if hasattr(line, 'analytic_accounts') and line.analytic_accounts:
             new_entry = AnalyticAccountEntry.copy(line.analytic_accounts,
                 default={
                     'origin': None,
