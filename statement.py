@@ -1,6 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
+import json
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from secrets import token_hex
@@ -519,6 +520,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         for move, lines in moves:
             amount = _ZERO
             amount_second_currency = _ZERO
+            statement = lines[0].statement if lines else None
             for line in lines:
                 move_line = line.get_move_line()
                 if not move_line:
@@ -529,10 +531,11 @@ class Origin(Workflow, metaclass=PoolMeta):
                     amount_second_currency += move_line.amount_second_currency
                 move_lines.append((move_line, line))
 
-            move_line = origin.statement._get_move_line(
-                amount, amount_second_currency, lines)
-            move_line.move = move
-            move_lines.append((move_line, None))
+            if statement:
+                move_line = statement._get_move_line(
+                    amount, amount_second_currency, lines)
+                move_line.move = move
+                move_lines.append((move_line, None))
 
         MoveLine.save([x for x, _ in move_lines])
         StatementLine.reconcile(move_lines)
@@ -699,6 +702,34 @@ class Origin(Workflow, metaclass=PoolMeta):
                     similarity += 2
         return similarity
 
+    def _get_suggested_values(self, parent, name, line, amount, related_to,
+            similarity):
+        second_currency = self.second_currency
+        amount_second_currency = self.amount_second_currency
+        if (hasattr(line, 'payments') and not line.payments
+                and line.second_currency != self.currency):
+            second_currency = line.second_currency
+            amount_second_currency = line.amount_second_currency
+        if hasattr(line, 'maturity_date'):
+            date = line.maturity_date or line.date
+        else:
+            date = self.date
+        values = {
+            'name': '' if parent else name,
+            'parent': parent,
+            'origin': self,
+            'party': line.party,
+            'date': date,
+            'related_to': related_to,
+            'account': line.account,
+            'amount': amount,
+            'second_currency': second_currency,
+            'amount_second_currency': amount_second_currency,
+            'similarity': similarity,
+            'state': 'proposed',
+            }
+        return values
+
     def create_payment_suggested_line(self, move_lines, amount, name,
             payment=False, similarity=0):
         """
@@ -723,8 +754,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent.save()
 
         for line in move_lines:
-            second_currency = self.second_currency
-            amount_second_currency = self.amount_second_currency
             if payment and line.payments:
                 if not parent and not name:
                     name = line.payments[0].rec_name
@@ -734,26 +763,11 @@ class Origin(Workflow, metaclass=PoolMeta):
                 related_to = (line.move_origin if line.move_origin
                     and line.move_origin.__name__ in accepted_origins
                     else line)
-                if line.second_currency != self.currency:
-                    second_currency = line.second_currency
-                    amount_second_currency = line.amount_second_currency
                 if not parent and not name:
                     name = line.rec_name
-            amount_line = line.debit - line.credit
-            values = {
-                'name': '' if parent else name,
-                'parent': parent,
-                'origin': self,
-                'party': line.party,
-                'date': line.maturity_date,
-                'related_to': related_to,
-                'account': line.account,
-                'amount': amount_line,
-                'second_currency': second_currency,
-                'amount_second_currency': amount_second_currency,
-                'similarity': similarity,
-                'state': 'proposed',
-                }
+            amount = line.debit - line.credit
+            values = self._get_suggested_values(parent, name, line, amount,
+                related_to, similarity)
             to_create.append(values)
         return parent, to_create
 
@@ -780,29 +794,12 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent.state = 'proposed'
             parent.similarity = similarity
             parent.save()
-        second_currency = self.second_currency
-        amount_second_currency = self.amount_second_currency
         for line in move_lines:
             related_to = (line.move_origin if line.move_origin
                 and isinstance(line.move_origin, Invoice) else line)
-            if line.second_currency != self.currency:
-                second_currency = line.second_currency
-                amount_second_currency = line.amount_second_currency
-            amount_line = line.debit - line.credit
-            values = {
-                'name': '' if parent else name,
-                'parent': parent,
-                'origin': self,
-                'party': line.party,
-                'date': line.maturity_date,
-                'related_to': related_to,
-                'account': line.account,
-                'amount': amount_line,
-                'second_currency': second_currency,
-                'amount_second_currency': amount_second_currency,
-                'similarity': similarity,
-                'state': 'proposed',
-                }
+            amount = line.debit - line.credit
+            values = self._get_suggested_values(parent, name, line, amount,
+                related_to, similarity)
             to_create.append(values)
         return parent, to_create
 
@@ -1127,7 +1124,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if party and parties:
                     similarity = self.increase_similarity_by_party(party,
                         parties, similarity=similarity)
-                parent, to_create = self.create_move_suggested_line(
+                _, to_create = self.create_move_suggested_line(
                     values['lines'], amount, name=origin.rec_name,
                     similarity=similarity)
                 suggesteds.extend(to_create)
@@ -1147,7 +1144,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     similarity = self.increase_similarity_by_party(party,
                         parties, similarity=similarity)
                 name = party.rec_name
-                parent, to_create = self.create_move_suggested_line(
+                _, to_create = self.create_move_suggested_line(
                     values['lines'], amount, name=name, similarity=similarity)
                 suggesteds.extend(to_create)
         return suggesteds
@@ -1190,19 +1187,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 continue
             suggests = []
             for line in origin.lines:
-                values = {
-                    'name': name,
-                    'parent': None,
-                    'origin': self,
-                    'party': line.party,
-                    'date': self.date,
-                    'account': line.account,
-                    'amount': line.amount,
-                    'second_currency': self.second_currency,
-                    'amount_second_currency': self.amount_second_currency,
-                    'similarity': acceptable,
-                    'state': 'proposed'
-                    }
+                values = self._get_suggested_values(None, name, line,
+                    line.amount, None, acceptable)
                 suggests.append(values)
             if len(suggests) == 1:
                 suggests[0]['amount'] = amount
@@ -1316,13 +1302,24 @@ class Origin(Workflow, metaclass=PoolMeta):
                         pending_amount, information=information,
                         threshold=threshold))
 
+        def remove_duplicate_suggestions(suggesteds):
+            seen = set()
+            result = []
+            keys = ['name', 'parent', 'origin', 'party', 'date', 'related_to',
+                'account', 'amount', 'second_currency', 'similarity',
+                'amount_second_currency', 'state']
+            for suggest in suggesteds:
+                # Create an identifier based in the main keys.
+                identifier = tuple(suggest[key] for key in keys if key in suggest)
+                if identifier not in seen:
+                    result.append(suggest)
+                    seen.add(identifier)
+            return result
+
         suggesteds_use = []
-        to_save = []
         if suggesteds_to_create:
-            # Remove duplicate suggestions
-            suggesteds_to_create = list(set(
-                    [tuple(x.items()) for x in suggesteds_to_create]))
-            suggesteds_to_create = [dict(x) for x in suggesteds_to_create]
+            suggesteds_to_create = remove_duplicate_suggestions(
+                suggesteds_to_create)
             SuggestedLine.create(suggesteds_to_create)
             for origin in origins:
                 suggested_use = None
@@ -1330,7 +1327,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 for suggest in SuggestedLine.search([
                         ('origin', '=', origin),
                         ('parent', '=', None),
-                        ('similarity', '>=', acceptable)
+                        ('similarity', '>=', origin.acceptable_similarity)
                         ]):
                     if suggest.similarity == before_similarity:
                         suggested_use = None
@@ -1341,8 +1338,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                     before_similarity = suggest.similarity
                 if suggested_use:
                     suggesteds_use.append(suggested_use)
-        if to_save:
-            cls.save(to_save)
         if suggesteds_use:
             SuggestedLine.use(suggesteds_use)
 
@@ -1525,6 +1520,22 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         pass
 
     @classmethod
+    def get_suggested_values(cls, child, description=None):
+        return {
+            'origin': child.origin,
+            'statement': child.origin.statement,
+            'suggested_line': child,
+            'related_to': child.related_to,
+            'party': child.party,
+            'account': child.account,
+            'amount': child.amount,
+            'second_currency': child.second_currency,
+            'amount_second_currency': child.amount_second_currency,
+            'date': child.origin.date,
+            'description': description or '',
+            }
+
+    @classmethod
     @ModelView.button
     @Workflow.transition('used')
     def use(cls, recomended):
@@ -1539,19 +1550,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     continue
                 description = child.origin.information.get(
                     'remittance_information', '')
-                values = {
-                    'origin': child.origin,
-                    'statement': child.origin.statement,
-                    'suggested_line': child,
-                    'related_to': child.related_to,
-                    'party': child.party,
-                    'account': child.account,
-                    'amount': child.amount,
-                    'second_currency': child.second_currency,
-                    'amount_second_currency': child.amount_second_currency,
-                    'date': child.origin.date,
-                    'description': description,
-                    }
+                values = cls.get_suggested_values(child, description)
                 to_create.append(values)
             if len(childs) > 1:
                 cls.write(list(childs), {'state': 'used'})
