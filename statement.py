@@ -1,7 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
-import json
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from secrets import token_hex
@@ -48,7 +47,7 @@ class Statement(metaclass=PoolMeta):
             if line.statement else None)
         if one_move:
             key = (
-                ('number', line.origin.description or line.origin.number
+                ('number', line.origin and (line.origin.description or line.origin.number)
                     or Unequal()),
                 ('date', line.origin.date),
                 ('origin', line.origin),
