@@ -271,6 +271,10 @@ class Journal(metaclass=PoolMeta):
             # The set number function save the origins
             self.set_number(to_save)
 
+            # Before try to search for the possible suggestions,
+            # commit the origin downloads and cretesd.
+            # To ensure not lost datta if the search fail.
+            Transaction().commit()
             # Get the suggested lines for each origin created
             StatementOrigin._search_reconciliation(statement.origins)
         else:
