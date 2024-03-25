@@ -271,12 +271,11 @@ class Journal(metaclass=PoolMeta):
             # The set number function save the origins
             self.set_number(to_save)
 
-            # Before try to search for the possible suggestions,
-            # commit the origin downloads and cretesd.
-            # To ensure not lost datta if the search fail.
-            Transaction().commit()
             # Get the suggested lines for each origin created
-            StatementOrigin._search_reconciliation(statement.origins)
+            # Use __queue__ to ensure the Bank lines download and origin
+            # creation are done and saved before start to create there
+            # suggestions.
+            StatementOrigin.__queue__._search_reconciliation(statement.origins)
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])
