@@ -125,7 +125,8 @@ class Journal(metaclass=PoolMeta):
         ebconfig = EBConfiguration(1)
 
         if (not self.enable_banking_session
-                or self.enable_banking_session.valid_until.date() <= today):
+                or not self.enable_banking_session.session
+                or self.enable_banking_session.valid_until.date() < today):
             return
 
         # Search the account from the journal
