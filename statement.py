@@ -99,7 +99,9 @@ class Line(metaclass=PoolMeta):
                 ('move_origin', '=', None),
                 ('move_origin', 'not like', 'account.invoice,%'),
                 [('move_origin', 'like', 'account.invoice,%'),
-                    ('origin', 'like', 'account.invoice.tax,%')]
+                    ('origin', 'like', 'account.invoice.tax,%')],
+                [('move_origin', 'like', 'account.invoice,%'),
+                    ('party', '=', None)],
                 ],
             ]
         cls.number.states['readonly'] = (
@@ -842,7 +844,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent.save()
         for line in move_lines:
             related_to = (line.move_origin if line.move_origin
-                and isinstance(line.move_origin, Invoice) else line)
+                and isinstance(line.move_origin, Invoice)
+                and line.move_origin.state != 'paid' else line)
             amount = line.debit - line.credit
             values = self._get_suggested_values(parent, name, line, amount,
                 related_to, similarity)
@@ -1514,7 +1517,9 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     ('move_origin', '=', None),
                     ('move_origin', 'not like', 'account.invoice,%'),
                     [('move_origin', 'like', 'account.invoice,%'),
-                        ('origin', 'like', 'account.invoice.tax,%')]
+                        ('origin', 'like', 'account.invoice.tax,%')],
+                    [('move_origin', 'like', 'account.invoice,%'),
+                        ('party', '=', None)],
                     ],
                 ],
             })
