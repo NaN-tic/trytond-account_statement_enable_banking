@@ -6,6 +6,7 @@ this repository contains the full copyright notices and license terms. -->
         <field name="state"/>
         <button name="post"/>
         <button name="cancel"/>
+        <field name="remittance_information" tree_invisible="1"/>
         <button name="search_suggestions" tree_invisible="1"/>
     </xpath>
 </data>

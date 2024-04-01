@@ -82,7 +82,10 @@ class Line(metaclass=PoolMeta):
 
         cls.related_to.domain['account.move.line'] = [
             ('company', '=', Eval('company', -1)),
-            ('currency', '=', Eval('currency', -1)),
+            If(Eval('second_currency'),
+                ('second_currency', '=', Eval('second_currency', -1)),
+                ('currency', '=', Eval('currency', -1)),
+               ),
             If(Bool(Eval('party')),
                 ('party', '=', Eval('party')),
                 ()),
@@ -294,6 +297,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('cancelled', "Cancelled"),
             ('posted', "Posted"),
             ], "State", readonly=True, required=True, sort=False)
+    remittance_information = fields.Function(
+        fields.Char('Remittance Information'), 'get_remittance_information',
+        searcher='search_remittance_information')
 
     @classmethod
     def __setup__(cls):
@@ -311,6 +317,14 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('posted', 'cancelled'),
                 ))
         cls._buttons.update({
+                'multiple_invoices': {
+                    'invisible': Eval('state') != 'registered',
+                    'depends': ['state'],
+                    },
+                'multiple_move_lines': {
+                    'invisible': Eval('state') != 'registered',
+                    'depends': ['state'],
+                    },
                 'register': {
                     'invisible': Eval('state') != 'cancelled',
                     'depends': ['state'],
@@ -363,6 +377,27 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         return [x.id for x in suggested_lines if x.state == 'proposed']
 
+    def get_remittance_information(self, name):
+        return (self.information.get('remittance_information', '')
+            if self.information else '')
+
+    @classmethod
+    def search_remittance_information(cls, name, clause):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+
+        origin_table = StatementOrigin.__table__()
+        cursor = Transaction().connection.cursor()
+        _, operator, value = clause
+        operator = 'in' if value else 'not in'
+
+        remittance_information_column = JsonbExtractPathText(
+                origin_table.information, 'remittance_information')
+        query = origin_table.select(origin_table.id,
+            where=(remittance_information_column.ilike(value)))
+        cursor.execute(*query)
+        return [('id', operator, [x[0] for x in cursor.fetchall()])]
+
     @fields.depends('statement', 'lines', 'company',
         '_parent_statement.company', '_parent_statement.journal')
     def on_change_lines(self):
@@ -386,8 +421,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 move_lines.add(line.move_line)
             if (not line.description and line.origin
                     and line.origin.information):
-                line.description = line.origin.information.get(
-                    'remittance_information', '')
+                line.description = line.origin.remittance_information
 
         invoice_id2amount_to_pay = {}
         for invoice in invoices:
@@ -536,9 +570,22 @@ class Origin(Workflow, metaclass=PoolMeta):
                 move_line.move = move
                 move_lines.append((move_line, None))
 
-        MoveLine.save([x for x, _ in move_lines])
-        StatementLine.reconcile(move_lines)
+        if move_lines:
+            MoveLine.save([x for x, _ in move_lines])
+            StatementLine.reconcile(move_lines)
         return moves
+
+    @classmethod
+    @ModelView.button_action(
+            'account_statement_enable_banking.wizard_multiple_invoices')
+    def multiple_invoices(cls, origins):
+        pass
+
+    @classmethod
+    @ModelView.button_action(
+            'account_statement_enable_banking.wizard_multiple_move_lines')
+    def multiple_move_lines(cls, origins):
+        pass
 
     @classmethod
     @ModelView.button
@@ -1243,8 +1290,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             if pending_amount == _ZERO:
                 return
 
-            information = origin.information.get('remittance_information',
-                None)
+            information = origin.remittance_information
             similarity_parties = origin.similarity_parties(information)
             threshold = origin.similarity_threshold
             acceptable = origin.acceptable_similarity
@@ -1339,6 +1385,25 @@ class Origin(Workflow, metaclass=PoolMeta):
                     suggesteds_use.append(suggested_use)
         if suggesteds_use:
             SuggestedLine.use(suggesteds_use)
+
+    @classmethod
+    def _get_statement_line(cls, origin, related, date=None, amount=0):
+        pool = Pool()
+        StatementLine = pool.get('account.statement.line')
+
+        line = StatementLine()
+        line.origin = origin
+        line.statement = origin.statement
+        line.suggested_line = None
+        line.related_to = related
+        line.party = related.party
+        line.account = related.account
+        line.amount = amount
+        line.second_currency = related.second_currency
+        line.amount_second_currency = related.amount_second_currency
+        line.date = origin.date
+        line.description = origin.remittance_information
+        return line
 
     @classmethod
     @ModelView.button
@@ -1448,6 +1513,8 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ['OR',
                     ('move_origin', '=', None),
                     ('move_origin', 'not like', 'account.invoice,%'),
+                    [('move_origin', 'like', 'account.invoice,%'),
+                        ('origin', 'like', 'account.invoice.tax,%')]
                     ],
                 ],
             })
@@ -1547,13 +1614,121 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             for child in childs:
                 if child.state == 'used':
                     continue
-                description = child.origin.information.get(
-                    'remittance_information', '')
+                description = child.origin.remittance_information
                 values = cls.get_suggested_values(child, description)
                 to_create.append(values)
             if len(childs) > 1:
                 cls.write(list(childs), {'state': 'used'})
         StatementLine.create(to_create)
+
+
+class AddMultipleInvoices(Wizard):
+    'Add Multiple Invoices'
+    __name__ = 'account.statement.origin.multiple.invoices'
+    start = StateView('account.statement.origin.multiple.invoices.start',
+        'account_statement_enable_banking.'
+        'statement_multiple_invoices_start_view_form', [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'create_lines', 'tryton-ok', True),
+            ])
+    create_lines = StateTransition()
+
+    def default_start(self, fields):
+        return {
+            'company': self.record.company.id,
+            'currency': (self.record.second_currency.id
+                if self.record.second_currency else self.record.currency.id),
+            }
+
+    def transition_create_lines(self):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+        StatementLine = pool.get('account.statement.line')
+
+        lines = []
+        for invoice in self.start.invoices:
+            line = StatementOrigin._get_statement_line(self.record, invoice,
+                date=invoice.invoice_date, amount=invoice.total_amount)
+            lines.append(line)
+        if lines:
+            StatementLine.save(lines)
+        return 'end'
+
+
+class AddMultipleInvoicesStart(ModelSQL, ModelView):
+    'Add Multiple Invoices Start'
+    __name__ = 'account.statement.origin.multiple.invoices.start'
+
+    company = fields.Many2One('company.company', "Company")
+    currency = fields.Many2One('currency.currency', "Currency")
+    invoices = fields.Many2Many('account.invoice', None, None,
+        "Invoices",
+        domain=[
+            ('company', '=', Eval('company', -1)),
+            ('currency', '=', Eval('currency', -1)),
+            ('state', '=', 'posted'),
+            ], required=True)
+
+
+class AddMultipleMoveLines(Wizard):
+    'Add Multiple Move Lines'
+    __name__ = 'account.statement.origin.multiple.move_lines'
+    start = StateView('account.statement.origin.multiple.move_lines.start',
+        'account_statement_enable_banking.'
+        'statement_multiple_move_lines_start_view_form', [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'create_lines', 'tryton-ok', True),
+            ])
+    create_lines = StateTransition()
+
+    def default_start(self, fields):
+        return {
+            'company': self.record.company.id,
+            'currency': self.record.currency.id,
+            'second_currency': (self.record.second_currency.id
+                if self.record.second_currency else None),
+            }
+
+    def transition_create_lines(self):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+        StatementLine = pool.get('account.statement.line')
+
+        lines = []
+        for move_line in self.start.move_lines:
+            line = StatementOrigin._get_statement_line(self.record, move_line,
+                date=move_line.date, amount=move_line.amount)
+            lines.append(line)
+        if lines:
+            StatementLine.save(lines)
+        return 'end'
+
+
+class AddMultipleMoveLinesStart(ModelSQL, ModelView):
+    'Add Multiple Move Lines Start'
+    __name__ = 'account.statement.origin.multiple.move_lines.start'
+
+    company = fields.Many2One('company.company', "Company")
+    currency = fields.Many2One('currency.currency', "Currency")
+    second_currency = fields.Many2One('currency.currency', "Second Currency")
+    move_lines = fields.Many2Many('account.move.line', None, None,
+        "Move Lines",
+        domain=[
+            ('company', '=', Eval('company', -1)),
+            If(Eval('second_currency'),
+                ('second_currency', '=', Eval('second_currency', -1)),
+                ('currency', '=', Eval('currency', -1))
+               ),
+            ('account.reconcile', '=', True),
+            ('state', '=', 'valid'),
+            ('reconciliation', '=', None),
+            ['OR',
+                ('move_origin', '=', None),
+                ('move_origin', 'not like', 'account.invoice,%'),
+                [('move_origin', 'like', 'account.invoice,%'),
+                    ('origin', 'like', 'account.invoice.tax,%')]
+                ],
+            ], required=True)
 
 
 class SynchronizeStatementEnableBankingStart(ModelView):
