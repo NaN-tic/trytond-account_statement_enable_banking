@@ -1198,31 +1198,40 @@ class Origin(Workflow, metaclass=PoolMeta):
                 suggesteds.extend(to_create)
         return suggesteds
 
-    def _search_suggested_reconciliation_simlarity(self, amount,
+    def _search_suggested_reconciliation_simlarity(self, amount, company=None,
             information=None, threshold=0):
         """
         Search for old origins lines. Reproducing the same line/s created.
         """
         pool = Pool()
+        Statement = pool.get('account.statement')
         Origin = pool.get('account.statement.origin')
+        Line = pool.get('account.statement.line')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
-        origin_table = pool.get('account.statement.origin').__table__()
-        line_table = pool.get('account.statement.line').__table__()
+        statement_table = Statement.__table__()
+        origin_table = Origin.__table__()
+        line_table = Line.__table__()
         cursor = Transaction().connection.cursor()
+
+        if not company:
+            company = Transaction().context.get('company')
 
         suggesteds = []
 
-        if not amount or not information:
+        if not amount or not information or not company:
             return suggesteds
 
         similarity_column = Similarity(JsonbExtractPathText(
                 origin_table.information, 'remittance_information'),
             information)
         query = origin_table.join(line_table,
-            condition=origin_table.id == line_table.origin).select(
+            condition=origin_table.id == line_table.origin).join(
+                statement_table,
+                condition=origin_table.statement == statement_table.id).select(
             origin_table.id, similarity_column,
             where=((similarity_column >= threshold/10)
+                & (statement_table.company == company.id)
                 & (origin_table.state == 'posted')
                 & (line_table.related_to == None))
                 )
@@ -1347,8 +1356,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             # Search by simlarity, using the PostreSQL Trigram
             suggesteds_to_create.extend(
                 origin._search_suggested_reconciliation_simlarity(
-                        pending_amount, information=information,
-                        threshold=threshold))
+                        pending_amount, company=origin.company,
+                        information=information, threshold=threshold))
 
         def remove_duplicate_suggestions(suggesteds):
             seen = set()
