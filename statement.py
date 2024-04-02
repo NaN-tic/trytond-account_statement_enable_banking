@@ -21,6 +21,7 @@ from trytond.modules.account_statement.exceptions import (
     StatementValidateError, StatementValidateWarning)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.account_statement.statement import Unequal
+from trytond import backend
 
 
 _ZERO = Decimal('0.0')
@@ -393,8 +394,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         _, operator, value = clause
         operator = 'in' if value else 'not in'
 
-        remittance_information_column = JsonbExtractPathText(
-                origin_table.information, 'remittance_information')
+        if backend.name == 'postgresql':
+            remittance_information_column = JsonbExtractPathText(
+                    origin_table.information, 'remittance_information')
+        else:
+            remittance_information_column = origin_table.information
         query = origin_table.select(origin_table.id,
             where=(remittance_information_column.ilike(value)))
         cursor.execute(*query)
