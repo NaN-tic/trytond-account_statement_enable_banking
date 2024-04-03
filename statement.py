@@ -112,12 +112,14 @@ class Line(metaclass=PoolMeta):
             (Eval('origin_state') != 'registered')
             )
         cls.related_to.states['readonly'] |= (
+            (Bool(Eval('origin', 0))) &
             (Eval('origin_state') != 'registered')
             )
         cls.account.states['readonly'] |= (
             (Eval('origin_state') != 'registered')
             )
         cls.amount.states['readonly'] |= (
+            (Bool(Eval('origin', 0))) &
             (Eval('origin_state') != 'registered')
             )
         cls.amount_second_currency.states['readonly'] |= (
