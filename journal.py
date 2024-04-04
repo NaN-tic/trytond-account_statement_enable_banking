@@ -125,7 +125,8 @@ class Journal(metaclass=PoolMeta):
         ebconfig = EBConfiguration(1)
 
         if (not self.enable_banking_session
-                or self.enable_banking_session.valid_until.date() <= today):
+                or not self.enable_banking_session.session
+                or self.enable_banking_session.valid_until.date() < today):
             return
 
         # Search the account from the journal
@@ -272,7 +273,10 @@ class Journal(metaclass=PoolMeta):
             self.set_number(to_save)
 
             # Get the suggested lines for each origin created
-            StatementOrigin._search_reconciliation(statement.origins)
+            # Use __queue__ to ensure the Bank lines download and origin
+            # creation are done and saved before start to create there
+            # suggestions.
+            StatementOrigin.__queue__._search_reconciliation(statement.origins)
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])

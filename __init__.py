@@ -23,11 +23,15 @@ def register():
         statement.Line,
         statement.Origin,
         statement.OriginSuggestedLine,
+        statement.AddMultipleInvoicesStart,
+        statement.AddMultipleMoveLinesStart,
         statement.SynchronizeStatementEnableBankingStart,
         statement.OriginSynchronizeStatementEnableBankingAsk,
         statement.Cron,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
+        statement.AddMultipleInvoices,
+        statement.AddMultipleMoveLines,
         statement.SynchronizeStatementEnableBanking,
         statement.OriginSynchronizeStatementEnableBanking,
         module='account_statement_enable_banking', type_='wizard')
