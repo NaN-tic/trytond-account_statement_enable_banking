@@ -19,6 +19,7 @@ def register():
         enable_banking.EnableBankingConfiguration,
         enable_banking.EnableBankingSession,
         journal.Journal,
+        journal.Cron,
         statement.Statement,
         statement.Line,
         statement.Origin,
@@ -27,7 +28,6 @@ def register():
         statement.AddMultipleMoveLinesStart,
         statement.SynchronizeStatementEnableBankingStart,
         statement.OriginSynchronizeStatementEnableBankingAsk,
-        statement.Cron,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
         statement.AddMultipleInvoices,

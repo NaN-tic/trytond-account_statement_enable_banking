@@ -1955,15 +1955,3 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
             ('id', 'in', journal_ids),
             ])
         return action, {}
-
-
-class Cron(metaclass=PoolMeta):
-    __name__ = 'ir.cron'
-
-    @classmethod
-    def __setup__(cls):
-        super().__setup__()
-        cls.method.selection.extend([
-            ('account.statement.journal|synchronize_enable_banking_journals',
-                "Synchronize Enable Banking Journals"),
-            ])
