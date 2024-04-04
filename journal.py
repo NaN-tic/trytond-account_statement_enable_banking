@@ -286,5 +286,24 @@ class Journal(metaclass=PoolMeta):
     def synchronize_enable_banking_journals(cls):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
-        for journal in Journal.search([('synchronize_journal', '=', True)]):
+
+        company = Transaction().context.get('company', None)
+        if not company:
+            return
+        for journal in Journal.search([
+                ('synchronize_journal', '=', True)
+                ('company.id', '=', company)
+                ]):
             journal.synchronize_statements_enable_banking()
+
+
+class Cron(metaclass=PoolMeta):
+    __name__ = 'ir.cron'
+
+    @classmethod
+    def __setup__(cls):
+        super().__setup__()
+        cls.method.selection.extend([
+            ('account.statement.journal|synchronize_enable_banking_journals',
+                "Synchronize Enable Banking Journals"),
+            ])
