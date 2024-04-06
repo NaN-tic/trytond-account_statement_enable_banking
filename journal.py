@@ -287,12 +287,12 @@ class Journal(metaclass=PoolMeta):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
 
-        company = Transaction().context.get('company', None)
-        if not company:
+        company_id = Transaction().context.get('company')
+        if not company_id:
             return
         for journal in Journal.search([
-                ('synchronize_journal', '=', True)
-                ('company.id', '=', company)
+                ('synchronize_journal', '=', True),
+                ('company.id', '=', company_id),
                 ]):
             journal.synchronize_statements_enable_banking()
 
