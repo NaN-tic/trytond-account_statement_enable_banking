@@ -967,6 +967,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('state', '!=', 'failed'),
             ('line', '!=', None),
             ('line.reconciliation', '=', None),
+            ('line.account.reconcile', '=', True),
             ]
         if exclude_groups:
             domain.append(('group', 'not in', exclude_groups))
