@@ -1405,9 +1405,22 @@ class Origin(Workflow, metaclass=PoolMeta):
             SuggestedLine.use(suggesteds_use)
 
     @classmethod
-    def _get_statement_line(cls, origin, related, date=None, amount=0):
+    def _get_statement_line(cls, origin, related):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
+        Invoice = pool.get('account.invoice')
+
+        if isinstance(related, Invoice):
+            if hasattr(related, 'company_total_amount'):
+                amount = related.company_total_amount
+            else:
+                amount = related.total_amount
+            second_currency = related.currency
+            amount_second_currency = related.total_amount
+        else:
+            amount=related.amount
+            second_currency = related.second_currency
+            amount_second_currency = related.amount_second_currency
 
         line = StatementLine()
         line.origin = origin
@@ -1417,8 +1430,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         line.party = related.party
         line.account = related.account
         line.amount = amount
-        line.second_currency = related.second_currency
-        line.amount_second_currency = related.amount_second_currency
+        if origin.second_currency:
+            line.second_currency = second_currency
+            line.amount_second_currency = amount_second_currency
         line.date = origin.date
         line.description = origin.remittance_information
         return line
@@ -1667,8 +1681,7 @@ class AddMultipleInvoices(Wizard):
 
         lines = []
         for invoice in self.start.invoices:
-            line = StatementOrigin._get_statement_line(self.record, invoice,
-                date=invoice.invoice_date, amount=invoice.total_amount)
+            line = StatementOrigin._get_statement_line(self.record, invoice)
             lines.append(line)
         if lines:
             StatementLine.save(lines)
@@ -1716,8 +1729,7 @@ class AddMultipleMoveLines(Wizard):
 
         lines = []
         for move_line in self.start.move_lines:
-            line = StatementOrigin._get_statement_line(self.record, move_line,
-                date=move_line.date, amount=move_line.amount)
+            line = StatementOrigin._get_statement_line(self.record, move_line)
             lines.append(line)
         if lines:
             StatementLine.save(lines)
