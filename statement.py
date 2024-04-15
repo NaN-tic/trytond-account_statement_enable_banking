@@ -1089,6 +1089,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             ['OR',
                 ('move_origin', '=', None),
                 ('move_origin', 'like', 'account.invoice,%'),
+                ('move_origin', 'like', 'account.statement,%'),
                 ('move_origin', 'like', 'account.statement.origin,%'),
                 ],
             ]
