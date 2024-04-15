@@ -1117,6 +1117,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         line_ids = [x.id for x in exclude] if exclude else None
         domain = self._search_move_line_reconciliation_domain(
             exclude_ids=line_ids, second_currency=second_currency)
+
+        min_amount_tolerance = self.statement.journal.min_amount_tolerance
+        max_amount_tolerance = self.statement.journal.max_amount_tolerance
+
         lines_by_origin = {}
         lines_by_party = {}
         for line in MoveLine.search(domain, order=[('maturity_date', 'ASC')]):
@@ -1124,7 +1128,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                 move_amount = line.amount_second_currency
             else:
                 move_amount = line.debit - line.credit
-            if move_amount == amount:
+            if (move_amount == amount
+                    or (move_amount <= amount + max_amount_tolerance
+                        and move_amount >= amount - min_amount_tolerance)):
                 similarity = self.increase_similarity_by_interval_date(
                     line.maturity_date, similarity=acceptable)
                 party = line.party

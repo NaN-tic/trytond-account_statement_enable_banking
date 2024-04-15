@@ -54,6 +54,26 @@ class Journal(metaclass=PoolMeta):
         help="Check if want to create only one move per origin when post it "
         "even it has more than one line. Else it create one move for eaach "
         "line.")
+    min_amount_tolerance = fields.Numeric('Min Amount tolerance',
+        domain=[
+            ('min_amount_tolerance', '>', 0),
+            ('min_amount_tolerance', '<=', 99999999),
+            ('min_amount_tolerance', '<=', Eval('max_amount_tolerance')),
+            ],
+        help="In some cases, it is possible to have amounts that vary in X. "
+        "This field if set is the minimum of the allowed tolerance. That is, "
+        "if value is set when searching for similarities it will look for "
+        "equal amounts or with -X, value that has been set here.")
+    max_amount_tolerance = fields.Numeric('Max Amount tolerance',
+        domain=[
+            ('max_amount_tolerance', '>', 0),
+            ('max_amount_tolerance', '<=', 99999999),
+            ('max_amount_tolerance', '>=', Eval('min_amount_tolerance')),
+            ],
+        help="In some cases, it is possible to have amounts that vary in X. "
+        "This field if set is the maximum of the allowed tolerance. That is, "
+        "if value is set when searching for similarities it will look for "
+        "equal amounts or with +X, value that has been set here.")
 
     @classmethod
     def __setup__(cls):
@@ -77,6 +97,14 @@ class Journal(metaclass=PoolMeta):
     @staticmethod
     def default_one_move_per_origin():
         return False
+
+    @staticmethod
+    def default_min_amount_tolerance():
+        return 0
+
+    @staticmethod
+    def default_max_amount_tolerance():
+        return 0
 
     def set_number(self, origins):
         '''
