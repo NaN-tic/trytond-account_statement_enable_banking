@@ -56,7 +56,7 @@ class Journal(metaclass=PoolMeta):
         "line.")
     min_amount_tolerance = fields.Numeric('Min Amount tolerance',
         domain=[
-            ('min_amount_tolerance', '>', 0),
+            ('min_amount_tolerance', '>=', 0),
             ('min_amount_tolerance', '<=', 99999999),
             ('min_amount_tolerance', '<=', Eval('max_amount_tolerance')),
             ],
@@ -66,7 +66,7 @@ class Journal(metaclass=PoolMeta):
         "equal amounts or with -X, value that has been set here.")
     max_amount_tolerance = fields.Numeric('Max Amount tolerance',
         domain=[
-            ('max_amount_tolerance', '>', 0),
+            ('max_amount_tolerance', '>=', 0),
             ('max_amount_tolerance', '<=', 99999999),
             ('max_amount_tolerance', '>=', Eval('min_amount_tolerance')),
             ],
