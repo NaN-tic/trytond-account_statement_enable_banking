@@ -42,7 +42,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="test_connection_enable_banking_configuration_button">
             <field name="name">test_connection</field>
             <field name="string">Test Connection</field>
-            <field name="model" search="[('model', '=', 'enable_banking.configuration')]"/>
+            <field name="model">enable_banking.configuration</field>
         </record>
 
         <!-- enable_banking.session -->
