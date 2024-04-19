@@ -4,7 +4,6 @@ from trytond.pool import Pool, PoolMeta
 from trytond.model import fields
 from trytond.pyson import Eval
 from trytond.modules.analytic_account import AnalyticMixin
-from .statement import _ZERO, Similarity, JsonbExtractPathText
 
 
 class Line(AnalyticMixin, metaclass=PoolMeta):
