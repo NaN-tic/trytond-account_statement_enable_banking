@@ -176,6 +176,25 @@ class Line(metaclass=PoolMeta):
     def move_line(self, value):
         self.related_to = value
 
+    @fields.depends('account', methods=['invoice', 'move_line'])
+    def on_change_amount(self):
+        if self.invoice and self.invoice.account != self.account:
+            self.account = self.invoice.account
+        elif self.move_line and self.move_line.account != self.account:
+            self.account = self.move_line.account
+        else:
+            super().on_change_amount()
+
+    @fields.depends('account', methods=['move_line'])
+    def on_change_account(self):
+        super().on_change_account()
+        if self.move_line:
+            if self.account:
+                if self.move_line.account != self.account:
+                    self.move_line = None
+            else:
+                self.move_line = None
+
     @fields.depends('party', 'description', methods=['move_line'])
     def on_change_related_to(self):
         super().on_change_related_to()
@@ -186,6 +205,7 @@ class Line(metaclass=PoolMeta):
                 self.description = (self.move_line.description
                     or self.move_line.move_description)
             self.account = self.move_line.account
+            self.amount = self.move_line.amount
 
     @classmethod
     def cancel_move(cls, lines):
@@ -433,13 +453,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         invoice_id2amount_to_pay = {}
         for invoice in invoices:
-            if invoice.type == 'out':
-                sign = -1
-            else:
-                sign = 1
             if invoice.currency == self.company.currency:
-                invoice_id2amount_to_pay[invoice.id] = (
-                    sign * invoice.amount_to_pay)
+                invoice_id2amount_to_pay[invoice.id] = invoice.amount_to_pay
             else:
                 amount = Decimal(0)
                 for line in invoice.lines_to_pay:
@@ -450,7 +465,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     if line.reconciliation:
                         continue
                     amount += line.debit - line.credit
-                invoice_id2amount_to_pay[invoice.id] = sign * amount
+                invoice_id2amount_to_pay[invoice.id] = amount
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
@@ -467,21 +482,21 @@ class Origin(Workflow, metaclass=PoolMeta):
                     and line.invoice.id in invoice_id2amount_to_pay):
                 amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
                 if amount_to_pay and getattr(line, 'amount', None):
-                    line.amount = amount_to_pay.copy_sign(line.amount)
+                    line.amount = amount_to_pay
                 else:
                     line.invoice = None
             if (line.payment and line.id
                     and line.payment.id in payment_id2amount):
                 amount = payment_id2amount[line.payment.id]
                 if amount and getattr(line, 'amount', None):
-                    line.amount = amount.copy_sign(line.amount)
+                    line.amount = amount
                 else:
                     line.payment = None
             if (line.move_line and line.id
                     and line.move_line.id in move_line_id2amount):
                 amount = move_line_id2amount[line.move_line.id]
                 if amount and getattr(line, 'amount', None):
-                    line.amount = amount.copy_sign(line.amount)
+                    line.amount = amount
                 else:
                     line.move_line = None
         self.lines = lines
