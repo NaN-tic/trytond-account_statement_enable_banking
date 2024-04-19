@@ -12,7 +12,7 @@ this repository contains the full copyright notices and license terms. -->
         <label name="acceptable_similarity"/>
         <field name="acceptable_similarity"/>
 
-        <separator id="amount_range" string="Amount Range" colspan="4"/>
+        <separator id="amount_range" string="Amount Tolerance" colspan="4"/>
         <label name="min_amount_tolerance"/>
         <field name="min_amount_tolerance"/>
         <label name="max_amount_tolerance"/>
