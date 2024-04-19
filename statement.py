@@ -551,14 +551,17 @@ class Origin(Workflow, metaclass=PoolMeta):
         '''
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
+        StatementSuggest = pool.get('account.statement.origin.suggested.line')
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
 
         moves = []
+        lines_to_check = []
         for origin in origins:
             for key, lines in groupby(
                     origin.lines, key=origin.statement._group_key):
                 lines = list(lines)
+                lines_to_check.extend(lines)
                 key = dict(key)
                 move = origin.statement._get_move(key)
                 move.origin = origin
@@ -596,6 +599,32 @@ class Origin(Workflow, metaclass=PoolMeta):
         if move_lines:
             MoveLine.save([x for x, _ in move_lines])
             StatementLine.reconcile(move_lines)
+
+        # Ensure that any related_to in the posted lines are not in another
+        # registered origin or suggested.
+        if lines_to_check:
+            related_tos = []
+            line_ids = []
+            suggested_ids = []
+            for line in lines_to_check:
+                line_ids.append(line.id)
+                if line.related_to:
+                    related_tos.append(line.related_to)
+                if line.suggested_line:
+                    suggested_ids.append(line.suggested_line.id)
+            lines_to_remove = StatementLine.search([
+                    ('related_to', 'in', related_tos),
+                    ('id', 'not in', line_ids),
+                    ])
+            if lines_to_remove:
+                StatementLine.delete(lines_to_remove)
+
+            suggest_to_remove = StatementSuggest.search([
+                    ('related_to', 'in', related_tos),
+                    ('id', 'not in', suggested_ids),
+                    ])
+            if suggest_to_remove:
+                StatementSuggest.delete(suggest_to_remove)
         return moves
 
     @classmethod
