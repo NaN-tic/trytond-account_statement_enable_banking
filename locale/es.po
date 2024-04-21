@@ -58,6 +58,10 @@ msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
 msgstr "Sincronizar diario"
 
+msgctxt "field:account.statement.line,maturity_date:"
+msgid "Maturity Date"
+msgstr "Fecha de vencimiento"
+
 msgctxt "field:account.statement.line,origin_state:"
 msgid "Origin State"
 msgstr "Estado de origen"
@@ -278,6 +282,10 @@ msgid ""
 msgstr ""
 "Marcar si se quiere sincronizar automáticamente. Cuando es automático, el "
 "offset no se utiliza y se toma la última fecha sincronizada de los extractos"
+
+msgctxt "help:account.statement.line,maturity_date:"
+msgid "Set a date to make the line payable or receivable."
+msgstr "Fijar una fecha para hacer la línea a pagar o a cobrar."
 
 msgctxt "help:account.statement.origin.suggested.line,similarity:"
 msgid "The thershold used for similarity function in origin lines search"

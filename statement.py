@@ -71,6 +71,12 @@ class Statement(metaclass=PoolMeta):
 class Line(metaclass=PoolMeta):
     __name__ = 'account.statement.line'
 
+    maturity_date = fields.Date("Maturity Date",
+        states={
+            'invisible': Bool(Eval('related_to')),
+            },
+        depends=['related_to'],
+        help="Set a date to make the line payable or receivable.")
     suggested_line = fields.Many2One('account.statement.origin.suggested.line',
         'Suggested Lines', ondelete="RESTRICT")
     origin_state = fields.Function(
@@ -303,6 +309,12 @@ class Line(metaclass=PoolMeta):
     def delete_move(cls, lines):
         cls.cancel_lines(lines)
         super().delete_move(lines)
+
+    def get_move_line(self):
+        line = super().get_move_line()
+        if self.maturity_date:
+            line.maturity_date = self.maturity_date
+        return line
 
 
 class Origin(Workflow, metaclass=PoolMeta):
@@ -1486,6 +1498,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             line.second_currency = second_currency
             line.amount_second_currency = amount_second_currency
         line.date = origin.date
+        line.maturity_date = None
         line.description = origin.remittance_information
         return line
 

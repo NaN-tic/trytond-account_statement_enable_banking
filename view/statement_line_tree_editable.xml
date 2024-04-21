@@ -6,4 +6,7 @@ this repository contains the full copyright notices and license terms. -->
     <xpath expr="/tree/field[@name='amount']" position="replace">
         <field name="amount"/>
     </xpath>
+    <xpath expr="/tree/field[@name='description']" position="after">
+        <field name="maturity_date"/>
+    </xpath>
 </data>

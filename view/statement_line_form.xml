@@ -5,4 +5,8 @@ this repository contains the full copyright notices and license terms. -->
     <xpath expr="//field[@name='origin']" position="after">
         <field name="analytic_accounts" colspan="4"/>
     </xpath>
+    <xpath expr="//field[@name='related_to']" position="after">
+        <label name="maturity_date"/>
+        <field name="maturity_date"/>
+    </xpath>
 </data>
