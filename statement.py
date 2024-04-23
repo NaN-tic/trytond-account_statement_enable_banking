@@ -102,14 +102,6 @@ class Line(metaclass=PoolMeta):
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
-            ['OR',
-                ('move_origin', '=', None),
-                ('move_origin', 'not like', 'account.invoice,%'),
-                [('move_origin', 'like', 'account.invoice,%'),
-                    ('origin', 'like', 'account.invoice.tax,%')],
-                [('move_origin', 'like', 'account.invoice,%'),
-                    ('party', '=', None)],
-                ],
             ]
         cls.number.states['readonly'] = (
             (Eval('origin_state') != 'registered')
@@ -211,7 +203,6 @@ class Line(metaclass=PoolMeta):
                 self.description = (self.move_line.description
                     or self.move_line.move_description)
             self.account = self.move_line.account
-            self.amount = self.move_line.amount
 
     @classmethod
     def cancel_move(cls, lines):
@@ -465,8 +456,13 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         invoice_id2amount_to_pay = {}
         for invoice in invoices:
+            if invoice.type == 'in':
+                sign = -1
+            else:
+                sign = 1
             if invoice.currency == self.company.currency:
-                invoice_id2amount_to_pay[invoice.id] = invoice.amount_to_pay
+                invoice_id2amount_to_pay[invoice.id] = (
+                    sign * invoice.amount_to_pay)
             else:
                 amount = Decimal(0)
                 for line in invoice.lines_to_pay:
@@ -477,7 +473,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     if line.reconciliation:
                         continue
                     amount += line.debit - line.credit
-                invoice_id2amount_to_pay[invoice.id] = amount
+                invoice_id2amount_to_pay[invoice.id] = sign * amount
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
@@ -845,7 +841,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         Create one or more suggested registers based on the move_lines.
         If there are more than one move_line, it will be grouped under
-        parent.
+        a parent.
         """
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
@@ -1142,12 +1138,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('move_state', '=', 'posted'),
             ('reconciliation', '=', None),
             ('account.reconcile', '=', True),
-            ['OR',
-                ('move_origin', '=', None),
-                ('move_origin', 'like', 'account.invoice,%'),
-                ('move_origin', 'like', 'account.statement,%'),
-                ('move_origin', 'like', 'account.statement.origin,%'),
-                ],
             ]
         if second_currency:
             domain.append(('second_currency', '=', second_currency))
@@ -1475,12 +1465,16 @@ class Origin(Workflow, metaclass=PoolMeta):
         Invoice = pool.get('account.invoice')
 
         if isinstance(related, Invoice):
-            if hasattr(related, 'company_total_amount'):
-                amount = related.company_total_amount
+            if related.type == 'in':
+                sign = -1
             else:
-                amount = related.total_amount
+                sign = 1
+            if hasattr(related, 'company_total_amount'):
+                amount = sign * related.company_total_amount
+            else:
+                amount = sign * related.total_amount
             second_currency = related.currency
-            amount_second_currency = related.total_amount
+            amount_second_currency = sign * related.total_amount
         else:
             amount=related.amount
             second_currency = related.second_currency
@@ -1607,14 +1601,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ('account.reconcile', '=', True),
                 ('state', '=', 'valid'),
                 ('reconciliation', '=', None),
-                ['OR',
-                    ('move_origin', '=', None),
-                    ('move_origin', 'not like', 'account.invoice,%'),
-                    [('move_origin', 'like', 'account.invoice,%'),
-                        ('origin', 'like', 'account.invoice.tax,%')],
-                    [('move_origin', 'like', 'account.invoice,%'),
-                        ('party', '=', None)],
-                    ],
                 ],
             })
     similarity = fields.Integer('Similarity',
@@ -1819,12 +1805,6 @@ class AddMultipleMoveLinesStart(ModelSQL, ModelView):
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
-            ['OR',
-                ('move_origin', '=', None),
-                ('move_origin', 'not like', 'account.invoice,%'),
-                [('move_origin', 'like', 'account.invoice,%'),
-                    ('origin', 'like', 'account.invoice.tax,%')]
-                ],
             ], required=True)
 
 
