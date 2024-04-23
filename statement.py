@@ -205,36 +205,34 @@ class Line(metaclass=PoolMeta):
             self.account = self.move_line.account
 
     @classmethod
-    def cancel_move(cls, lines):
+    def cancel_move(cls, moves):
         pool = Pool()
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
         Reconciliation = pool.get('account.move.reconciliation')
         Invoice = pool.get('account.invoice')
 
-        for line in lines:
-            move = line.move
-            if move:
-                to_unreconcile = [x.reconciliation for x in move.lines
-                    if x.reconciliation]
-                if to_unreconcile:
-                    to_unreconcile = Reconciliation.browse([
-                            x.id for x in to_unreconcile])
-                    Reconciliation.delete(to_unreconcile)
+        for move in moves:
+            to_unreconcile = [x.reconciliation for x in move.lines
+                if x.reconciliation]
+            if to_unreconcile:
+                to_unreconcile = Reconciliation.browse([
+                        x.id for x in to_unreconcile])
+                Reconciliation.delete(to_unreconcile)
 
-                # On possible realted invoices, need to unlink the payment
-                # lines
-                to_unpay = [x for x in move.lines if x.invoice_payment]
-                if to_unpay:
-                    Invoice.remove_payment_lines(to_unpay)
+            # On possible realted invoices, need to unlink the payment
+            # lines
+            to_unpay = [x for x in move.lines if x.invoice_payment]
+            if to_unpay:
+                Invoice.remove_payment_lines(to_unpay)
 
-                cancel_move = move.cancel(reversal=True)
-                cancel_move.origin = line.origin
-                Move.post([cancel_move])
-                mlines = [l for m in [move, cancel_move]
-                    for l in m.lines if l.account.reconcile]
-                if mlines:
-                    MoveLine.reconcile(mlines)
+            cancel_move = move.cancel(reversal=True)
+            cancel_move.origin = move.origin
+            Move.post([cancel_move])
+            mlines = [l for m in [move, cancel_move]
+                for l in m.lines if l.account.reconcile]
+            if mlines:
+                MoveLine.reconcile(mlines)
 
     @classmethod
     def cancel_lines(cls, lines):
@@ -247,7 +245,7 @@ class Line(metaclass=PoolMeta):
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
         Warning = pool.get('res.user.warning')
 
-        moves = []
+        moves = set()
         mlines = []
         for line in lines:
             if line.move:
@@ -262,11 +260,11 @@ class Line(metaclass=PoolMeta):
                     if mline.origin == line:
                         mline.origin = line.origin
                         mlines.append(mline)
-                moves.append(line.move)
+                moves.add(line.move)
         if mlines:
             with Transaction().set_context(from_account_statement_origin=True):
                 MoveLine.save(mlines)
-        cls.cancel_move(lines)
+        cls.cancel_move(list(moves))
 
         suggested_lines = [x.suggested_line for x in lines
             if x.suggested_line]
@@ -710,7 +708,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         StatementLine = pool.get('account.statement.line')
         Warning = pool.get('res.user.warning')
 
-        lines = [x for o in origins for x in o.lines]
+        lines = [x for origin in origins for x in origin.lines]
         moves = dict((x.move, x.origin) for x in lines if x.move)
         if moves:
             warning_key = Warning.format('cancel_origin_line_with_move',
@@ -720,16 +718,19 @@ class Origin(Workflow, metaclass=PoolMeta):
                     gettext('account_statement_enable_banking.'
                         'msg_cancel_origin_line_with_move',
                         moves=", ".join(m.rec_name for m in moves)))
-            StatementLine.cancel_move(lines)
-            with Transaction().set_context(from_account_statement_origin=True):
+            StatementLine.cancel_move(moves.keys())
+            with Transaction().set_context(
+                    from_account_statement_origin=True):
                 to_write = []
                 for move, origin in moves.items():
+                    move_lines = []
                     for line in move.lines:
                         if line.origin in origin.lines:
-                            to_write.extend(([line], {'origin': origin}))
+                            move_lines.append(line)
+                    to_write.extend((move_lines, {'origin': origin}))
                 if to_write:
                     MoveLine.write(*to_write)
-        StatementLine.write(lines, {'move': None})
+            StatementLine.write(lines, {'move': None})
 
     def similarity_parties(self, compare, similarity_threshold=0.13):
         """
