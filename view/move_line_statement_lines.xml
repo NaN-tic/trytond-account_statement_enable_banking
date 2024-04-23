@@ -14,5 +14,5 @@
   <field name="origin"/>
   <field name="move_origin"/>
   <field name="description"/>
-  <field name="move_description"/>
+  <field name="move_description_used"/>
 </tree>
