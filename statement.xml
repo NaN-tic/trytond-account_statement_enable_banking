@@ -216,10 +216,11 @@ this repository contains the full copyright notices and license terms. -->
         </record>
 
         <!-- account.statement.line -->
-        <record model="ir.ui.view" id="statement_line_view_tree_editable">
+        <record model="ir.ui.view" id="origin_statement_line_view_tree_editable">
             <field name="model">account.statement.line</field>
-            <field name="inherit" ref="account_statement.statement_line_view_tree_editable"/>
-            <field name="name">statement_line_tree_editable</field>
+            <field name="type">tree</field>
+            <field name="priority" eval="30"/>
+            <field name="name">origin_statement_line_tree_editable</field>
         </record>
 
         <!-- enable_banking.synchronize_statement -->

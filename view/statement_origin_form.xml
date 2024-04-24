@@ -10,7 +10,7 @@ this repository contains the full copyright notices and license terms. -->
                 <button name="multiple_invoices"/>
                 <button name="multiple_move_lines"/>
                 <field name="lines" colspan="2" height="250"
-                view_ids="account_statement.statement_line_view_tree_editable"/>
+                view_ids="account_statement_enable_banking.origin_statement_line_view_tree_editable"/>
                 <field name="suggested_lines_tree" colspan="2" height="250"/>
             </group>
             <field name="information" colspan="2"/>
