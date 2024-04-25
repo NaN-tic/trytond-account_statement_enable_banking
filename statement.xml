@@ -477,12 +477,4 @@ this repository contains the full copyright notices and license terms. -->
             <field name="name">statement_line_form</field>
         </record>
     </data>
-
-    <data depends="account_statement_line_type">
-        <record model="ir.ui.view" id="line_type_origin_statement_line_view_tree_editable">
-            <field name="model">account.statement.line</field>
-            <field name="inherit" ref="origin_statement_line_view_tree_editable"/>
-            <field name="name">line_type_origin_statement_line_tree_editable</field>
-        </record>
-    </data>
 </tryton>
