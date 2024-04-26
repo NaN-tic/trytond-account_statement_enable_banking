@@ -9,5 +9,12 @@
             <field name="priority" eval="30"/>
             <field name="name">move_line_statement_lines</field>
         </record>
+
+        <record model="ir.ui.view" id="invoice_statement_lines">
+            <field name="model">account.invoice</field>
+            <field name="type">tree</field>
+            <field name="priority" eval="30"/>
+            <field name="name">invoice_statement_lines</field>
+        </record>
     </data>
 </tryton>

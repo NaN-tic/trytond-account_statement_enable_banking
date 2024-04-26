@@ -800,6 +800,18 @@ msgctxt "selection:ir.cron,method:"
 msgid "Synchronize Enable Banking Journals"
 msgstr "Sincronitzar Diaris Enable Banking"
 
+msgctxt "view:account.invoice:"
+msgid "Tax"
+msgstr "Impost"
+
+msgctxt "view:account.invoice:"
+msgid "Total"
+msgstr "Total"
+
+msgctxt "view:account.invoice:"
+msgid "Untaxed"
+msgstr "Base imposable"
+
 msgctxt "view:account.move.line:"
 msgid "Total credit"
 msgstr "Haver total"
