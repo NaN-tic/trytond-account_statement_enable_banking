@@ -173,10 +173,9 @@ class Journal(metaclass=PoolMeta):
                     bank=self.enable_banking_session.bank.party.name))
 
         # Prepare request
+        date = None
         base_headers = get_base_header()
-        if Transaction().context.get('synch_enable_banking_manual', False):
-            date = datetime.now(timezone.utc)
-        else:
+        if not Transaction().context.get('synch_enable_banking_manual'):
             statements = Statement.search([
                     ('journal', '=', self.id),
                     ], order=[
@@ -190,8 +189,8 @@ class Journal(metaclass=PoolMeta):
                 # to ensure not lost any thing in the same minute add a delta
                 # of -1 hour.
                 date = last_statement.end_date
-            else:
-                date = datetime.now(timezone.utc)
+        if not date:
+            date = datetime.now(timezone.utc)
         date_from = (date - timedelta(days=ebconfig.offset)).date()
         query = {
             "date_from": date_from.isoformat()
