@@ -191,7 +191,7 @@ class Journal(metaclass=PoolMeta):
                 date = last_statement.end_date
         if not date:
             date = datetime.now(timezone.utc)
-        date_from = (date - timedelta(days=ebconfig.offset)).date()
+        date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
         query = {
             "date_from": date_from.isoformat()
             }
