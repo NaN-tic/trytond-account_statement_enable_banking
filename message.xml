@@ -45,6 +45,9 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_suggested_line_related_to_statement_line">
             <field name="text">There is some suggested line relate to the statement lines of the origins "%(origins_name)s". Befeore make a new search, remove the statement line.</field>
         </record>
+        <record model="ir.message" id="msg_valid_days_out_of_range">
+            <field name="text">The Enable Banking Session Valid Days fields must be between 1 and 90 days.</field>
+        </record>
         <record model="ir.message" id="msg_payments">
             <field name="text">Payments</field>
         </record>
