@@ -1,8 +1,10 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
+from itertools import groupby
 from decimal import Decimal
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timedelta
+
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
 from trytond.pyson import Eval, Id
@@ -146,7 +148,7 @@ class Journal(metaclass=PoolMeta):
             'balance_after_transaction',
             'transaction_amount',
             'credit_debit_indicator',
-            'status'
+            'status',
             ]
         # Sub keys
         keys += [
@@ -173,8 +175,7 @@ class Journal(metaclass=PoolMeta):
 
         if (not self.enable_banking_session
                 or not self.enable_banking_session.session
-                or self.enable_banking_session.valid_until < datetime.now(
-                    UTC)):
+                or self.enable_banking_session.valid_until < datetime.now()):
             return
 
         # Search the account from the journal
@@ -195,22 +196,21 @@ class Journal(metaclass=PoolMeta):
         # Prepare request
         date = None
         base_headers = get_base_header()
-        if not Transaction().context.get('synch_enable_banking_manual'):
-            statements = Statement.search([
-                    ('journal', '=', self.id),
-                    ], order=[
+        statements = Statement.search([
+                ('journal', '=', self.id),
+                ], order=[
                     ('end_date', 'DESC'),
                     ('id', 'DESC'),
                     ], limit=1)
-            if statements:
-                last_statement, = statements
-                # When synch automatically, by crons, take the last Statement
-                # of the same journal and get it's end_date to sych from there,
-                # to ensure not lost any thing in the same minute add a delta
-                # of -1 hour.
-                date = last_statement.end_date
+        if statements:
+            last_statement, = statements
+            # When synch automatically, by crons, take the last Statement
+            # of the same journal and get it's end_date to sych from there,
+            # to ensure not lost any thing in the same minute add a delta
+            # of -1 hour.
+            date = last_statement.end_date
         if not date:
-            date = datetime.now(UTC)
+            date = datetime.now()
         date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
         query = {
             "date_from": date_from.isoformat()
@@ -228,7 +228,7 @@ class Journal(metaclass=PoolMeta):
                 or statement.start_balance is None):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
-        statement.end_date = datetime.now(UTC)
+        statement.end_date = datetime.now()
         statement.save()
 
         # Get the data, as we have a limit of transactions every query, we need
@@ -267,6 +267,7 @@ class Journal(metaclass=PoolMeta):
                     # TODO:
                     # Ensure transaction_amount.currency == origin.currency
                     statement_origin = StatementOrigin()
+                    statement_origin.entry_reference = entry_reference
                     statement_origin.number = None
                     statement_origin.state = 'registered'
                     statement_origin.statement = statement
@@ -277,8 +278,9 @@ class Journal(metaclass=PoolMeta):
                     if (transaction['credit_debit_indicator'] and
                             transaction['credit_debit_indicator'] == 'DBIT'):
                         statement_origin.amount = -statement_origin.amount
+                    statement_origin.balance = transaction[
+                        'balance_after_transaction']['amount']
                     total_amount += statement_origin.amount
-                    statement_origin.entry_reference = entry_reference
                     statement_origin.date = datetime.strptime(
                         transaction[ebconfig.date_field], '%Y-%m-%d')
                     information_dict = {}
@@ -315,9 +317,14 @@ class Journal(metaclass=PoolMeta):
                         error_message=str(r.text)))
 
         if to_save:
+            to_save_sorted = []
             to_save.sort(key=lambda x: x.date)
-            # The set number function save the origins
-            self.set_number(to_save)
+            for date, d_origins in groupby(to_save, key=lambda x: x.date):
+                to_save_sorted.extend(d_origins.sort(reverse=True))
+            if to_save_sorted:
+                # The set number function save the origins
+                self.set_number(to_save_sorted)
+
 
             # Get the suggested lines for each origin created
             # Use __queue__ to ensure the Bank lines download and origin

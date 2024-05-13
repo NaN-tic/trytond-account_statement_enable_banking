@@ -43,6 +43,15 @@ class Statement(metaclass=PoolMeta):
     start_date = fields.DateTime("Start Date", readonly=True)
     end_date = fields.DateTime("End Date", readonly=True)
 
+    @classmethod
+    def __setup__(cls):
+        super().__setup__()
+
+        if cls.date.states.get('invisible', None):
+            cls.date.states['invisible'] |= (Bool(Eval('start_date')))
+        else:
+            cls.date.states['invisible'] = Bool(Eval('start_date'))
+
     def _group_key(self, line):
         one_move = (line.statement.journal.one_move_per_origin
             if line.statement else None)
@@ -318,6 +327,8 @@ class Origin(Workflow, metaclass=PoolMeta):
     suggested_lines_tree = fields.Function(
         fields.Many2Many('account.statement.origin.suggested.line', None, None,
             'Suggested Lines', states=_states), 'get_suggested_lines_tree')
+    balance = Monetary("Balance", currency='currency', digits='currency',
+        readonly=True)
     state = fields.Selection([
             ('registered', "Registered"),
             ('cancelled', "Cancelled"),
@@ -1740,7 +1751,7 @@ class AddMultipleInvoices(Wizard):
         return 'end'
 
 
-class AddMultipleInvoicesStart(ModelSQL, ModelView):
+class AddMultipleInvoicesStart(ModelView):
     'Add Multiple Invoices Start'
     __name__ = 'account.statement.origin.multiple.invoices.start'
 
@@ -1788,7 +1799,7 @@ class AddMultipleMoveLines(Wizard):
         return 'end'
 
 
-class AddMultipleMoveLinesStart(ModelSQL, ModelView):
+class AddMultipleMoveLinesStart(ModelView):
     'Add Multiple Move Lines Start'
     __name__ = 'account.statement.origin.multiple.move_lines.start'
 
@@ -1836,8 +1847,9 @@ class SynchronizeStatementEnableBanking(Wizard):
         EBSession = pool.get('enable_banking.session')
         base_headers = get_base_header()
 
-        journal = Journal(Transaction().context['active_id'])
-        if not journal.bank_account:
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        if not journal or not journal.bank_account:
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
 
@@ -1845,8 +1857,8 @@ class SynchronizeStatementEnableBanking(Wizard):
             # We need to check the date and if we have the field session, if
             # not the session was not created correctly and need to be deleted
             eb_session = journal.enable_banking_session
-            if (eb_session.session and
-                    eb_session.valid_until >= datetime.now(UTC)):
+            if (eb_session.session and eb_session.valid_until and
+                    eb_session.valid_until >= datetime.now()):
                 session = eval(eb_session.session)
                 r = requests.get(
                     f"{config.get('enable_banking', 'api_origin')}"
@@ -1904,14 +1916,13 @@ class SynchronizeStatementEnableBanking(Wizard):
         eb_session.aspsp_country = journal.aspsp_country
         eb_session.bank = journal.bank_account.bank
         eb_session.session_id = token_hex(16)
-        eb_session.valid_until = datetime.fromtimestamp(
-            int(datetime.now(UTC).timestamp()) + 86400)
+        eb_session.valid_until = (
+            datetime.now() + journal.enable_banking_session_valid_days)
         EBSession.save([eb_session])
         base_headers = get_base_header()
         body = {
-            'access': {'valid_until': (
-                datetime.now(UTC) + journal.enable_banking_session_valid_days
-                ).isoformat()},
+            'access': {'valid_until': (datetime.now(UTC)
+                    + journal.enable_banking_session_valid_days).isoformat()},
             'aspsp': {
                 'name': journal.aspsp_name,
                 'country': journal.aspsp_country},
@@ -1939,11 +1950,10 @@ class SynchronizeStatementEnableBanking(Wizard):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         journal = Journal(Transaction().context['active_id'])
-        with Transaction().set_context(synch_enable_banking_manual=True):
-            if not journal.enable_banking_session:
-                raise AccessError(
-                    gettext('account_statement_enable_banking.msg_no_session'))
-            journal.synchronize_statements_enable_banking()
+        if not journal.enable_banking_session:
+            raise AccessError(
+                gettext('account_statement_enable_banking.msg_no_session'))
+        journal.synchronize_statements_enable_banking()
         return 'end'
 
 
@@ -1984,7 +1994,7 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
         for journal in Journal.search([('company.id', '=', company_id)]):
             if (journal.enable_banking_session
                     and journal.enable_banking_session.valid_until
-                    < datetime.now(UTC)):
+                    < datetime.now()):
                 journal_unsynchronized.append(journal)
         return journal_unsynchronized
 
