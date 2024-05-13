@@ -1,7 +1,7 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
 from itertools import groupby
@@ -1832,11 +1832,9 @@ class SynchronizeStatementEnableBanking(Wizard):
 
     def transition_check_session(self):
         pool = Pool()
-        Date = pool.get('ir.date')
         Journal = pool.get('account.statement.journal')
         EBSession = pool.get('enable_banking.session')
         base_headers = get_base_header()
-        today = Date.today()
 
         journal = Journal(Transaction().context['active_id'])
         if not journal.bank_account:
@@ -1847,7 +1845,8 @@ class SynchronizeStatementEnableBanking(Wizard):
             # We need to check the date and if we have the field session, if
             # not the session was not created correctly and need to be deleted
             eb_session = journal.enable_banking_session
-            if eb_session.session and eb_session.valid_until.date() >= today:
+            if (eb_session.session and
+                    eb_session.valid_until >= datetime.now(UTC)):
                 session = eval(eb_session.session)
                 r = requests.get(
                     f"{config.get('enable_banking', 'api_origin')}"
@@ -1855,9 +1854,7 @@ class SynchronizeStatementEnableBanking(Wizard):
                     headers=base_headers)
                 if r.status_code == 200:
                     session = r.json()
-                    if (session['status'] == 'AUTHORIZED' and
-                            datetime.now() < eb_session.valid_until and
-                            eb_session.session):
+                    if session['status'] == 'AUTHORIZED':
                         return 'sync_statements'
             EBSession.delete([eb_session])
         return 'create_session'
@@ -1908,12 +1905,13 @@ class SynchronizeStatementEnableBanking(Wizard):
         eb_session.bank = journal.bank_account.bank
         eb_session.session_id = token_hex(16)
         eb_session.valid_until = datetime.fromtimestamp(
-            int(datetime.now().timestamp()) + 86400)
+            int(datetime.now(UTC).timestamp()) + 86400)
         EBSession.save([eb_session])
         base_headers = get_base_header()
         body = {
             'access': {'valid_until': (
-                datetime.now(timezone.utc) + timedelta(days=10)).isoformat()},
+                datetime.now(UTC) + journal.enable_banking_session_valid_days
+                ).isoformat()},
             'aspsp': {
                 'name': journal.aspsp_name,
                 'country': journal.aspsp_country},
@@ -1978,8 +1976,6 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
     def get_journals_unsynchonized(self):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
-        Date = pool.get('ir.date')
-        today = Date.today()
 
         journal_unsynchronized = []
         company_id = Transaction().context.get('company')
@@ -1987,8 +1983,8 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
             return []
         for journal in Journal.search([('company.id', '=', company_id)]):
             if (journal.enable_banking_session
-                    and journal.enable_banking_session.valid_until.date()
-                    < today):
+                    and journal.enable_banking_session.valid_until
+                    < datetime.now(UTC)):
                 journal_unsynchronized.append(journal)
         return journal_unsynchronized
 

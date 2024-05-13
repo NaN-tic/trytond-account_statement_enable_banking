@@ -2,7 +2,7 @@
 # this repository contains the full copyright notices and license terms.
 import requests
 from decimal import Decimal
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, UTC, timedelta
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
 from trytond.pyson import Eval, Id
@@ -50,6 +50,8 @@ class Journal(metaclass=PoolMeta):
             ]])
     enable_banking_session = fields.Many2One('enable_banking.session',
         'Enable Banking Session', readonly=True)
+    enable_banking_session_valid_days = fields.TimeDelta('Enable Banking Session Valid Days',
+        help="Only allowed maximum 90 days.")
     one_move_per_origin = fields.Boolean("One Move per Origin",
         help="Check if want to create only one move per origin when post it "
         "even it has more than one line. Else it create one move for eaach "
@@ -106,6 +108,24 @@ class Journal(metaclass=PoolMeta):
     def default_max_amount_tolerance():
         return 0
 
+    @staticmethod
+    def default_enable_banking_session_valid_days():
+        return timedelta(days=30) # 30 days
+
+    @classmethod
+    def validate(cls, journals):
+        super().validate(journals)
+        for journal in journals:
+            journal.check_enable_banking_session_valid_days()
+
+    def check_enable_banking_session_valid_days(self):
+        if (self.enable_banking_session_valid_days < timedelta(days=1)
+                or self.enable_banking_session_valid_days > timedelta(
+                    days=90)):
+            raise AccessError(
+                gettext('account_statement_enable_banking.'
+                    'msg_valid_days_out_of_range'))
+
     def set_number(self, origins):
         '''
         Fill the number field with the statement origin sequence
@@ -149,12 +169,12 @@ class Journal(metaclass=PoolMeta):
         StatementOrigin = pool.get('account.statement.origin')
         Date = Pool().get('ir.date')
 
-        today = Date.today()
         ebconfig = EBConfiguration(1)
 
         if (not self.enable_banking_session
                 or not self.enable_banking_session.session
-                or self.enable_banking_session.valid_until.date() < today):
+                or self.enable_banking_session.valid_until < datetime.now(
+                    UTC)):
             return
 
         # Search the account from the journal
@@ -190,7 +210,7 @@ class Journal(metaclass=PoolMeta):
                 # of -1 hour.
                 date = last_statement.end_date
         if not date:
-            date = datetime.now(timezone.utc)
+            date = datetime.now(UTC)
         date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
         query = {
             "date_from": date_from.isoformat()
@@ -208,7 +228,7 @@ class Journal(metaclass=PoolMeta):
                 or statement.start_balance is None):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
-        statement.end_date = datetime.now(timezone.utc)
+        statement.end_date = datetime.now(UTC)
         statement.save()
 
         # Get the data, as we have a limit of transactions every query, we need
