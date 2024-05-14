@@ -278,8 +278,8 @@ class Journal(metaclass=PoolMeta):
                     if (transaction['credit_debit_indicator'] and
                             transaction['credit_debit_indicator'] == 'DBIT'):
                         statement_origin.amount = -statement_origin.amount
-                    statement_origin.balance = transaction[
-                        'balance_after_transaction']['amount']
+                    statement_origin.balance = transaction.get(
+                        'balance_after_transaction', {}).get('amount', None)
                     total_amount += statement_origin.amount
                     statement_origin.date = datetime.strptime(
                         transaction[ebconfig.date_field], '%Y-%m-%d')
