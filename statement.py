@@ -482,7 +482,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     if line.reconciliation:
                         continue
                     amount += line.debit - line.credit
-                invoice_id2amount_to_pay[invoice.id] = sign * amount
+                invoice_id2amount_to_pay[invoice.id] = amount
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
