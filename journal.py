@@ -53,7 +53,7 @@ class Journal(metaclass=PoolMeta):
     enable_banking_session = fields.Many2One('enable_banking.session',
         'Enable Banking Session', readonly=True)
     enable_banking_session_valid_days = fields.TimeDelta('Enable Banking Session Valid Days',
-        help="Only allowed maximum 90 days.")
+        help="Only allowed maximum 180 days.")
     one_move_per_origin = fields.Boolean("One Move per Origin",
         help="Check if want to create only one move per origin when post it "
         "even it has more than one line. Else it create one move for eaach "
@@ -123,7 +123,7 @@ class Journal(metaclass=PoolMeta):
     def check_enable_banking_session_valid_days(self):
         if (self.enable_banking_session_valid_days < timedelta(days=1)
                 or self.enable_banking_session_valid_days > timedelta(
-                    days=90)):
+                    days=180)):
             raise AccessError(
                 gettext('account_statement_enable_banking.'
                     'msg_valid_days_out_of_range'))
@@ -323,11 +323,10 @@ class Journal(metaclass=PoolMeta):
             to_save_sorted = []
             to_save.sort(key=lambda x: x.date)
             for date, d_origins in groupby(to_save, key=lambda x: x.date):
-                to_save_sorted.extend(d_origins.sort(reverse=True))
+                to_save_sorted.extend(list(d_origins).sort(reverse=True))
             if to_save_sorted:
                 # The set number function save the origins
                 self.set_number(to_save_sorted)
-
 
             # Get the suggested lines for each origin created
             # Use __queue__ to ensure the Bank lines download and origin
