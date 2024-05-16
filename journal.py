@@ -320,13 +320,10 @@ class Journal(metaclass=PoolMeta):
                         error_message=str(r.text)))
 
         if to_save:
-            to_save_sorted = []
+            StatementOrigin.save(to_save)
+            to_save.sort(reverse=True)
             to_save.sort(key=lambda x: x.date)
-            for date, d_origins in groupby(to_save, key=lambda x: x.date):
-                to_save_sorted.extend(list(d_origins).sort(reverse=True))
-            if to_save_sorted:
-                # The set number function save the origins
-                self.set_number(to_save_sorted)
+            self.set_number(to_save)
 
             # Get the suggested lines for each origin created
             # Use __queue__ to ensure the Bank lines download and origin
