@@ -4,11 +4,11 @@ import requests
 from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
-from itertools import groupby
+from itertools import groupby, chain
 from sql.functions import Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
-from trytond.pyson import Eval, Bool, If, PYSONEncoder
+from trytond.pyson import Eval, Bool, If, PYSON, PYSONEncoder
 from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
@@ -53,15 +53,27 @@ class Statement(metaclass=PoolMeta):
             cls.date.states['invisible'] = Bool(Eval('start_date'))
 
     def _group_key(self, line):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+        StatementLine = pool.get('account.statement.line')
+
         one_move = (line.statement.journal.one_move_per_origin
             if line.statement else None)
-        if one_move:
-            key = (
-                ('number', line.origin and (line.origin.description or line.origin.number)
-                    or Unequal()),
-                ('date', line.origin.date),
-                ('origin', line.origin),
-                )
+        if one_move and isinstance(line, (StatementLine, StatementOrigin)):
+            if isinstance(line, StatementLine):
+                key = (
+                    ('number', line.origin and (
+                            line.origin.number or line.origin.description)
+                        or Unequal()),
+                    ('date', line.origin.date),
+                    ('origin', line.origin),
+                    )
+            elif isinstance(line, StatementOrigin):
+                key = (
+                    ('number', (line.number or line.description) or Unequal()),
+                    ('date', line.date),
+                    ('origin', line),
+                    )
         else:
             key = super()._group_key(line)
         return key
@@ -83,19 +95,42 @@ class Line(metaclass=PoolMeta):
     maturity_date = fields.Date("Maturity Date",
         states={
             'invisible': Bool(Eval('related_to')),
+            'readonly': Eval('origin_state') != 'registered',
             },
         depends=['related_to'],
         help="Set a date to make the line payable or receivable.")
     suggested_line = fields.Many2One('account.statement.origin.suggested.line',
-        'Suggested Lines', ondelete="RESTRICT")
+        'Suggested Lines',
+        states={
+            'readonly': Eval('origin_state') != 'registered',
+            }, ondelete="RESTRICT")
     origin_state = fields.Function(
         fields.Selection('get_origin_states', "Origin State"),
         'on_change_with_origin_state')
+    show_paid_invoices = fields.Boolean('Show Paid Invoices',
+        states={
+            'readonly': Eval('origin_state') != 'registered',
+            })
 
     @classmethod
     def __setup__(cls):
         super().__setup__()
 
+        new_domain = []
+        for domain in cls.related_to.domain['account.invoice']:
+            if isinstance(domain, PYSON):
+                values = [x for x in domain.pyson().values()
+                    if isinstance(x, tuple)]
+                if ('state', '=', 'posted') in values:
+                    new_domain.append(
+                        If(Bool(Eval('show_paid_invoices')),
+                            ('state', '=', 'paid'),
+                            If(Eval('statement_state') == 'draft',
+                                ('state', '=', 'posted'),
+                                ('state', '!=', ''))))
+                    continue
+            new_domain.append(domain)
+        cls.related_to.domain['account.invoice'] = new_domain
         cls.related_to.domain['account.move.line'] = [
             ('company', '=', Eval('company', -1)),
             If(Eval('second_currency'),
@@ -183,12 +218,19 @@ class Line(metaclass=PoolMeta):
     def move_line(self, value):
         self.related_to = value
 
+    @fields.depends('show_paid_invoices')
+    def on_change_party(self):
+        if not self.show_paid_invoices:
+            super().on_change_party()
+
     @fields.depends('account', methods=['invoice', 'move_line'])
     def on_change_amount(self):
-        if self.invoice and self.invoice.account != self.account:
-            self.account = self.invoice.account
-        elif self.move_line and self.move_line.account != self.account:
-            self.account = self.move_line.account
+        if self.invoice:
+            if self.invoice.account != self.account:
+                self.account = self.invoice.account
+        elif self.move_line:
+            if self.move_line.account != self.account:
+                self.account = self.move_line.account
         else:
             super().on_change_amount()
 
@@ -202,8 +244,12 @@ class Line(metaclass=PoolMeta):
             else:
                 self.move_line = None
 
-    @fields.depends('party', 'description', methods=['move_line'])
+    @fields.depends('related_to', 'party', 'description', 'show_paid_invoices',
+        methods=['move_line'])
     def on_change_related_to(self):
+        pool = Pool()
+        Invoice = pool.get('account.invoice')
+
         super().on_change_related_to()
         if self.move_line:
             if not self.party:
@@ -212,6 +258,9 @@ class Line(metaclass=PoolMeta):
                 self.description = (self.move_line.description
                     or self.move_line.move_description_used)
             self.account = self.move_line.account
+        related_to = getattr(self, 'related_to', None)
+        if self.show_paid_invoices and not isinstance(related_to, Invoice):
+            self.show_paid_invoices = False
 
     @classmethod
     def cancel_move(cls, moves):
@@ -241,7 +290,9 @@ class Line(metaclass=PoolMeta):
             mlines = [l for m in [move, cancel_move]
                 for l in m.lines if l.account.reconcile]
             if mlines:
-                MoveLine.reconcile(mlines)
+                for account, g_lines in groupby(mlines,
+                        key=lambda x: x.account):
+                    MoveLine.reconcile(list(g_lines))
 
     @classmethod
     def cancel_lines(cls, lines):
@@ -286,8 +337,51 @@ class Line(metaclass=PoolMeta):
     def reconcile(cls, move_lines):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
+        Reconcile = pool.get('account.move.reconciliation')
+        Invoice = pool.get('account.invoice')
+        Payment = pool.get('account.payment')
 
-        super().reconcile(move_lines)
+        to_reconcile = []
+        invoice_to_save = []
+        for move_line, statement_line in move_lines:
+            if (statement_line and statement_line.invoice
+                    and statement_line.show_paid_invoices
+                    and move_line.account == statement_line.invoice.account):
+                additional_moves = [move_line.move]
+                invoice = statement_line.invoice
+                reconcile = [move_line]
+                payment_lines = list(set(chain(
+                            [x for x in invoice.payment_lines],
+                            invoice.reconciliation_lines)))
+                payments = []
+                for line in payment_lines:
+                    payments.extend([p for l in line.reconciliation.lines
+                            for p in l.payments if l.id != line.id])
+                    # Temporally, need to allow
+                    # from_account_bank_statement_line, until all is move
+                    # from the old bank_statement to the new statement.
+                    with Transaction().set_context(_skip_warnings=True,
+                            from_account_bank_statement_line=True):
+                        Reconcile.delete([line.reconciliation])
+                    if line.move not in invoice.additional_moves:
+                        additional_moves.append(line.move)
+                    reconcile.append(line)
+                if payments:
+                    Payment.fail(payments)
+                if reconcile:
+                    MoveLine.reconcile(reconcile)
+                if invoice.payment_lines:
+                    invoice.payment_lines = None
+                    invoice_to_save.append(invoice)
+                if additional_moves:
+                    invoice.additional_moves += tuple(additional_moves)
+                    invoice_to_save.append(invoice)
+            else:
+                to_reconcile.append((move_line, statement_line))
+        if invoice_to_save:
+            Invoice.save(list(set(invoice_to_save)))
+        if to_reconcile:
+            super().reconcile(to_reconcile)
 
         to_reconcile = []
         for move_line, line in move_lines:
@@ -296,7 +390,9 @@ class Line(metaclass=PoolMeta):
             assert move_line.account == line.move_line.account
             to_reconcile.append([move_line, line.move_line])
         if to_reconcile:
-            MoveLine.reconcile(*to_reconcile)
+            for account, g_reconciles in groupby(to_reconcile,
+                    key=lambda x: x.account):
+                MoveLine.reconcile(*list(g_reconciles))
 
     @classmethod
     def delete(cls, lines):
@@ -470,18 +566,20 @@ class Origin(Workflow, metaclass=PoolMeta):
             else:
                 sign = 1
             if invoice.currency == self.company.currency:
-                invoice_id2amount_to_pay[invoice.id] = (
-                    sign * invoice.amount_to_pay)
+                if invoice.state == 'paid':
+                    amount_to_pay = -1 * invoice.total_amount
+                else:
+                    amount_to_pay = invoice.amount_to_pay
+                invoice_id2amount_to_pay[invoice.id] = (sign * amount_to_pay)
             else:
                 amount = Decimal(0)
-                for line in invoice.lines_to_pay:
-                    if line.reconciliation:
-                        continue
-                    amount += line.debit - line.credit
-                for line in invoice.payment_lines:
-                    if line.reconciliation:
-                        continue
-                    amount += line.debit - line.credit
+                if invoice.state == 'paid':
+                    amount = -1 * sign * invoice.total_amount
+                else:
+                    for line in invoice.lines_to_pay + invoice.payment_lines:
+                        if line.reconciliation:
+                            continue
+                        amount += line.debit - line.credit
                 invoice_id2amount_to_pay[invoice.id] = amount
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
@@ -547,7 +645,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         for origin in origins:
             origin.validate_amount()
             paid_cancelled_invoice_lines.extend(x for x in origin.lines
-                if x.invoice and x.invoice.state in {'cancelled', 'paid'})
+                if x.invoice and (x.invoice.state == 'cancelled'
+                    or (x.invoice.state == 'paid'
+                        and not x.show_paid_invoices)))
 
         if paid_cancelled_invoice_lines:
             warning_key = Warning.format(
@@ -617,13 +717,15 @@ class Origin(Workflow, metaclass=PoolMeta):
             MoveLine.save([x for x, _ in move_lines])
             StatementLine.reconcile(move_lines)
 
-        # Ensure that any related_to in the posted lines are not in another
-        # registered origin or suggested.
+        # Ensure that any related_to posted lines are not in another registered
+        # origin or suggested. Except for the paid invoice process.
         if lines_to_check:
             related_tos = []
             line_ids = []
             suggested_ids = []
             for line in lines_to_check:
+                if line.show_paid_invoices:
+                    continue
                 line_ids.append(line.id)
                 if line.related_to:
                     related_tos.append(line.related_to)
