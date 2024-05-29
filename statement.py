@@ -24,7 +24,7 @@ from trytond.modules.account_statement.statement import Unequal
 from trytond import backend
 
 
-_ZERO = Decimal('0.0')
+_ZERO = Decimal(0)
 
 
 class Similarity(Function):
