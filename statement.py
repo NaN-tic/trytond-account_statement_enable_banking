@@ -388,11 +388,10 @@ class Line(metaclass=PoolMeta):
             if not line or not line.move_line:
                 continue
             assert move_line.account == line.move_line.account
-            to_reconcile.append([move_line, line.move_line])
-        if to_reconcile:
-            for account, g_reconciles in groupby(to_reconcile,
-                    key=lambda x: x.account):
-                MoveLine.reconcile(*list(g_reconciles))
+            to_reconcile += [move_line, line.move_line])
+        for account, g_reconciles in groupby(to_reconcile,
+                key=lambda x: x.account):
+            MoveLine.reconcile(*list(g_reconciles))
 
     @classmethod
     def delete(cls, lines):
