@@ -290,6 +290,7 @@ class Line(metaclass=PoolMeta):
             mlines = [l for m in [move, cancel_move]
                 for l in m.lines if l.account.reconcile]
             if mlines:
+                mlines.sort(key=lambda x: x.account)
                 for account, g_lines in groupby(mlines,
                         key=lambda x: x.account):
                     MoveLine.reconcile(list(g_lines))
@@ -389,6 +390,7 @@ class Line(metaclass=PoolMeta):
                 continue
             assert move_line.account == line.move_line.account
             to_reconcile += [move_line, line.move_line]
+        to_reconcile.sort(key=lambda x: x.account)
         for account, g_reconciles in groupby(to_reconcile,
                 key=lambda x: x.account):
             MoveLine.reconcile(*list(g_reconciles))
