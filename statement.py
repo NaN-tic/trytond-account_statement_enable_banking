@@ -289,11 +289,11 @@ class Line(metaclass=PoolMeta):
             Move.post([cancel_move])
             mlines = [l for m in [move, cancel_move]
                 for l in m.lines if l.account.reconcile]
+            mlines.sort(key=lambda x: x.account)
+            mlines = [list(l) for _, l in groupby(mlines,
+                    key=lambda x: x.account)]
             if mlines:
-                mlines.sort(key=lambda x: x.account)
-                for account, g_lines in groupby(mlines,
-                        key=lambda x: x.account):
-                    MoveLine.reconcile(list(g_lines))
+                MoveLine.reconcile(*mlines)
 
     @classmethod
     def cancel_lines(cls, lines):
@@ -391,9 +391,10 @@ class Line(metaclass=PoolMeta):
             assert move_line.account == line.move_line.account
             to_reconcile += [move_line, line.move_line]
         to_reconcile.sort(key=lambda x: x.account)
-        for account, g_reconciles in groupby(to_reconcile,
-                key=lambda x: x.account):
-            MoveLine.reconcile(*list(g_reconciles))
+        to_reconcile = [list(l) for _, l in groupby(to_reconcile,
+                key=lambda x: x.account)]
+        if to_reconcile:
+            MoveLine.reconcile(*to_reconcile)
 
     @classmethod
     def delete(cls, lines):
