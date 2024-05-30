@@ -289,9 +289,9 @@ class Line(metaclass=PoolMeta):
             Move.post([cancel_move])
             mlines = [l for m in [move, cancel_move]
                 for l in m.lines if l.account.reconcile]
-            mlines.sort(key=lambda x: x.account)
+            mlines.sort(key=lambda x: (x.party, x.account))
             mlines = [list(l) for _, l in groupby(mlines,
-                    key=lambda x: x.account)]
+                    key=lambda x: (x.party, x.account))]
             if mlines:
                 MoveLine.reconcile(*mlines)
 
@@ -342,7 +342,7 @@ class Line(metaclass=PoolMeta):
         Invoice = pool.get('account.invoice')
         Payment = pool.get('account.payment')
 
-        to_reconcile = []
+        to_reconcile = {}
         invoice_to_save = []
         for move_line, statement_line in move_lines:
             if (statement_line and statement_line.invoice
@@ -377,12 +377,18 @@ class Line(metaclass=PoolMeta):
                 if additional_moves:
                     invoice.additional_moves += tuple(additional_moves)
                     invoice_to_save.append(invoice)
-            else:
-                to_reconcile.append((move_line, statement_line))
+            elif statement_line and statement_line.invoice:
+                if statement_line.party in to_reconcile:
+                    to_reconcile[statement_line.party].append(
+                        (move_line, statement_line))
+                else:
+                    to_reconcile[statement_line.party] = [
+                        (move_line, statement_line)]
         if invoice_to_save:
             Invoice.save(list(set(invoice_to_save)))
         if to_reconcile:
-            super().reconcile(to_reconcile)
+            for _, value in to_reconcile.items():
+                super().reconcile(value)
 
         to_reconcile = []
         for move_line, line in move_lines:
@@ -390,9 +396,9 @@ class Line(metaclass=PoolMeta):
                 continue
             assert move_line.account == line.move_line.account
             to_reconcile += [move_line, line.move_line]
-        to_reconcile.sort(key=lambda x: x.account)
+        to_reconcile.sort(key=lambda x: (x.party, x.account))
         to_reconcile = [list(l) for _, l in groupby(to_reconcile,
-                key=lambda x: x.account)]
+                key=lambda x: (x.party, x.account))]
         if to_reconcile:
             MoveLine.reconcile(*to_reconcile)
 
