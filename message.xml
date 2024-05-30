@@ -54,5 +54,8 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_similarity">
             <field name="text">Similarity</field>
         </record>
+        <record model="ir.message" id="msg_repeated_realted_to_used">
+            <field name="text">The related "%(related_to)s" is usde in a line of the posted origin "%(origin)s."</field>
+        </record>
     </data>
 </tryton>

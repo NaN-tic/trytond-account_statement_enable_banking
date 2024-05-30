@@ -646,6 +646,22 @@ class Origin(Workflow, metaclass=PoolMeta):
         paid_cancelled_invoice_lines = []
         for origin in origins:
             origin.validate_amount()
+
+            for line in origin.lines:
+                if line.related_to:
+                    repeated = StatementLine.search([
+                            ('related_to', '=', line.related_to),
+                            ('id', '!=', line.id),
+                            ('origin.state', '=', 'posted'),
+                            ('show_paid_invoices', '=', False),
+                            ])
+                    if repeated:
+                        raise AccessError(
+                            gettext('account_statement_enable_banking.'
+                                'msg_repeated_realted_to_used',
+                                related_to=line.related_to.rec_name,
+                                origin=(repeated[0].origin.rec_name
+                                    if repeated[0].origin else '')))
             paid_cancelled_invoice_lines.extend(x for x in origin.lines
                 if x.invoice and (x.invoice.state == 'cancelled'
                     or (x.invoice.state == 'paid'
@@ -726,8 +742,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             line_ids = []
             suggested_ids = []
             for line in lines_to_check:
-                if line.show_paid_invoices:
-                    continue
                 line_ids.append(line.id)
                 if line.related_to:
                     related_tos.append(line.related_to)
@@ -736,6 +750,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             lines_to_remove = StatementLine.search([
                     ('related_to', 'in', related_tos),
                     ('id', 'not in', line_ids),
+                    ('show_paid_invoices', '=', False),
                     ])
             if lines_to_remove:
                 StatementLine.delete(lines_to_remove)
