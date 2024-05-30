@@ -70,9 +70,17 @@ msgctxt "field:account.statement.line,origin_state:"
 msgid "Origin State"
 msgstr "Estat d'origen"
 
+msgctxt "field:account.statement.line,show_paid_invoices:"
+msgid "Show Paid Invoices"
+msgstr "Mostra les factures pagades"
+
 msgctxt "field:account.statement.line,suggested_line:"
 msgid "Suggested Lines"
 msgstr "Línies suggerides"
+
+msgctxt "field:account.statement.origin,balance:"
+msgid "Balance"
+msgstr "Balanç"
 
 msgctxt "field:account.statement.origin,entry_reference:"
 msgid "Entry Reference"
@@ -241,8 +249,8 @@ msgstr ""
 " de les línies suggerides."
 
 msgctxt "help:account.statement.journal,enable_banking_session_valid_days:"
-msgid "Only allowed maximum 90 days."
-msgstr "Només es permet un màxim de 90 dies."
+msgid "Only allowed maximum 180 days."
+msgstr "Només es permet un màxim de 180 dies."
 
 msgctxt "help:account.statement.journal,max_amount_tolerance:"
 msgid ""
@@ -663,6 +671,14 @@ msgstr ""
 msgctxt "model:ir.message,text:msg_payments"
 msgid "Payments"
 msgstr "Pagaments"
+
+msgctxt "model:ir.message,text:msg_repeated_realted_to_used"
+msgid ""
+"The related \"%(related_to)s\" is usde in a line of the posted origin "
+"\"%(origin)s.\""
+msgstr ""
+"El relacionat \"%(related_to)s\" s'utilitza en una línia de l'origen "
+"comptabilitzat \"%(origin)s\"."
 
 msgctxt "model:ir.message,text:msg_similarity"
 msgid "Similarity"
