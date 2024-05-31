@@ -665,7 +665,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                         raise AccessError(
                             gettext('account_statement_enable_banking.'
                                 'msg_repeated_realted_to_used',
-                                related_to=line.related_to.rec_name,
+                                related_to=str(line.related_to),
                                 origin=(repeated[0].origin.rec_name
                                     if repeated[0].origin else '')))
             paid_cancelled_invoice_lines.extend(x for x in origin.lines
