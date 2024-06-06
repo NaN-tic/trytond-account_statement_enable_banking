@@ -84,7 +84,8 @@ class Statement(metaclass=PoolMeta):
         Origin = pool.get('account.statement.origin')
 
         origins = [o for s in statements for o in s.origins]
-        Origin.cancel(origins)
+        if origins:
+            Origin.cancel(origins)
 
         super().cancel(statements)
 
@@ -131,6 +132,10 @@ class Line(metaclass=PoolMeta):
                     continue
             new_domain.append(domain)
         cls.related_to.domain['account.invoice'] = new_domain
+        domain = (
+            (Bool(Eval('origin', 0))) &
+            (Eval('origin_state') != 'registered')
+            )
         cls.related_to.domain['account.move.line'] = [
             ('company', '=', Eval('company', -1)),
             If(Eval('second_currency'),
@@ -147,32 +152,14 @@ class Line(metaclass=PoolMeta):
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
             ]
-        cls.number.states['readonly'] = (
-            (Eval('origin_state') != 'registered')
-            )
-        cls.party.states['readonly'] = (
-            (Eval('origin_state') != 'registered')
-            )
-        cls.related_to.states['readonly'] |= (
-            (Bool(Eval('origin', 0))) &
-            (Eval('origin_state') != 'registered')
-            )
-        cls.account.states['readonly'] |= (
-            (Eval('origin_state') != 'registered')
-            )
-        cls.amount.states['readonly'] |= (
-            (Bool(Eval('origin', 0))) &
-            (Eval('origin_state') != 'registered')
-            )
-        cls.amount_second_currency.states['readonly'] |= (
-            (Eval('origin_state') != 'registered')
-            )
-        cls.second_currency.states['readonly'] |= (
-            (Eval('origin_state') != 'registered')
-            )
-        cls.description.states['readonly'] |= (
-            (Eval('origin_state') != 'registered')
-            )
+        cls.number.states['readonly'] = domain
+        cls.party.states['readonly'] = domain
+        cls.related_to.states['readonly'] |= domain
+        cls.account.states['readonly'] |= domain
+        cls.amount.states['readonly'] |= domain
+        cls.amount_second_currency.states['readonly'] |= domain
+        cls.second_currency.states['readonly'] |= domain
+        cls.description.states['readonly'] |= domain
 
     @classmethod
     def _get_relations(cls):
