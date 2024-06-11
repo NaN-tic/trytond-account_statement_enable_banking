@@ -104,7 +104,7 @@ class Line(metaclass=PoolMeta):
         'Suggested Lines',
         states={
             'readonly': Eval('origin_state') != 'registered',
-            }, ondelete="RESTRICT")
+            })
     origin_state = fields.Function(
         fields.Selection('get_origin_states', "Origin State"),
         'on_change_with_origin_state')
@@ -404,6 +404,14 @@ class Line(metaclass=PoolMeta):
         if self.maturity_date:
             line.maturity_date = self.maturity_date
         return line
+
+    @classmethod
+    def copy(cls, lines, default=None):
+        default = default.copy() if default is not None else {}
+        default.setdefault('maturity_date', None)
+        default.setdefault('suggested_line', None)
+        default.setdefault('show_paid_invoices', None)
+        return super().copy(lines, default=default)
 
 
 class Origin(Workflow, metaclass=PoolMeta):
@@ -1636,6 +1644,15 @@ class Origin(Workflow, metaclass=PoolMeta):
                         origin=origin.rec_name,
                         sale=origin.statement.rec_name))
         super().delete(origins)
+
+    @classmethod
+    def copy(cls, origins, default=None):
+        default = default.copy() if default is not None else {}
+        default.setdefault('entry_reference', None)
+        default.setdefault('suggested_lines', None)
+        default.setdefault('balance', None)
+        default.setdefault('state', 'registered')
+        return super().copy(origins, default=default)
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
