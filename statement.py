@@ -205,6 +205,37 @@ class Line(metaclass=PoolMeta):
     def move_line(self, value):
         self.related_to = value
 
+    @property
+    @fields.depends('invoice', 'company')
+    def invoice_amount_to_pay(self):
+        amount_to_pay = None
+        if self.invoice:
+            if self.invoice.type == 'in':
+                sign = -1
+            else:
+                sign = 1
+            if self.invoice.currency == self.company.currency:
+                # If need to know the amount_to_pay in a statement line for a
+                # paied invoice is becasuse is needed to control the unpaied.
+                # So in this case change the sign and get the total amount.
+                if self.invoice.state == 'paid':
+                    amount_to_pay = -1 * self.invoice.total_amount
+                else:
+                    amount_to_pay = self.invoice.amount_to_pay
+                amount_to_pay = (sign * amount_to_pay)
+            else:
+                amount = _ZERO
+                if self.invoice.state == 'paid':
+                    amount = -1 * sign * self.invoice.total_amount
+                else:
+                    for line in (self.invoice.lines_to_pay
+                            + self.invoice.payment_lines):
+                        if line.reconciliation:
+                            continue
+                        amount += line.debit - line.credit
+                amount_to_pay = amount
+        return amount_to_pay
+
     @fields.depends('show_paid_invoices')
     def on_change_party(self):
         if not self.show_paid_invoices:
@@ -306,12 +337,11 @@ class Line(metaclass=PoolMeta):
                             move=line.move.rec_name))
                 for mline in line.move.lines:
                     if mline.origin == line:
-                        mline.origin = line.origin
-                        mlines.append(mline)
+                        mlines.extend(([mline], {'origin': line.origin}))
                 moves.add(line.move)
         if mlines:
             with Transaction().set_context(from_account_statement_origin=True):
-                MoveLine.save(mlines)
+                MoveLine.write(*mlines)
         cls.cancel_move(list(moves))
 
         suggested_lines = [x.suggested_line for x in lines
@@ -546,12 +576,14 @@ class Origin(Workflow, metaclass=PoolMeta):
         if self.statement.journal.currency != self.statement.company.currency:
             return
 
-        invoices = set()
         payments = set()
         move_lines = set()
+        invoice_id2amount_to_pay = {}
         for line in self.lines:
-            if line.invoice:
-                invoices.add(line.invoice)
+            if (line.invoice
+                    and line.invoice.id not in invoice_id2amount_to_pay):
+                invoice_id2amount_to_pay[line.invoice.id] = (
+                    line.invoice_amount_to_pay)
             if (line.payment
                     and line.payment.currency == self.company.currency):
                 payments.add(line.payment)
@@ -561,29 +593,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             if (not line.description and line.origin
                     and line.origin.information):
                 line.description = line.origin.remittance_information
-
-        invoice_id2amount_to_pay = {}
-        for invoice in invoices:
-            if invoice.type == 'in':
-                sign = -1
-            else:
-                sign = 1
-            if invoice.currency == self.company.currency:
-                if invoice.state == 'paid':
-                    amount_to_pay = -1 * invoice.total_amount
-                else:
-                    amount_to_pay = invoice.amount_to_pay
-                invoice_id2amount_to_pay[invoice.id] = (sign * amount_to_pay)
-            else:
-                amount = Decimal(0)
-                if invoice.state == 'paid':
-                    amount = -1 * sign * invoice.total_amount
-                else:
-                    for line in invoice.lines_to_pay + invoice.payment_lines:
-                        if line.reconciliation:
-                            continue
-                        amount += line.debit - line.credit
-                invoice_id2amount_to_pay[invoice.id] = amount
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
@@ -598,10 +607,15 @@ class Origin(Workflow, metaclass=PoolMeta):
         for line in lines:
             if (line.invoice and line.id
                     and line.invoice.id in invoice_id2amount_to_pay):
-                amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
-                if amount_to_pay and getattr(line, 'amount', None):
+                amount_to_pay = None
+                if (line.amount and getattr(line, 'amount', None)
+                        and (line.amount == _ZERO
+                            or (line.amount > invoice_id2amount_to_pay.get(
+                                line.invoice.id, _ZERO)))):
+                    amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
+                if amount_to_pay:
                     line.amount = amount_to_pay
-                else:
+                elif not getattr(line, 'amount', None):
                     line.invoice = None
             if (line.payment and line.id
                     and line.payment.id in payment_id2amount):
@@ -657,6 +671,14 @@ class Origin(Workflow, metaclass=PoolMeta):
                             ('show_paid_invoices', '=', False),
                             ])
                     if repeated:
+                        if line.invoice:
+                            if line.show_paid_invoices:
+                                # returned recipt
+                                continue
+                            else:
+                                # partial payment
+                                if line.amount <= line.invoice_amount_to_pay:
+                                    continue
                         raise AccessError(
                             gettext('account_statement_enable_banking.'
                                 'msg_repeated_realted_to_used',
@@ -743,6 +765,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             line_ids = []
             suggested_ids = []
             for line in lines_to_check:
+                if line.show_paid_invoices:
+                    continue
                 line_ids.append(line.id)
                 if line.related_to:
                     related_tos.append(line.related_to)
