@@ -413,7 +413,7 @@ class Line(metaclass=PoolMeta):
                 continue
             assert move_line.account == line.move_line.account
             to_reconcile += [move_line, line.move_line]
-        to_reconcile.sort(key=lambda x: (x.party, x.account))
+        to_reconcile.sort(key=lambda x: (x.party or -1, x.account))
         to_reconcile = [list(l) for _, l in groupby(to_reconcile,
                 key=lambda x: (x.party, x.account))]
         if to_reconcile:
