@@ -1795,6 +1795,10 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     },
                 })
 
+    @staticmethod
+    def default_state():
+        return 'proposed'
+
     @fields.depends('origin', '_parent_origin.company')
     def on_change_with_company(self, name=None):
         return self.origin.company if self.origin else None
