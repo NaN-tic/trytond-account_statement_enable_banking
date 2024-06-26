@@ -206,30 +206,45 @@ class Line(metaclass=PoolMeta):
         self.related_to = value
 
     @property
+    @fields.depends('related_to')
+    def move_line_invoice(self):
+        pool = Pool()
+        MoveLine = pool.get('account.move.line')
+        Invoice = pool.get('account.invoice')
+
+        related_to = getattr(self, 'related_to', None)
+        if (isinstance(related_to, MoveLine) and related_to.id >= 0
+                and related_to.move and related_to.move.origin
+                and isinstance(related_to.move.origin, Invoice)):
+            return related_to.move.origin
+
+    @property
     @fields.depends('invoice', 'company')
     def invoice_amount_to_pay(self):
         amount_to_pay = None
-        if self.invoice:
-            if self.invoice.type == 'in':
+        # control the possibilty to use the move from invoice
+        invoice = self.invoice or self.move_line_invoice or None
+        if invoice:
+            if invoice.type == 'in':
                 sign = -1
             else:
                 sign = 1
-            if self.invoice.currency == self.company.currency:
+            if invoice.currency == self.company.currency:
                 # If need to know the amount_to_pay in a statement line for a
                 # paied invoice is becasuse is needed to control the unpaied.
                 # So in this case change the sign and get the total amount.
-                if self.invoice.state == 'paid':
-                    amount_to_pay = -1 * self.invoice.total_amount
+                if invoice.state == 'paid':
+                    amount_to_pay = -1 * invoice.total_amount
                 else:
-                    amount_to_pay = self.invoice.amount_to_pay
+                    amount_to_pay = invoice.amount_to_pay
                 amount_to_pay = (sign * amount_to_pay)
             else:
                 amount = _ZERO
-                if self.invoice.state == 'paid':
-                    amount = -1 * sign * self.invoice.total_amount
+                if invoice.state == 'paid':
+                    amount = -1 * sign * invoice.total_amount
                 else:
-                    for line in (self.invoice.lines_to_pay
-                            + self.invoice.payment_lines):
+                    for line in (invoice.lines_to_pay
+                            + invoice.payment_lines):
                         if line.reconciliation:
                             continue
                         amount += line.debit - line.credit
@@ -671,14 +686,13 @@ class Origin(Workflow, metaclass=PoolMeta):
                             ('show_paid_invoices', '=', False),
                             ])
                     if repeated:
-                        if line.invoice:
-                            if line.show_paid_invoices:
-                                # returned recipt
-                                continue
-                            else:
-                                # partial payment
-                                if line.amount <= line.invoice_amount_to_pay:
-                                    continue
+                        if line.invoice and line.show_paid_invoices:
+                            # returned recipt
+                            continue
+                        elif (line.invoice_amount_to_pay
+                                and line.amount <= line.invoice_amount_to_pay):
+                            # partial payment or pay agin a returned recipt
+                            continue
                         raise AccessError(
                             gettext('account_statement_enable_banking.'
                                 'msg_repeated_realted_to_used',
