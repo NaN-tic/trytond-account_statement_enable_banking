@@ -9,6 +9,7 @@ from . import routes
 from . import statement
 from . import statement_aeb43
 from . import statement_analytic
+from . import invoice
 
 __all__ = ['register', 'routes']
 
@@ -28,6 +29,7 @@ def register():
         statement.AddMultipleMoveLinesStart,
         statement.SynchronizeStatementEnableBankingStart,
         statement.OriginSynchronizeStatementEnableBankingAsk,
+        invoice.Invoice,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
         statement.AddMultipleInvoices,
