@@ -284,7 +284,7 @@ class Journal(metaclass=PoolMeta):
                             balance_after_transaction.get('amount', None))
                     total_amount += statement_origin.amount
                     statement_origin.date = datetime.strptime(
-                        transaction[ebconfig.date_field], '%Y-%m-%d')
+                        transaction[ebconfig.date_field], '%Y-%m-%d').date()
                     information_dict = {}
                     for key, value in transaction.items():
                         if value is None or key in self._keys_not_needed():
