@@ -376,9 +376,11 @@ class Line(metaclass=PoolMeta):
 
         to_reconcile = {}
         invoice_to_save = []
+        move_to_reconcile = {}
         for move_line, statement_line in move_lines:
-            if (statement_line and statement_line.invoice
-                    and statement_line.show_paid_invoices
+            if not statement_line:
+                continue
+            if (statement_line.invoice and statement_line.show_paid_invoices
                     and move_line.account == statement_line.invoice.account):
                 additional_moves = [move_line.move]
                 invoice = statement_line.invoice
@@ -409,30 +411,29 @@ class Line(metaclass=PoolMeta):
                 if additional_moves:
                     invoice.additional_moves += tuple(additional_moves)
                     invoice_to_save.append(invoice)
-            elif statement_line and statement_line.invoice:
-                if statement_line.party in to_reconcile:
-                    to_reconcile[statement_line.party].append(
-                        (move_line, statement_line))
+            elif statement_line.invoice:
+                key = statement_line.party
+                if key in to_reconcile:
+                    to_reconcile[key].append((move_line, statement_line))
                 else:
-                    to_reconcile[statement_line.party] = [
-                        (move_line, statement_line)]
+                    to_reconcile[key] = [(move_line, statement_line)]
+            elif statement_line.move_line:
+                assert move_line.account == statement_line.move_line.account
+                key = statement_line.party
+                if key in move_to_reconcile:
+                    move_to_reconcile[key].append(
+                        (move_line, statement_line.move_line))
+                else:
+                    move_to_reconcile[key] = [
+                        (move_line, statement_line.move_line)]
         if invoice_to_save:
             Invoice.save(list(set(invoice_to_save)))
         if to_reconcile:
             for _, value in to_reconcile.items():
                 super().reconcile(value)
-
-        to_reconcile = []
-        for move_line, line in move_lines:
-            if not line or not line.move_line:
-                continue
-            assert move_line.account == line.move_line.account
-            to_reconcile += [move_line, line.move_line]
-        to_reconcile.sort(key=lambda x: (x.party or -1, x.account))
-        to_reconcile = [list(l) for _, l in groupby(to_reconcile,
-                key=lambda x: (x.party, x.account))]
-        if to_reconcile:
-            MoveLine.reconcile(*to_reconcile)
+        if move_to_reconcile:
+            for _, value in move_to_reconcile.items():
+                MoveLine.reconcile(*value)
 
     @classmethod
     def delete(cls, lines):
@@ -588,6 +589,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         if (not self.statement or not self.statement.journal
                 or not self.statement.company):
             return
+        # TODO: Control when the currency is different
         if self.statement.journal.currency != self.statement.company.currency:
             return
 
@@ -623,10 +625,16 @@ class Origin(Workflow, metaclass=PoolMeta):
             if (line.invoice and line.id
                     and line.invoice.id in invoice_id2amount_to_pay):
                 amount_to_pay = None
-                if (line.amount and getattr(line, 'amount', None)
-                        and (line.amount == _ZERO
-                            or (line.amount > invoice_id2amount_to_pay.get(
-                                line.invoice.id, _ZERO)))):
+                line_sign = 1 if line.amount >= 0 else 0
+                invoice_sign = (1 if invoice_id2amount_to_pay.get(
+                        line.invoice.id, _ZERO) >= 0 else 0)
+                if (getattr(line, 'amount', None) and (line.amount == _ZERO
+                            or line_sign < invoice_sign
+                            or line_sign > invoice_sign
+                            or (line_sign == invoice_sign
+                                and abs(line.amount) > abs(
+                                    invoice_id2amount_to_pay.get(
+                                        line.invoice.id, _ZERO))))):
                     amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
                 if amount_to_pay:
                     line.amount = amount_to_pay
@@ -685,9 +693,19 @@ class Origin(Workflow, metaclass=PoolMeta):
                             ('origin.state', '=', 'posted'),
                             ('show_paid_invoices', '=', False),
                             ])
+                    if not repeated and line.invoice:
+                        repeated = StatementLine.search([
+                                ('related_to', 'in', line.invoice.lines_to_pay),
+                                ('origin.state', '=', 'posted'),
+                                ])
                     if repeated:
                         if line.invoice and line.show_paid_invoices:
                             # returned recipt
+                            # Unlink the account move from the account statement line
+                            # to allow correctly attach to another statement line.
+                            StatementLine.write(repeated, {
+                                    'related_to': None,
+                                    })
                             continue
                         elif (line.invoice_amount_to_pay
                                 and line.amount <= line.invoice_amount_to_pay):
@@ -840,7 +858,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.create_moves(origins)
 
         lines = [x for o in origins for x in o.lines]
-        # It's an awfull hack to set the state, but it's needed to ensure the
+        # It's an awful hack to set the state, but it's needed to ensure the
         # Error of statement state in Move.post is not applied when try to
         # concile and individual origin. For this, need the state == 'posted'.
         statements = [o.statement for o in origins]
