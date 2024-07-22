@@ -966,7 +966,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         if date:
             control_dates = [self.date]
-            if self.information.get('value_date'):
+            if self.information and self.information.get('value_date'):
                 control_dates.append(datetime.strptime(
                         self.information['value_date'], '%Y-%m-%d').date())
             if not interval_date:
