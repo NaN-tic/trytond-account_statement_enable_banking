@@ -412,7 +412,7 @@ class Line(metaclass=PoolMeta):
                     invoice.additional_moves += tuple(additional_moves)
                     invoice_to_save.append(invoice)
             elif statement_line.invoice:
-                key = statement_line.party
+                key = (statement_line.party, statement_line.invoice)
                 if key in to_reconcile:
                     to_reconcile[key].append((move_line, statement_line))
                 else:
@@ -629,8 +629,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 invoice_sign = (1 if invoice_id2amount_to_pay.get(
                         line.invoice.id, _ZERO) >= 0 else 0)
                 if (getattr(line, 'amount', None) and (line.amount == _ZERO
-                            or line_sign < invoice_sign
-                            or line_sign > invoice_sign
+                            or line_sign != invoice_sign
                             or (line_sign == invoice_sign
                                 and abs(line.amount) > abs(
                                     invoice_id2amount_to_pay.get(
@@ -791,13 +790,19 @@ class Origin(Workflow, metaclass=PoolMeta):
             StatementLine.reconcile(move_lines)
 
         # Ensure that any related_to posted lines are not in another registered
-        # origin or suggested. Except for the paid invoice process.
+        # origin or suggested. Except for the paid invoice process or the
+        #  partial payment invoices.
         if lines_to_check:
             related_tos = []
             line_ids = []
             suggested_ids = []
             for line in lines_to_check:
+                # returned recipt
                 if line.show_paid_invoices:
+                    continue
+                # partial payment. In this point the invoice is payed or
+                # partial payed, so the invoice.amount_to_pay >= 0.
+                if line.invoice and line.invoice.amount_to_pay >= 0:
                     continue
                 line_ids.append(line.id)
                 if line.related_to:
