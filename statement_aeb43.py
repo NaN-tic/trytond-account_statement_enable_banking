@@ -23,9 +23,9 @@ class ImportStatement(metaclass=PoolMeta):
 
     def aeb43_statement(self, account):
         statement = super().aeb43_statement(account)
-        statement.start_date = datetime.combine(account.initialDate,
+        statement.start_date = datetime.combine(account.start_date,
             datetime.min.time())
-        statement.end_date = datetime.combine(account.finalDate,
+        statement.end_date = datetime.combine(account.end_date,
             datetime.min.time())
         return statement
 
