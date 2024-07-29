@@ -2,10 +2,13 @@
 <!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
 this repository contains the full copyright notices and license terms. -->
 <data>
-    <xpath expr="/form/field[@name='date']" position="after">
-        <label name="start_date"/>
-        <field name="start_date" widget="datetime"/>
-        <label name="end_date"/>
-        <field name="end_date" widget="datetime"/>
-    </xpath>
+  <xpath expr="/form/field[@name='date']" position="after">
+    <label name="start_date"/>
+    <field name="start_date" widget="datetime"/>
+    <label name="end_date"/>
+    <field name="end_date" widget="datetime"/>
+  </xpath>
+  <xpath expr="/form/group[@id='buttons']/button[@name='draft']" position="after">
+    <button name="register" icon="tryton-forward"/>
+  </xpath>
 </data>

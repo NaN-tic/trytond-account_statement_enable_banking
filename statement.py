@@ -51,6 +51,25 @@ class Statement(metaclass=PoolMeta):
             cls.date.states['invisible'] |= (Bool(Eval('start_date')))
         else:
             cls.date.states['invisible'] = Bool(Eval('start_date'))
+        # Add new state to the statement, to avoid some checks qhen the
+        # statement came from the Bank lines.
+        cls.state.selection.append(('registered', "Registered"))
+        cls._transitions |= set((
+                ('draft', 'registered'),
+                ('registered', 'draft'),
+                ('registered', 'validated'),
+                ('validated', 'registered'),
+                ))
+        cls._buttons.update({
+                'register': {
+                    'invisible': ~Eval('state').in_(['draft', 'validated']),
+                    'depends': ['state'],
+                    },
+                })
+        cls._buttons['draft']['invisible'] = ~Eval('state').in_(
+            ['cancelled', 'registered'])
+        cls._buttons['validate_statement']['invisible'] = ~Eval('state').in_(
+            ['draft', 'registered'])
 
     def _group_key(self, line):
         pool = Pool()
@@ -89,6 +108,12 @@ class Statement(metaclass=PoolMeta):
 
         super().cancel(statements)
 
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('registered')
+    def register(cls, statements):
+        pass
+
 
 class Line(metaclass=PoolMeta):
     __name__ = 'account.statement.line'
@@ -126,7 +151,7 @@ class Line(metaclass=PoolMeta):
                     new_domain.append(
                         If(Bool(Eval('show_paid_invoices')),
                             ('state', '=', 'paid'),
-                            If(Eval('statement_state') == 'draft',
+                            If(Eval('statement_state').in_(['draft', 'registered']),
                                 ('state', '=', 'posted'),
                                 ('state', '!=', ''))))
                     continue
