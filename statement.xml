@@ -18,8 +18,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_register_button">
             <field name="name">register</field>
             <field name="string">Register</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement')]"/>
+            <field name="model">account.statement</field>
         </record>
         <record model="ir.model.button-res.group"
             id="statement_register_button_group_account">
