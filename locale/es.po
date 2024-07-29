@@ -736,6 +736,10 @@ msgctxt ""
 msgid "Use"
 msgstr "Usa"
 
+msgctxt "model:ir.model.button,string:statement_register_button"
+msgid "Register"
+msgstr "Registrar"
+
 msgctxt ""
 "model:ir.model.button,string:synchronize_statement_enable_banking_button"
 msgid "Synchronize Statement Enable Banking"
@@ -795,6 +799,10 @@ msgid ""
 "The session between enable banking and your bank has been created "
 "successfully."
 msgstr "La sesión entre Enable Banking y tu banco se ha creado con éxito."
+
+msgctxt "selection:account.statement,state:"
+msgid "Registered"
+msgstr "Registrado"
 
 msgctxt "selection:account.statement.origin,state:"
 msgid "Cancelled"
