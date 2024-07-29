@@ -27,6 +27,15 @@ this repository contains the full copyright notices and license terms. -->
             <field name="group" ref="account.group_account"/>
         </record>
 
+        <record model="ir.action.act_window.domain"
+            id="act_statement_form_domain_registered">
+            <field name="name">Registered</field>
+            <field name="sequence" eval="15"/>
+            <field name="domain" eval="[('state', '=', 'registered')]" pyson="1"/>
+            <field name="count" eval="True"/>
+            <field name="act_window" ref="account_statement.act_statement_form"/>
+        </record>
+
         <!-- account.statement.origin -->
         <record model="ir.action.act_window" id="act_statement_origin_form">
             <field name="name">Statement Origins</field>

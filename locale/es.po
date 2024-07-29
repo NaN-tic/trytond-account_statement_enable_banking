@@ -566,6 +566,11 @@ msgid "Add Multiple Move Lines"
 msgstr "Agregar Múltiples Apuntes"
 
 msgctxt ""
+"model:ir.action.act_window.domain,name:act_statement_form_domain_registered"
+msgid "Registered"
+msgstr "Registrado"
+
+msgctxt ""
 "model:ir.action.act_window.domain,name:act_statement_origin_form_domain_all"
 msgid "All"
 msgstr "Todo"
