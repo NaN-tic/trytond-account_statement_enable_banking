@@ -229,7 +229,7 @@ class Journal(metaclass=PoolMeta):
         statement.start_date = datetime.combine(date_from, datetime.min.time())
         statement.end_date = datetime.now()
         statement.save()
-        statement.register()
+        Statement.register([statement])
 
         # Get the data, as we have a limit of transactions every query, we need
         # to do a while loop to get all the transactions
