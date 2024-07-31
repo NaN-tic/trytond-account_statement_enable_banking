@@ -29,7 +29,7 @@ class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
 
     @classmethod
     def default_offset(cls):
-        return 2
+        return 10
 
     @classmethod
     def __setup__(cls):
