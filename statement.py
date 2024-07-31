@@ -115,6 +115,11 @@ class Statement(metaclass=PoolMeta):
         pass
 
 
+_states = {
+    'readonly': ~Eval('statement_state', '').in_(['draft', 'registered'])
+    }
+
+
 class Line(metaclass=PoolMeta):
     __name__ = 'account.statement.line'
 
@@ -151,16 +156,13 @@ class Line(metaclass=PoolMeta):
                     new_domain.append(
                         If(Bool(Eval('show_paid_invoices')),
                             ('state', '=', 'paid'),
-                            If(Eval('statement_state').in_(['draft', 'registered']),
+                            If(Eval('statement_state').in_(
+                                    ['draft', 'registered']),
                                 ('state', '=', 'posted'),
                                 ('state', '!=', ''))))
                     continue
             new_domain.append(domain)
         cls.related_to.domain['account.invoice'] = new_domain
-        domain = (
-            (Bool(Eval('origin', 0))) &
-            (Eval('origin_state') != 'registered')
-            )
         cls.related_to.domain['account.move.line'] = [
             ('company', '=', Eval('company', -1)),
             If(Eval('second_currency'),
@@ -177,14 +179,21 @@ class Line(metaclass=PoolMeta):
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
             ]
-        cls.number.states['readonly'] = domain
-        cls.party.states['readonly'] = domain
-        cls.related_to.states['readonly'] |= domain
-        cls.account.states['readonly'] |= domain
-        cls.amount.states['readonly'] |= domain
-        cls.amount_second_currency.states['readonly'] |= domain
-        cls.second_currency.states['readonly'] |= domain
-        cls.description.states['readonly'] |= domain
+        cls.statement.states['readonly'] = _states['readonly']
+        cls.number.states['readonly'] = _states['readonly']
+        cls.date.states['readonly'] = (
+            _states['readonly'] | Bool(Eval('origin', 0))
+            )
+        cls.amount.states['readonly'] = _states['readonly']
+        cls.amount_second_currency.states['readonly'] = _states['readonly']
+        cls.second_currency.states['readonly'] = _states['readonly']
+        cls.party.states['readonly'] = _states['readonly']
+        cls.party.states['required'] = (Eval('party_required', False)
+            & (Eval('statement_state').in_(['draft', 'registered']))
+            )
+        cls.account.states['readonly'] = _states['readonly']
+        cls.description.states['readonly'] = _states['readonly']
+        cls.related_to.states['readonly'] = _states['readonly']
 
     @classmethod
     def _get_relations(cls):
@@ -463,7 +472,18 @@ class Line(metaclass=PoolMeta):
     @classmethod
     def delete(cls, lines):
         cls.cancel_lines(lines)
-        super().delete(lines)
+        for line in lines:
+            if line.statement_state not in {
+                    'cancelled', 'registered', 'draft'}:
+                raise AccessError(
+                    gettext(
+                        'account_statement.'
+                        'msg_statement_line_delete_cancel_draft',
+                        line=line.rec_name,
+                        sale=line.statement.rec_name))
+        # Use __func__ to directly access ModelSQL's delete method and
+        # pass it the right class
+        ModelSQL.delete.__func__(cls, lines)
 
     @classmethod
     def delete_move(cls, lines):
@@ -487,8 +507,6 @@ class Line(metaclass=PoolMeta):
 
 class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
-
-    _states = {'readonly': Eval('state') != 'registered'}
 
     entry_reference = fields.Char("Entry Reference", readonly=True)
     suggested_lines = fields.One2Many(
@@ -514,8 +532,19 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.number.search_unaccented = False
         cls._order.insert(0, ('date', 'ASC'))
         cls._order.insert(1, ('number', 'ASC'))
-        cls.lines.states['readonly'] |= (
-            (Eval('state') != 'registered')
+        cls.statement.states['readonly'] = _states['readonly']
+        cls.number.states['readonly'] = _states['readonly']
+        cls.date.states['readonly'] = _states['readonly']
+        cls.amount.states['readonly'] = _states['readonly']
+        cls.amount_second_currency.states['readonly'] = _states['readonly']
+        cls.second_currency.states['readonly'] = _states['readonly']
+        cls.party.states['readonly'] = _states['readonly']
+        cls.account.states['readonly'] = _states['readonly']
+        cls.description.states['readonly'] = _states['readonly']
+        cls.lines.states['readonly'] = (
+            (Eval('statement_id', -1) < 0)
+            | (~Eval('statement_state').in_(
+                    ['draft', 'registered', 'validated']))
             )
         cls._transitions |= set((
                 ('registered', 'posted'),
@@ -557,6 +586,14 @@ class Origin(Workflow, metaclass=PoolMeta):
     @staticmethod
     def default_state():
         return 'registered'
+
+    @fields.depends('state')
+    def on_change_with_statement_state(self, name=None):
+        try:
+            state = super().on_change_with_statement_state()
+        except AttributeError:
+            state = None
+        return self.state or state
 
     @property
     @fields.depends('statement', '_parent_statement.journal')
@@ -849,105 +886,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             if suggest_to_remove:
                 StatementSuggest.delete(suggest_to_remove)
         return moves
-
-    @classmethod
-    @ModelView.button_action(
-            'account_statement_enable_banking.wizard_multiple_invoices')
-    def multiple_invoices(cls, origins):
-        pass
-
-    @classmethod
-    @ModelView.button_action(
-            'account_statement_enable_banking.wizard_multiple_move_lines')
-    def multiple_move_lines(cls, origins):
-        pass
-
-    @classmethod
-    @ModelView.button
-    @Workflow.transition('registered')
-    def register(cls, origins):
-        pool = Pool()
-        Statement = pool.get('account.statement')
-
-        # Control the statement state.
-        # Statement is a required field in Origin class
-        statements = [x.statement for x in origins
-            if x.statement.state == 'posted']
-        if statements:
-            Statement.write(statements, {'state': 'draft'})
-
-    @classmethod
-    @ModelView.button
-    @Workflow.transition('posted')
-    def post(cls, origins):
-        pool = Pool()
-        Statement = pool.get('account.statement')
-        StatementLine = pool.get('account.statement.line')
-
-        cls.validate_origin(origins)
-        cls.create_moves(origins)
-
-        lines = [x for o in origins for x in o.lines]
-        # It's an awful hack to set the state, but it's needed to ensure the
-        # Error of statement state in Move.post is not applied when try to
-        # concile and individual origin. For this, need the state == 'posted'.
-        statements = [o.statement for o in origins]
-        statement_state = []
-        for origin in origins:
-            statement_state.append([origin.statement])
-            statement_state.append({
-                    'state': origin.statement.state,
-                    })
-        if statements:
-            Statement.write(statements, {'state': 'posted'})
-        StatementLine.post_move(lines)
-        if statement_state:
-            Statement.write(*statement_state)
-        # End awful hack
-
-        # Check if the statement of the origin has all the origins posted, so
-        # the statement could be posted too.
-        statements_to_post = []
-        for statement in statements:
-            if all(x.state == 'posted'
-                    for x in statement.origins if x not in origins):
-                getattr(statement, 'validate_%s' % statement.validation)()
-                statements_to_post.append(statement)
-        if statements_to_post:
-            Statement.write(statements_to_post, {'state': 'posted'})
-
-    @classmethod
-    @ModelView.button
-    @Workflow.transition('cancelled')
-    def cancel(cls, origins):
-        pool = Pool()
-        MoveLine = pool.get('account.move.line')
-        StatementLine = pool.get('account.statement.line')
-        Warning = pool.get('res.user.warning')
-
-        lines = [x for origin in origins for x in origin.lines]
-        moves = dict((x.move, x.origin) for x in lines if x.move)
-        if moves:
-            warning_key = Warning.format('cancel_origin_line_with_move',
-                list(moves.keys()))
-            if Warning.check(warning_key):
-                raise StatementValidateWarning(warning_key,
-                    gettext('account_statement_enable_banking.'
-                        'msg_cancel_origin_line_with_move',
-                        moves=", ".join(m.rec_name for m in moves)))
-            StatementLine.cancel_move(moves.keys())
-            with Transaction().set_context(
-                    from_account_statement_origin=True):
-                to_write = []
-                for move, origin in moves.items():
-                    move_lines = []
-                    for line in move.lines:
-                        if line.origin in origin.lines:
-                            move_lines.append(line)
-                    to_write.extend((move_lines, {'origin': origin}))
-                if to_write:
-                    MoveLine.write(*to_write)
-            StatementLine.write(lines, {'move': None})
 
     def similarity_parties(self, compare, similarity_threshold=0.13):
         """
@@ -1729,7 +1667,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                         'msg_statement_origin_delete_cancel_draft',
                         origin=origin.rec_name,
                         sale=origin.statement.rec_name))
-        super().delete(origins)
+        # Use __func__ to directly access ModelSQL's delete method and
+        # pass it the right class
+        ModelSQL.delete.__func__(cls, origins)
 
     @classmethod
     def copy(cls, origins, default=None):
@@ -1739,6 +1679,105 @@ class Origin(Workflow, metaclass=PoolMeta):
         default.setdefault('balance', None)
         default.setdefault('state', 'registered')
         return super().copy(origins, default=default)
+
+    @classmethod
+    @ModelView.button_action(
+            'account_statement_enable_banking.wizard_multiple_invoices')
+    def multiple_invoices(cls, origins):
+        pass
+
+    @classmethod
+    @ModelView.button_action(
+            'account_statement_enable_banking.wizard_multiple_move_lines')
+    def multiple_move_lines(cls, origins):
+        pass
+
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('registered')
+    def register(cls, origins):
+        pool = Pool()
+        Statement = pool.get('account.statement')
+
+        # Control the statement state.
+        # Statement is a required field in Origin class
+        statements = [x.statement for x in origins
+            if x.statement.state == 'posted']
+        if statements:
+            Statement.write(statements, {'state': 'draft'})
+
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('posted')
+    def post(cls, origins):
+        pool = Pool()
+        Statement = pool.get('account.statement')
+        StatementLine = pool.get('account.statement.line')
+
+        cls.validate_origin(origins)
+        cls.create_moves(origins)
+
+        lines = [x for o in origins for x in o.lines]
+        # It's an awful hack to set the state, but it's needed to ensure the
+        # Error of statement state in Move.post is not applied when try to
+        # concile and individual origin. For this, need the state == 'posted'.
+        statements = [o.statement for o in origins]
+        statement_state = []
+        for origin in origins:
+            statement_state.append([origin.statement])
+            statement_state.append({
+                    'state': origin.statement.state,
+                    })
+        if statements:
+            Statement.write(statements, {'state': 'posted'})
+        StatementLine.post_move(lines)
+        if statement_state:
+            Statement.write(*statement_state)
+        # End awful hack
+
+        # Check if the statement of the origin has all the origins posted, so
+        # the statement could be posted too.
+        statements_to_post = []
+        for statement in statements:
+            if all(x.state == 'posted'
+                    for x in statement.origins if x not in origins):
+                getattr(statement, 'validate_%s' % statement.validation)()
+                statements_to_post.append(statement)
+        if statements_to_post:
+            Statement.write(statements_to_post, {'state': 'posted'})
+
+    @classmethod
+    @ModelView.button
+    @Workflow.transition('cancelled')
+    def cancel(cls, origins):
+        pool = Pool()
+        MoveLine = pool.get('account.move.line')
+        StatementLine = pool.get('account.statement.line')
+        Warning = pool.get('res.user.warning')
+
+        lines = [x for origin in origins for x in origin.lines]
+        moves = dict((x.move, x.origin) for x in lines if x.move)
+        if moves:
+            warning_key = Warning.format('cancel_origin_line_with_move',
+                list(moves.keys()))
+            if Warning.check(warning_key):
+                raise StatementValidateWarning(warning_key,
+                    gettext('account_statement_enable_banking.'
+                        'msg_cancel_origin_line_with_move',
+                        moves=", ".join(m.rec_name for m in moves)))
+            StatementLine.cancel_move(moves.keys())
+            with Transaction().set_context(
+                    from_account_statement_origin=True):
+                to_write = []
+                for move, origin in moves.items():
+                    move_lines = []
+                    for line in move.lines:
+                        if line.origin in origin.lines:
+                            move_lines.append(line)
+                    to_write.extend((move_lines, {'origin': origin}))
+                if to_write:
+                    MoveLine.write(*to_write)
+            StatementLine.write(lines, {'move': None})
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
