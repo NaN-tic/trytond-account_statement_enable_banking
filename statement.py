@@ -687,7 +687,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             if (line.invoice and line.id
                     and line.invoice.id in invoice_id2amount_to_pay):
                 amount_to_pay = None
-                line_sign = 1 if line.amount >= 0 else 0
+                line_sign = 1 if (line.amount and line.amount >= 0) else 0
                 invoice_sign = (1 if invoice_id2amount_to_pay.get(
                         line.invoice.id, _ZERO) >= 0 else 0)
                 if (getattr(line, 'amount', None) and (line.amount == _ZERO
