@@ -2245,16 +2245,20 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
         company_id = Transaction().context.get('company')
         if not company_id:
             return []
-        for journal in Journal.search([('company.id', '=', company_id)]):
+        domain = [
+            ('company.id', '=', company_id),
+            ('synchronize_journal', '=', True)
+            ]
+        for journal in Journal.search(domain):
             if (journal.enable_banking_session
                     and journal.enable_banking_session.valid_until
-                    < datetime.now()):
+                    and journal.enable_banking_session.valid_until
+                        < datetime.now()):
                 journal_unsynchronized.append(journal)
         return journal_unsynchronized
 
     def transition_start(self):
-        journal_unsynchronized = self.get_journals_unsynchonized()
-        if journal_unsynchronized:
+        if self.get_journals_unsynchonized():
             return 'ask'
         return 'origin'
 
