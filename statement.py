@@ -2250,10 +2250,12 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
             ('synchronize_journal', '=', True)
             ]
         for journal in Journal.search(domain):
-            if (journal.enable_banking_session
-                    and journal.enable_banking_session.valid_until
-                    and journal.enable_banking_session.valid_until
-                        < datetime.now()):
+            if (journal.enable_banking_session is None
+                    or (journal.enable_banking_session
+                        and (journal.enable_banking_session.session is None
+                            or (journal.enable_banking_session.valid_until
+                                and journal.enable_banking_session.valid_until
+                                < datetime.now())))):
                 journal_unsynchronized.append(journal)
         return journal_unsynchronized
 
