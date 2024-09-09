@@ -253,35 +253,35 @@ class Line(metaclass=PoolMeta):
             return related_to.move.origin
 
     @property
-    @fields.depends('invoice', 'company')
+    @fields.depends('company', '_parent_company.currency',
+        'show_paid_invoices',
+        methods=['invoice', 'move_line_invoice'])
     def invoice_amount_to_pay(self):
         amount_to_pay = None
         # control the possibilty to use the move from invoice
         invoice = self.invoice or self.move_line_invoice or None
         if invoice:
-            if invoice.type == 'in':
-                sign = -1
-            else:
-                sign = 1
+            sign = -1 if invoice.type == 'in' else 1
             if invoice.currency == self.company.currency:
-                # If need to know the amount_to_pay in a statement line for a
-                # paied invoice is becasuse is needed to control the unpaied.
-                # So in this case change the sign and get the total amount.
-                if invoice.state == 'paid':
-                    amount_to_pay = -1 * invoice.total_amount
-                else:
-                    amount_to_pay = invoice.amount_to_pay
-                amount_to_pay = (sign * amount_to_pay)
+                # If we are in the case that need control a refund invoice,
+                # need to get the total amount of the invoice.
+                amount_to_pay = sign * (invoice.total_amount
+                    if self.show_paid_invoices and invoice.state == 'paid'
+                    else invoice.amount_to_pay)
             else:
                 amount = _ZERO
-                if invoice.state == 'paid':
-                    amount = -1 * sign * invoice.total_amount
-                else:
+                if invoice.state == 'posted':
                     for line in (invoice.lines_to_pay
                             + invoice.payment_lines):
                         if line.reconciliation:
                             continue
                         amount += line.debit - line.credit
+                else:
+                    # If we are in the case that need control a refund invoice,
+                    # need to get the total amount of the invoice.
+                    amount = (sign * invoice.total_amount
+                        if self.show_paid_invoices and invoice.state == 'paid'
+                        else _ZERO)
                 amount_to_pay = amount
         return amount_to_pay
 
@@ -290,14 +290,32 @@ class Line(metaclass=PoolMeta):
         if not self.show_paid_invoices:
             super().on_change_party()
 
-    @fields.depends('account', methods=['invoice', 'move_line'])
+    @fields.depends('amount', 'account', methods=['invoice', 'move_line',
+        'invoice_amount_to_pay'])
     def on_change_amount(self):
         if self.invoice:
             if self.invoice.account != self.account:
                 self.account = self.invoice.account
+            if (self.amount is not None
+                    and self.invoice_amount_to_pay is not None
+                    and ((self.amount >= 0) != (
+                            self.invoice_amount_to_pay >= 0)
+                        or (self.amount >= 0
+                            and self.amount > self.invoice_amount_to_pay)
+                        or (self.amount < 0
+                            and self.amount < self.invoice_amount_to_pay))):
+                self.amount = self.invoice_amount_to_pay
         elif self.move_line:
             if self.move_line.account != self.account:
                 self.account = self.move_line.account
+            if (self.amount is not None and self.move_line.amount is not None
+                    and ((self.amount >= 0) != (
+                            self.move_line.amount >= 0)
+                        or (self.amount >= 0
+                            and self.amount > self.move_line.amount)
+                        or (self.amount < 0
+                            and self.amount < self.move_line.amount))):
+                self.amount = self.move_line.amount
         else:
             super().on_change_amount()
 
@@ -312,7 +330,9 @@ class Line(metaclass=PoolMeta):
                 self.move_line = None
 
     @fields.depends('related_to', 'party', 'description', 'show_paid_invoices',
-        methods=['move_line'])
+        'origin', '_parent_origin.information', 'company',
+        '_parent_origin.remittance_information', '_parent_company.currency',
+        methods=['move_line', 'payment', 'invoice_amount_to_pay'])
     def on_change_related_to(self):
         pool = Pool()
         Invoice = pool.get('account.invoice')
@@ -328,6 +348,46 @@ class Line(metaclass=PoolMeta):
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
+
+        if not self.description and self.origin and self.origin.information:
+            self.description = self.origin.remittance_information
+
+        # TODO: Control when the currency is different
+        payments = set()
+        move_lines = set()
+        invoice_id2amount_to_pay = {}
+        if self.invoice and self.invoice.id not in invoice_id2amount_to_pay:
+            invoice_id2amount_to_pay[self.invoice.id] = (
+                self.invoice_amount_to_pay)
+        if self.payment and self.payment.currency == self.company.currency:
+            payments.add(self.payment)
+        if self.move_line and self.move_line.currency == self.company.currency:
+            move_lines.add(self.move_line)
+
+        payment_id2amount = (dict((x.id, x.amount) for x in payments)
+            if payments else {})
+
+        move_line_id2amount = (dict((x.id, x.amount) for x in move_lines)
+            if move_lines else {})
+
+        # As a 'core' difference, the value of the line amount must be the
+        # amount of the movement, invoice or payment. Not the line amount
+        # pending. It could induce an incorrect concept nad misunderstunding.
+        amount = None
+        if self.invoice and self.invoice.id in invoice_id2amount_to_pay:
+            amount = invoice_id2amount_to_pay.get(
+                self.invoice.id, _ZERO)
+        if self.payment and self.payment.id in payment_id2amount:
+            amount = payment_id2amount[self.payment.id]
+        if self.move_line and self.move_line.id in move_line_id2amount:
+            amount = move_line_id2amount[self.move_line.id]
+        if amount is None and self.invoice:
+            self.invoice = None
+        if amount is None and self.payment:
+            self.payment = None
+        if amount is None and self.move_line:
+            self.move_line = None
+        self.amount = amount
 
     @classmethod
     def cancel_move(cls, moves):
@@ -645,78 +705,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         cursor.execute(*query)
         return [('id', operator, [x[0] for x in cursor.fetchall()])]
 
-    @fields.depends('statement', 'lines', 'company',
-        '_parent_statement.company', '_parent_statement.journal')
-    def on_change_lines(self):
-        if (not self.statement or not self.statement.journal
-                or not self.statement.company):
-            return
-        # TODO: Control when the currency is different
-        if self.statement.journal.currency != self.statement.company.currency:
-            return
-
-        payments = set()
-        move_lines = set()
-        invoice_id2amount_to_pay = {}
-        for line in self.lines:
-            if (line.invoice
-                    and line.invoice.id not in invoice_id2amount_to_pay):
-                invoice_id2amount_to_pay[line.invoice.id] = (
-                    line.invoice_amount_to_pay)
-            if (line.payment
-                    and line.payment.currency == self.company.currency):
-                payments.add(line.payment)
-            if (line.move_line
-                    and line.move_line.currency == self.company.currency):
-                move_lines.add(line.move_line)
-            if (not line.description and line.origin
-                    and line.origin.information):
-                line.description = line.origin.remittance_information
-
-        payment_id2amount = (dict((x.id, x.amount) for x in payments)
-            if payments else {})
-
-        move_line_id2amount = (dict((x.id, x.amount) for x in move_lines)
-            if move_lines else {})
-
-        # As a 'core' difference, the value of the line amount must be the
-        # amount of the movement, invoice or payment. Not the line amount
-        # pending. It could induce an incorrect concept nad misunderstunding.
-        lines = list(self.lines)
-        for line in lines:
-            if (line.invoice and line.id
-                    and line.invoice.id in invoice_id2amount_to_pay):
-                amount_to_pay = None
-                line_sign = 1 if (line.amount and line.amount >= 0) else 0
-                invoice_sign = (1 if invoice_id2amount_to_pay.get(
-                        line.invoice.id, _ZERO) >= 0 else 0)
-                if (getattr(line, 'amount', None) and (line.amount == _ZERO
-                            or line_sign != invoice_sign
-                            or (line_sign == invoice_sign
-                                and abs(line.amount) > abs(
-                                    invoice_id2amount_to_pay.get(
-                                        line.invoice.id, _ZERO))))):
-                    amount_to_pay = invoice_id2amount_to_pay[line.invoice.id]
-                if amount_to_pay:
-                    line.amount = amount_to_pay
-                elif not getattr(line, 'amount', None):
-                    line.invoice = None
-            if (line.payment and line.id
-                    and line.payment.id in payment_id2amount):
-                amount = payment_id2amount[line.payment.id]
-                if amount and getattr(line, 'amount', None):
-                    line.amount = amount
-                else:
-                    line.payment = None
-            if (line.move_line and line.id
-                    and line.move_line.id in move_line_id2amount):
-                amount = move_line_id2amount[line.move_line.id]
-                if amount and getattr(line, 'amount', None):
-                    line.amount = amount
-                else:
-                    line.move_line = None
-        self.lines = lines
-
     def validate_amount(self):
         pool = Pool()
         Lang = pool.get('ir.lang')
@@ -740,6 +728,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         '''
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
+        Invoice = pool.get('account.invoice')
         Warning = pool.get('res.user.warning')
 
         paid_cancelled_invoice_lines = []
@@ -756,10 +745,21 @@ class Origin(Workflow, metaclass=PoolMeta):
                             ])
                     if not repeated and line.invoice:
                         repeated = StatementLine.search([
-                                ('related_to', 'in', line.invoice.lines_to_pay),
+                                ('related_to', 'in',
+                                    line.invoice.lines_to_pay),
+                                ('origin.state', '=', 'posted'),
+                                ])
+                    if (not repeated and line.move_line
+                            and line.move_line.move_origin
+                            and isinstance(
+                                line.move_line.move_origin, Invoice)):
+                        repeated = StatementLine.search([
+                                ('related_to', '=',
+                                    line.move_line.move_origin),
                                 ('origin.state', '=', 'posted'),
                                 ])
                     if repeated:
+                        invoice_amount_to_pay = line.invoice_amount_to_pay
                         if line.invoice and line.show_paid_invoices:
                             # returned recipt
                             # Unlink the account move from the account statement line
@@ -768,10 +768,15 @@ class Origin(Workflow, metaclass=PoolMeta):
                                     'related_to': None,
                                     })
                             continue
-                        elif (line.invoice_amount_to_pay
-                                and line.amount <= line.invoice_amount_to_pay):
-                            # partial payment or pay agin a returned recipt
-                            continue
+                        elif invoice_amount_to_pay is not None:
+                            # partial payment
+                            line_sign = 1 if line.amount >= 0 else 0
+                            invoice_sign = (1
+                                if invoice_amount_to_pay >= 0 else 0)
+                            if (line_sign == invoice_sign
+                                    and abs(line.amount) <= abs(
+                                        invoice_amount_to_pay)):
+                                continue
                         raise AccessError(
                             gettext('account_statement_enable_banking.'
                                 'msg_repeated_realted_to_used',
@@ -1621,10 +1626,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         Invoice = pool.get('account.invoice')
 
         if isinstance(related, Invoice):
-            if related.type == 'in':
-                sign = -1
-            else:
-                sign = 1
+            sign = -1 if related.type == 'in' else 1
             if hasattr(related, 'company_total_amount'):
                 amount = sign * related.company_total_amount
             else:
