@@ -3,6 +3,10 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
+        <record model="ir.action.report" id="account_statement.report_statement">
+            <field name="active" eval="False"/>
+        </record>
+
         <!-- account.statement -->
         <record model="ir.ui.view" id="statement_view_tree">
             <field name="model">account.statement</field>
