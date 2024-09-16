@@ -283,6 +283,8 @@ class Line(metaclass=PoolMeta):
                         if self.show_paid_invoices and invoice.state == 'paid'
                         else _ZERO)
                 amount_to_pay = amount
+        if self.show_paid_invoices and amount_to_pay:
+            amount_to_pay = -1 * amount_to_pay
         return amount_to_pay
 
     @fields.depends('show_paid_invoices')
