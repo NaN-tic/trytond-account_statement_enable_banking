@@ -408,7 +408,7 @@ class Line(metaclass=PoolMeta):
                         x.id for x in to_unreconcile])
                 Reconciliation.delete(to_unreconcile)
 
-            # On possible realted invoices, need to unlink the payment
+            # On possible related invoices, need to unlink the payment
             # lines
             to_unpay = [x for x in move.lines if x.invoice_payment]
             if to_unpay:
@@ -782,7 +782,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                                 continue
                         raise AccessError(
                             gettext('account_statement_enable_banking.'
-                                'msg_repeated_realted_to_used',
+                                'msg_repeated_related_to_used',
                                 related_to=str(line.related_to),
                                 origin=(repeated[0].origin.rec_name
                                     if repeated[0].origin else '')))
@@ -1627,15 +1627,22 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         Invoice = pool.get('account.invoice')
+        Date = pool.get('ir.date')
+        Currency = pool.get('currency.currency')
 
         if isinstance(related, Invoice):
             sign = -1 if related.type == 'in' else 1
-            if hasattr(related, 'company_total_amount'):
-                amount = sign * related.company_total_amount
-            else:
-                amount = sign * related.total_amount
+            amount = sign * related.amount_to_pay
             second_currency = related.currency
-            amount_second_currency = sign * related.total_amount
+            if origin.second_currency:
+                second_currency_date = related.currency_date or Date.today()
+                with Transaction().set_context(date=second_currency_date):
+                    amount_to_pay = Currency.compute(second_currency,
+                        related.amount_to_pay, origin.company.currency,
+                        round=True)
+                amount_second_currency = sign * amount_to_pay
+            else:
+                amount_second_currency = sign * related.amount_to_pay
         else:
             amount=related.amount
             second_currency = related.second_currency
