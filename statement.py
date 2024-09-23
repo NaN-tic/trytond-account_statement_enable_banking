@@ -175,6 +175,7 @@ class Line(metaclass=PoolMeta):
             If(Bool(Eval('account')),
                 ('account', '=', Eval('account')),
                 ()),
+            ('move_state', '=', 'posted'),
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
@@ -2085,6 +2086,7 @@ class AddMultipleMoveLinesStart(ModelView):
                ),
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
+            ('move_state', '=', 'posted'),
             ('reconciliation', '=', None),
             ], required=True)
 
