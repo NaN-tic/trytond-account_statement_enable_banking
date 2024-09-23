@@ -677,7 +677,7 @@ msgctxt "model:ir.message,text:msg_payments"
 msgid "Payments"
 msgstr "Pagos"
 
-msgctxt "model:ir.message,text:msg_repeated_realted_to_used"
+msgctxt "model:ir.message,text:msg_repeated_related_to_used"
 msgid ""
 "The related \"%(related_to)s\" is usde in a line of the posted origin "
 "\"%(origin)s.\""
