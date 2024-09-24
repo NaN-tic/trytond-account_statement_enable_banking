@@ -10,6 +10,7 @@ from . import statement
 from . import statement_aeb43
 from . import statement_analytic
 from . import invoice
+from . import account_bank
 
 __all__ = ['register', 'routes']
 
@@ -44,6 +45,10 @@ def register():
     Pool.register(
         statement_aeb43.ImportStatement,
         depends=['account_statement_aeb43'],
+        module='account_statement_enable_banking', type_='wizard')
+    Pool.register(
+        account_bank.CompensationMove,
+        depends=['account_bank'],
         module='account_statement_enable_banking', type_='wizard')
     Pool.register(
         statement_analytic.Line,
