@@ -426,7 +426,7 @@ class Line(metaclass=PoolMeta):
                 MoveLine.reconcile(*mlines)
 
     @classmethod
-    def cancel_lines(cls, lines):
+    def cancel_lines(cls, lines, origin=None):
         '''As is needed save an history fo all movements, do not remove the
         possible move related. Create the cancelation move and leave they
         related to the statement and the origin, to have an hstory.
@@ -460,8 +460,11 @@ class Line(metaclass=PoolMeta):
             if x.suggested_line]
         suggested_lines.extend(list(set([x.parent
                         for x in suggested_lines if x.parent])))
-        if suggested_lines:
+        cls.write(lines, {'suggested_line': None})
+        if suggested_lines and (origin is None or origin == 'delete_move'):
             SuggestedLine.propose(suggested_lines)
+        elif suggested_lines:
+            SuggestedLine.delete(suggested_lines)
 
     @classmethod
     def reconcile(cls, move_lines):
@@ -534,7 +537,7 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def delete(cls, lines):
-        cls.cancel_lines(lines)
+        cls.cancel_lines(lines, origin='delete')
         for line in lines:
             if line.statement_state not in {
                     'cancelled', 'registered', 'draft'}:
@@ -550,7 +553,7 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def delete_move(cls, lines):
-        cls.cancel_lines(lines)
+        cls.cancel_lines(lines, origin='delete_move')
         super().delete_move(lines)
 
     def get_move_line(self):
@@ -857,7 +860,6 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         if move_lines:
             MoveLine.save([x for x, _ in move_lines])
-            StatementLine.reconcile(move_lines)
 
         # Ensure that any related_to posted lines are not in another registered
         # origin or suggested. Except for the paid invoice process or the
@@ -879,11 +881,20 @@ class Origin(Workflow, metaclass=PoolMeta):
                     related_tos.append(line.related_to)
                 if line.suggested_line:
                     suggested_ids.append(line.suggested_line.id)
-            lines_to_remove = StatementLine.search([
+            lines = StatementLine.search([
                     ('related_to', 'in', related_tos),
                     ('id', 'not in', line_ids),
                     ('show_paid_invoices', '=', False),
                     ])
+            lines_not_allowed = [l for l in lines if l.origin.state == 'posted']
+            lines_to_remove = [l for l in lines if l.origin.state != 'posted']
+            if lines_not_allowed:
+                raise AccessError(
+                    gettext('account_statement_enable_banking.'
+                        'msg_repeated_related_to_used',
+                        realted_to=lines_not_allowed[0].related_to,
+                        origin=(lines_not_allowed[0].origin.rec_name
+                            if lines_not_allowed[0].origin else '')))
             if lines_to_remove:
                 StatementLine.delete(lines_to_remove)
 
@@ -893,6 +904,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ])
             if suggest_to_remove:
                 StatementSuggest.delete(suggest_to_remove)
+        # Reconcile at the end to avoid problems with the related_to lines
+        if move_lines:
+            StatementLine.reconcile(move_lines)
         return moves
 
     def similarity_parties(self, compare, similarity_threshold=0.13):
