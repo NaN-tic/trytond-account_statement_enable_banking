@@ -64,3 +64,30 @@ class MoveLine(metaclass=PoolMeta):
                 False):
             return
         return super().check_modify(*args, **kwargs)
+
+    @classmethod
+    def reconcile(cls, *lines_list, date=None, writeoff=None, description=None,
+            delegate_to=None):
+        pool = Pool()
+        StatementLine = pool.get('account.statement.line')
+        StatementSuggest = pool.get('account.statement.origin.suggested.line')
+
+        # If are reocniling move lines that ara in some statement line related
+        # or some suggested lines related. Remove the statement or suggested.
+        lines = [line for lines in lines_list for line in lines]
+        statement_lines_to_remove = StatementLine.search([
+                ('related_to', 'in', lines),
+                ('origin.state', '!=', 'posted'),
+                ])
+        if statement_lines_to_remove:
+            StatementLine.delete(statement_lines_to_remove)
+
+        suggest_to_remove = StatementSuggest.search([
+                ('related_to', 'in', lines),
+                ('origin.state', '!=', 'posted'),
+                ])
+        if suggest_to_remove:
+            StatementSuggest.delete(suggest_to_remove)
+
+        return super().reconcile(*lines_list, date=date, writeoff=writeoff,
+            description=description, delegate_to=delegate_to)
