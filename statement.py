@@ -477,6 +477,7 @@ class Line(metaclass=PoolMeta):
         to_reconcile = {}
         invoice_to_save = []
         move_to_reconcile = {}
+        statement_lines = []
         for move_line, statement_line in move_lines:
             if not statement_line:
                 continue
@@ -526,14 +527,17 @@ class Line(metaclass=PoolMeta):
                 else:
                     move_to_reconcile[key] = [
                         (move_line, statement_line.move_line)]
+            statement_lines.append(statement_line.id)
         if invoice_to_save:
             Invoice.save(list(set(invoice_to_save)))
         if to_reconcile:
             for _, value in to_reconcile.items():
                 super().reconcile(value)
         if move_to_reconcile:
-            for _, value in move_to_reconcile.items():
-                MoveLine.reconcile(*value)
+            with Transaction().set_context(
+                    account_statement_lines=statement_lines):
+                for _, value in move_to_reconcile.items():
+                    MoveLine.reconcile(*value)
 
     @classmethod
     def delete(cls, lines):
