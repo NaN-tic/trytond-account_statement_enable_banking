@@ -75,10 +75,16 @@ class MoveLine(metaclass=PoolMeta):
         # If are reocniling move lines that ara in some statement line related
         # or some suggested lines related. Remove the statement or suggested.
         lines = [line for lines in lines_list for line in lines]
-        statement_lines_to_remove = StatementLine.search([
-                ('related_to', 'in', lines),
-                ('origin.state', '!=', 'posted'),
-                ])
+        domain = [
+            ('related_to', 'in', lines),
+            ('origin.state', '!=', 'posted'),
+            ]
+        statement_lines = Transaction().context.get(
+            'account_statement_lines', [])
+        if statement_lines:
+            domain.append(('id', 'not in', statement_lines))
+
+        statement_lines_to_remove = StatementLine.search(domain)
         if statement_lines_to_remove:
             StatementLine.delete(statement_lines_to_remove)
 
