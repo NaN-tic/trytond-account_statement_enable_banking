@@ -682,7 +682,7 @@ msgid ""
 "The related \"%(related_to)s\" is usde in a line of the posted origin "
 "\"%(origin)s.\""
 msgstr ""
-"El relacionado \"%( related_to)s\" se utiliza en una línea del origen "
+"El relacionado \"%(related_to)s\" se utiliza en una línea del origen "
 "contabilizado \"%(origin)s\"."
 
 msgctxt "model:ir.message,text:msg_similarity"
