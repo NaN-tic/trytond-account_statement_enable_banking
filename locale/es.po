@@ -508,10 +508,6 @@ msgctxt "model:enable_banking.synchronize_statement.start,name:"
 msgid "Synchronize Statement Enable Banking Start"
 msgstr "Sincronizar Asientos Enable Banking Inicio"
 
-msgctxt "model:ir.action,name:"
-msgid "Moves"
-msgstr "Asientos"
-
 msgctxt ""
 "model:ir.action,name:act_account_statement_origin_suggested_line_view"
 msgid "Account Statement Origin Suggested Line"
