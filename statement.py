@@ -179,6 +179,7 @@ class Line(metaclass=PoolMeta):
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
             ('reconciliation', '=', None),
+            ('invoice_payment', '=', None),
             ]
         cls.statement.states['readonly'] = _states['readonly']
         cls.number.states['readonly'] = _states['readonly']
@@ -1320,6 +1321,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('move_state', '=', 'posted'),
             ('reconciliation', '=', None),
             ('account.reconcile', '=', True),
+            ('invoice_payment', '=', None),
             ]
         if second_currency:
             domain.append(('second_currency', '=', second_currency))
@@ -1897,6 +1899,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 ('account.reconcile', '=', True),
                 ('state', '=', 'valid'),
                 ('reconciliation', '=', None),
+                ('invoice_payment', '=', None),
                 ],
             })
     similarity = fields.Integer('Similarity',
@@ -2106,6 +2109,7 @@ class AddMultipleMoveLinesStart(ModelView):
             ('state', '=', 'valid'),
             ('move_state', '=', 'posted'),
             ('reconciliation', '=', None),
+            ('invoice_payment', '=', None),
             ], required=True)
 
 
