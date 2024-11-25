@@ -890,6 +890,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ('related_to', 'in', related_tos),
                     ('id', 'not in', line_ids),
                     ('show_paid_invoices', '=', False),
+                    ('origin', '!=', None),
                     ])
             lines_not_allowed = [l for l in lines if l.origin.state == 'posted']
             lines_to_remove = [l for l in lines if l.origin.state != 'posted']
