@@ -264,7 +264,7 @@ class Line(metaclass=PoolMeta):
         invoice = self.invoice or self.move_line_invoice or None
         if invoice:
             sign = -1 if invoice.type == 'in' else 1
-            if invoice.currency == self.company.currency:
+            if invoice.currency == self.currency:
                 # If we are in the case that need control a refund invoice,
                 # need to get the total amount of the invoice.
                 amount_to_pay = sign * (invoice.total_amount
@@ -360,6 +360,7 @@ class Line(metaclass=PoolMeta):
         payments = set()
         move_lines = set()
         invoice_id2amount_to_pay = {}
+
         if self.invoice and self.invoice.id not in invoice_id2amount_to_pay:
             invoice_id2amount_to_pay[self.invoice.id] = (
                 self.invoice_amount_to_pay)
