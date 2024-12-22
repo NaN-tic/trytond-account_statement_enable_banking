@@ -2028,6 +2028,8 @@ class AddMultipleInvoices(Wizard):
             'company': self.record.company.id,
             'currency': (self.record.second_currency.id
                 if self.record.second_currency else self.record.currency.id),
+            'amount': self.record.amount,
+            'pending_amount': self.record.pending_amount,
             }
 
     def transition_create_lines(self):
@@ -2057,6 +2059,10 @@ class AddMultipleInvoicesStart(ModelView):
             ('currency', '=', Eval('currency', -1)),
             ('state', '=', 'posted'),
             ], required=True)
+    amount = Monetary("Amount", currency='currency', digits='currency',
+        readonly=True)
+    pending_amount = Monetary("Pending Amount", currency='currency', digits='currency',
+        readonly=True)
 
 
 class AddMultipleMoveLines(Wizard):
@@ -2076,6 +2082,8 @@ class AddMultipleMoveLines(Wizard):
             'currency': self.record.currency.id,
             'second_currency': (self.record.second_currency.id
                 if self.record.second_currency else None),
+            'amount': self.record.amount,
+            'pending_amount': self.record.pending_amount,
             }
 
     def transition_create_lines(self):
@@ -2113,6 +2121,10 @@ class AddMultipleMoveLinesStart(ModelView):
             ('reconciliation', '=', None),
             ('invoice_payment', '=', None),
             ], required=True)
+    amount = Monetary("Amount", currency='currency', digits='currency',
+        readonly=True)
+    pending_amount = Monetary("Pending Amount", currency='currency', digits='currency',
+        readonly=True)
 
 
 class SynchronizeStatementEnableBankingStart(ModelView):
