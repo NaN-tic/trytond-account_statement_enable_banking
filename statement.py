@@ -741,6 +741,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         Invoice = pool.get('account.invoice')
+        InvoiceTax = pool.get('account.invoice.tax')
         Warning = pool.get('res.user.warning')
 
         paid_cancelled_invoice_lines = []
@@ -749,6 +750,9 @@ class Origin(Workflow, metaclass=PoolMeta):
 
             for line in origin.lines:
                 if line.related_to:
+                    # Try to find if the related_to is used in another
+                    # posted origin, may be from the account move or from the
+                    # possible realted invoice. But with the tax exception.
                     repeated = StatementLine.search([
                             ('related_to', '=', line.related_to),
                             ('id', '!=', line.id),
@@ -764,7 +768,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     if (not repeated and line.move_line
                             and line.move_line.move_origin
                             and isinstance(
-                                line.move_line.move_origin, Invoice)):
+                                line.move_line.move_origin, Invoice)
+                            and (not line.move_line.origin
+                                or not isinstance(
+                                line.move_line.origin, InvoiceTax))):
                         repeated = StatementLine.search([
                                 ('related_to', '=',
                                     line.move_line.move_origin),
