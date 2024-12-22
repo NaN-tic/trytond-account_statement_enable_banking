@@ -102,6 +102,10 @@ msgctxt "field:account.statement.origin,suggested_lines_tree:"
 msgid "Suggested Lines"
 msgstr "Línies suggerides"
 
+msgctxt "field:account.statement.origin.multiple.invoices.start,amount:"
+msgid "Amount"
+msgstr "Import"
+
 msgctxt "field:account.statement.origin.multiple.invoices.start,company:"
 msgid "Company"
 msgstr "Companyia"
@@ -114,6 +118,15 @@ msgctxt "field:account.statement.origin.multiple.invoices.start,invoices:"
 msgid "Invoices"
 msgstr "Factures"
 
+msgctxt ""
+"field:account.statement.origin.multiple.invoices.start,pending_amount:"
+msgid "Pending Amount"
+msgstr "Import pendent"
+
+msgctxt "field:account.statement.origin.multiple.move_lines.start,amount:"
+msgid "Amount"
+msgstr "Import"
+
 msgctxt "field:account.statement.origin.multiple.move_lines.start,company:"
 msgid "Company"
 msgstr "Companyia"
@@ -125,6 +138,11 @@ msgstr "Moneda"
 msgctxt "field:account.statement.origin.multiple.move_lines.start,move_lines:"
 msgid "Move Lines"
 msgstr "Apunts"
+
+msgctxt ""
+"field:account.statement.origin.multiple.move_lines.start,pending_amount:"
+msgid "Pending Amount"
+msgstr "Import pendent"
 
 msgctxt ""
 "field:account.statement.origin.multiple.move_lines.start,second_currency:"
