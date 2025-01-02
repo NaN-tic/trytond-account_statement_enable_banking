@@ -5,6 +5,7 @@ from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
 from itertools import groupby, chain
+from sql.conditionals import Greatest
 from sql.functions import Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
@@ -923,14 +924,14 @@ class Origin(Workflow, metaclass=PoolMeta):
             StatementLine.reconcile(move_lines)
         return moves
 
-    def similarity_parties(self, compare, similarity_threshold=0.13):
+    def similarity_parties(self, compare, threshold=0.13):
         """
         This function return a dictionary with the possible parties ID on
         'key' and the similairty on 'value'.
         It compare the 'compare' value with the parties name, based on the
         similarities journal deffined values.
         Set the similarity threshold to 0.13 as is the minimum value detecte
-        that return a correct match wiht multiples words in compare field.
+        that return a correct match with multiple words in compare field.
         """
         pool = Pool()
         Party = pool.get('party.party')
@@ -940,27 +941,18 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not compare:
             return
 
-        similarity_parties = {}
-        similarity_party = Similarity(party_table.name, compare)
+        similarity = Similarity(party_table.name, compare)
         if hasattr(Party, 'trade_name'):
-            similarity_party_trade = Similarity(party_table.trade_name,
-                compare)
-            where = ((similarity_party >= similarity_threshold) | (
-                    (party_table.trade_name != None)
-                    & (similarity_party_trade >= similarity_threshold)))
-        else:
-            where = (similarity_party >= similarity_threshold)
-        query = party_table.select(party_table.id, similarity_party,
-            where=where)
+            similarity = Greatest(similarity, Similarity(party_table.trade_name,
+                compare))
+        query = party_table.select(party_table.id, similarity,
+            where=(similarity >= threshold))
         cursor.execute(*query)
-        for similarity in cursor.fetchall():
-            similarity_parties[similarity[0]] = round(similarity[1] * 10)
-        if not similarity_parties:
-            compare_split = compare.split()
-            if len(compare_split) > 1:
-                for compare in compare_split:
-                    self.similarity_parties(compare, 0.3)
-        return similarity_parties
+
+        parties = {}
+        for party, similarity in cursor.fetchall():
+            parties[party] = round(similarity * 10)
+        return parties
 
     def increase_similarity_by_interval_date(self, date, interval_date=None,
             similarity=0):
