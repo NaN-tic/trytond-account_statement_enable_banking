@@ -168,8 +168,10 @@ class Line(metaclass=PoolMeta):
             ('company', '=', Eval('company', -1)),
             If(Eval('second_currency'),
                 ('second_currency', '=', Eval('second_currency', -1)),
-                ('currency', '=', Eval('currency', -1)),
-               ),
+                If(Eval('company_currency') == Eval('currency'),
+                    ('currency', '=', Eval('currency', -1)),
+                    ('second_currency', '=', Eval('currency', -1))
+                    )),
             If(Bool(Eval('party')),
                 ('party', '=', Eval('party')),
                 ()),
@@ -360,6 +362,7 @@ class Line(metaclass=PoolMeta):
         # TODO: Control when the currency is different
         payments = set()
         move_lines = set()
+        move_lines_second_currency = set()
         invoice_id2amount_to_pay = {}
 
         if self.invoice and self.invoice.id not in invoice_id2amount_to_pay:
@@ -368,13 +371,20 @@ class Line(metaclass=PoolMeta):
         if self.payment and self.payment.currency == self.company.currency:
             payments.add(self.payment)
         if self.move_line and self.move_line.currency == self.company.currency:
-            move_lines.add(self.move_line)
+            if self.currency == self.move_line.currency:
+                move_lines.add(self.move_line)
+            else:
+                move_lines_second_currency.add(self.move_line)
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
 
-        move_line_id2amount = (dict((x.id, x.amount) for x in move_lines)
-            if move_lines else {})
+        move_line_id2amount = (dict((x.id, x.debit-x.credit)
+            for x in move_lines) if move_lines else {})
+
+        move_line_id2amount.update(dict((x.id, x.amount)
+                for x in move_lines_second_currency)
+            if move_lines_second_currency else {})
 
         # As a 'core' difference, the value of the line amount must be the
         # amount of the movement, invoice or payment. Not the line amount
