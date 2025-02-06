@@ -504,15 +504,15 @@ class Line(metaclass=PoolMeta):
                             invoice.reconciliation_lines)))
                 payments = []
                 for line in payment_lines:
-                    payments.extend([p for l in line.reconciliation.lines
-                            for p in l.payments
-                            if l.id != line.id and line.reconciliation])
-                    # Temporally, need to allow
-                    # from_account_bank_statement_line, until all is move
-                    # from the old bank_statement to the new statement.
-                    with Transaction().set_context(_skip_warnings=True,
-                            from_account_bank_statement_line=True):
-                        Reconcile.delete([line.reconciliation])
+                    if line.reconciliation:
+                        payments.extend([p for l in line.reconciliation.lines
+                                for p in l.payments if l.id != line.id])
+                        # Temporally, need to allow
+                        # from_account_bank_statement_line, until all is move
+                        # from the old bank_statement to the new statement.
+                        with Transaction().set_context(_skip_warnings=True,
+                                from_account_bank_statement_line=True):
+                            Reconcile.delete([line.reconciliation])
                     if line.move not in invoice.additional_moves:
                         additional_moves.append(line.move)
                     reconcile.append(line)
