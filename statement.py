@@ -505,7 +505,8 @@ class Line(metaclass=PoolMeta):
                 payments = []
                 for line in payment_lines:
                     payments.extend([p for l in line.reconciliation.lines
-                            for p in l.payments if l.id != line.id])
+                            for p in l.payments
+                            if l.id != line.id and line.reconciliation])
                     # Temporally, need to allow
                     # from_account_bank_statement_line, until all is move
                     # from the old bank_statement to the new statement.
