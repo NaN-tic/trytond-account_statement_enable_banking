@@ -272,11 +272,15 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.state = 'registered'
                     statement_origin.statement = statement
                     statement_origin.company = self.company
+                    statement_origin.description = (", ".join(transaction.get(
+                                'remittance_information', [])))
                     statement_origin.currency = self.currency
                     statement_origin.amount = (
-                            transaction['transaction_amount']['amount'])
-                    if (transaction['credit_debit_indicator'] and
-                            transaction['credit_debit_indicator'] == 'DBIT'):
+                        transaction.get('transaction_amount', {}).get(
+                            'amount', None))
+                    if (transaction.get('credit_debit_indicator')
+                            and transaction.get('credit_debit_indicator', '')
+                            == 'DBIT'):
                         statement_origin.amount = -statement_origin.amount
                     balance_after_transaction = transaction.get(
                         'balance_after_transaction', {})
