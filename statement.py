@@ -2006,6 +2006,8 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
         to_create = []
         for recomend in recomended:
+            if recomend.origin.state == 'posted':
+                continue
             childs = recomend.childs if recomend.childs else [recomend]
             for child in childs:
                 if child.state == 'used':
