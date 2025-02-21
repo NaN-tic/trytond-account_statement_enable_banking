@@ -899,7 +899,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     continue
                 # partial payment. In this point the invoice is payed or
                 # partial payed, so the invoice.amount_to_pay >= 0.
-                if line.invoice and line.invoice.amount_to_pay >= 0:
+                if line.invoice and line.invoice_amount_to_pay != 0:
                     continue
                 line_ids.append(line.id)
                 if line.related_to:
