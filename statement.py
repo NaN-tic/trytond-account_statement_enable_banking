@@ -918,7 +918,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_repeated_related_to_used',
-                        realted_to=lines_not_allowed[0].related_to,
+                        realted_to=str(lines_not_allowed[0].related_to),
                         origin=(lines_not_allowed[0].origin.rec_name
                             if lines_not_allowed[0].origin else '')))
             if lines_to_remove:
