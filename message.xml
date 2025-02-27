@@ -36,9 +36,6 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_origin_pending_amount">
             <field name="text">The origin could not be reconciled because the amount of the lines "%(line_amount)s" and the amount of the origin "%(origin_amount)s" differ.</field>
         </record>
-        <record model="ir.message" id="msg_origin_line_with_move">
-            <field name="text">The line has move "%(move)s" related to it. Deleting the line will create a cancelled move for that move. Do you want to continue?</field>
-        </record>
         <record model="ir.message" id="msg_cancel_origin_line_with_move">
             <field name="text">The lines of this origin has moves "%(moves)s" related to them. Cancel the origin will unlink that moves and will create a cancell move for each related move. Do you want to continue?</field>
         </record>
