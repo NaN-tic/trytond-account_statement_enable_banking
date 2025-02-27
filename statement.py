@@ -439,47 +439,6 @@ class Line(metaclass=PoolMeta):
                 MoveLine.reconcile(*mlines)
 
     @classmethod
-    def cancel_lines(cls, lines, origin=None):
-        '''As is needed save an history fo all movements, do not remove the
-        possible move related. Create the cancelation move and leave they
-        related to the statement and the origin, to have an hstory.
-        '''
-        pool = Pool()
-        MoveLine = pool.get('account.move.line')
-        SuggestedLine = pool.get('account.statement.origin.suggested.line')
-        Warning = pool.get('res.user.warning')
-
-        moves = set()
-        mlines = []
-        for line in lines:
-            if line.move:
-                warning_key = Warning.format(
-                    'origin_line_with_move', [line.move.id])
-                if Warning.check(warning_key):
-                    raise StatementValidateWarning(warning_key,
-                        gettext('account_statement_enable_banking.'
-                            'msg_origin_line_with_move',
-                            move=line.move.rec_name))
-                for mline in line.move.lines:
-                    if mline.origin == line:
-                        mlines.extend(([mline], {'origin': line.origin}))
-                moves.add(line.move)
-        if mlines:
-            with Transaction().set_context(from_account_statement_origin=True):
-                MoveLine.write(*mlines)
-        cls.cancel_move(list(moves))
-
-        suggested_lines = [x.suggested_line for x in lines
-            if x.suggested_line]
-        suggested_lines.extend(list(set([x.parent
-                        for x in suggested_lines if x.parent])))
-        cls.write(lines, {'suggested_line': None})
-        if suggested_lines and (origin is None or origin == 'delete_move'):
-            SuggestedLine.propose(suggested_lines)
-        elif suggested_lines:
-            SuggestedLine.delete(suggested_lines)
-
-    @classmethod
     def reconcile(cls, move_lines):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
@@ -555,7 +514,6 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def delete(cls, lines):
-        cls.cancel_lines(lines, origin='delete')
         for line in lines:
             if line.statement_state not in {
                     'cancelled', 'registered', 'draft'}:
@@ -568,11 +526,6 @@ class Line(metaclass=PoolMeta):
         # Use __func__ to directly access ModelSQL's delete method and
         # pass it the right class
         ModelSQL.delete.__func__(cls, lines)
-
-    @classmethod
-    def delete_move(cls, lines):
-        cls.cancel_lines(lines, origin='delete_move')
-        super().delete_move(lines)
 
     def get_move_line(self):
         line = super().get_move_line()
