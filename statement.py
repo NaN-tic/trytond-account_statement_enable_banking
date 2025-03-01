@@ -126,8 +126,8 @@ class Line(metaclass=PoolMeta):
 
     maturity_date = fields.Date("Maturity Date",
         states={
-            'invisible': Bool(Eval('related_to')),
-            'readonly': Eval('origin_state') != 'registered',
+            'readonly': ((Eval('origin_state') != 'registered')
+                | Bool(Eval('related_to'))),
             },
         depends=['related_to'],
         help="Set a date to make the line payable or receivable.")
@@ -352,6 +352,7 @@ class Line(metaclass=PoolMeta):
                 self.description = (self.move_line.description
                     or self.move_line.move_description_used)
             self.account = self.move_line.account
+            self.maturity_date = self.move_line.maturity_date or None
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
