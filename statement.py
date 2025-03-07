@@ -262,10 +262,15 @@ class Line(metaclass=PoolMeta):
         'show_paid_invoices',
         methods=['invoice', 'move_line_invoice'])
     def invoice_amount_to_pay(self):
+        pool = Pool()
+        Invoice = pool.get('account.invoice')
+
         amount_to_pay = None
         # control the possibilty to use the move from invoice
         invoice = self.invoice or self.move_line_invoice or None
         if invoice:
+            with Transaction().set_context(with_payment=False):
+                invoice, = Invoice.browse([invoice])
             sign = -1 if invoice.type == 'in' else 1
             if invoice.currency == self.currency:
                 # If we are in the case that need control a refund invoice,
@@ -1624,18 +1629,20 @@ class Origin(Workflow, metaclass=PoolMeta):
         Currency = pool.get('currency.currency')
 
         if isinstance(related, Invoice):
-            sign = -1 if related.type == 'in' else 1
-            amount = sign * related.amount_to_pay
-            second_currency = related.currency
+            with Transaction().set_context(with_payment=False):
+                invoice, = Invoice.browse([related])
+            sign = -1 if invoice.type == 'in' else 1
+            amount = sign * invoice.amount_to_pay
+            second_currency = invoice.currency
             if origin.second_currency:
-                second_currency_date = related.currency_date or Date.today()
+                second_currency_date = invoice.currency_date or Date.today()
                 with Transaction().set_context(date=second_currency_date):
                     amount_to_pay = Currency.compute(second_currency,
-                        related.amount_to_pay, origin.company.currency,
+                        invoice.amount_to_pay, origin.company.currency,
                         round=True)
                 amount_second_currency = sign * amount_to_pay
             else:
-                amount_second_currency = sign * related.amount_to_pay
+                amount_second_currency = sign * invoice.amount_to_pay
         else:
             amount=related.amount
             second_currency = related.second_currency
