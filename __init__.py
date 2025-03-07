@@ -5,14 +5,13 @@ from trytond.pool import Pool
 from . import account
 from . import enable_banking
 from . import journal
-from . import routes
 from . import statement
 from . import statement_aeb43
 from . import statement_analytic
 from . import invoice
 from . import account_bank
+from . import move
 
-__all__ = ['register', 'routes']
 
 def register():
     Pool.register(
@@ -56,4 +55,8 @@ def register():
         statement_analytic.OriginSuggestedLine,
         statement_analytic.AnalyticAccountEntry,
         depends=['analytic_account'],
+        module='account_statement_enable_banking', type_='model')
+    Pool.register(
+        move.Move,
+        depends=['account_es'],
         module='account_statement_enable_banking', type_='model')
