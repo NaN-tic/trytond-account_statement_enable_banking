@@ -407,37 +407,38 @@ class Line(metaclass=PoolMeta):
         self.amount = amount
 
     @classmethod
-    def cancel_move(cls, moves):
+    def cancel_lines(cls, lines):
         pool = Pool()
+        Warning = pool.get('res.user.warning')
         Move = pool.get('account.move')
-        MoveLine = pool.get('account.move.line')
         Reconciliation = pool.get('account.move.reconciliation')
         Invoice = pool.get('account.invoice')
 
-        for move in moves:
-            to_unreconcile = [x.reconciliation for x in move.lines
-                if x.reconciliation]
-            if to_unreconcile:
-                to_unreconcile = Reconciliation.browse([
-                        x.id for x in to_unreconcile])
-                Reconciliation.delete(to_unreconcile)
-
-            # On possible related invoices, need to unlink the payment
-            # lines
-            to_unpay = [x for x in move.lines if x.invoice_payment]
-            if to_unpay:
-                Invoice.remove_payment_lines(to_unpay)
-
-            cancel_move = move.cancel(reversal=True)
-            cancel_move.origin = move.origin
-            Move.post([cancel_move])
-            mlines = [l for m in [move, cancel_move]
-                for l in m.lines if l.account.reconcile]
-            mlines.sort(key=lambda x: (x.party, x.account))
-            mlines = [list(l) for _, l in groupby(mlines,
-                    key=lambda x: (x.party, x.account))]
-            if mlines:
-                MoveLine.reconcile(*mlines)
+        moves = []
+        for line in lines:
+            if line.move:
+                warning_key = Warning.format(
+                    'origin_line_with_move', [line.move.id])
+                if Warning.check(warning_key):
+                    raise StatementValidateWarning(warning_key,
+                        gettext('account_statement_enable_banking.'
+                            'msg_origin_line_with_move',
+                            move=line.move.rec_name))
+                moves.append(line.move)
+                to_unreconcile = [x.reconciliation for x in line.move.lines
+                    if x.reconciliation]
+                if to_unreconcile:
+                    to_unreconcile = Reconciliation.browse([
+                            x.id for x in to_unreconcile])
+                    Reconciliation.delete(to_unreconcile)
+                # On possible related invoices, need to unlink the payment
+                # lines
+                to_unpay = [x for x in line.move.lines if x.invoice_payment]
+                if to_unpay:
+                    Invoice.remove_payment_lines(to_unpay)
+        if moves:
+            Move.draft(moves)
+            Move.delete(moves)
 
     @classmethod
     def reconcile(cls, move_lines):
@@ -515,6 +516,7 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def delete(cls, lines):
+        cls.cancel_lines(lines)
         for line in lines:
             if line.statement_state not in {
                     'cancelled', 'registered', 'draft'}:
@@ -527,6 +529,11 @@ class Line(metaclass=PoolMeta):
         # Use __func__ to directly access ModelSQL's delete method and
         # pass it the right class
         ModelSQL.delete.__func__(cls, lines)
+
+    @classmethod
+    def delete_move(cls, lines):
+        cls.cancel_lines(lines)
+        super().delete_move(lines)
 
     def get_move_line(self):
         line = super().get_move_line()
@@ -1749,33 +1756,10 @@ class Origin(Workflow, metaclass=PoolMeta):
     @Workflow.transition('cancelled')
     def cancel(cls, origins):
         pool = Pool()
-        MoveLine = pool.get('account.move.line')
         StatementLine = pool.get('account.statement.line')
-        Warning = pool.get('res.user.warning')
 
         lines = [x for origin in origins for x in origin.lines]
-        moves = dict((x.move, x.origin) for x in lines if x.move)
-        if moves:
-            warning_key = Warning.format('cancel_origin_line_with_move',
-                list(moves.keys()))
-            if Warning.check(warning_key):
-                raise StatementValidateWarning(warning_key,
-                    gettext('account_statement_enable_banking.'
-                        'msg_cancel_origin_line_with_move',
-                        moves=", ".join(m.rec_name for m in moves)))
-            StatementLine.cancel_move(moves.keys())
-            with Transaction().set_context(
-                    from_account_statement_origin=True):
-                to_write = []
-                for move, origin in moves.items():
-                    move_lines = []
-                    for line in move.lines:
-                        if line.origin in origin.lines:
-                            move_lines.append(line)
-                    to_write.extend((move_lines, {'origin': origin}))
-                if to_write:
-                    MoveLine.write(*to_write)
-            StatementLine.write(lines, {'move': None})
+        StatementLine.cancel_lines(lines)
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
