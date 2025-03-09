@@ -419,7 +419,7 @@ class Line(metaclass=PoolMeta):
         Reconciliation = pool.get('account.move.reconciliation')
         Invoice = pool.get('account.invoice')
 
-        moves = []
+        moves = set()
         for line in lines:
             if line.move:
                 warning_key = Warning.format(
@@ -429,7 +429,7 @@ class Line(metaclass=PoolMeta):
                         gettext('account_statement_enable_banking.'
                             'msg_origin_line_with_move',
                             move=line.move.rec_name))
-                moves.append(line.move)
+                moves.add(line.move)
                 to_unreconcile = [x.reconciliation for x in line.move.lines
                     if x.reconciliation]
                 if to_unreconcile:
@@ -442,6 +442,7 @@ class Line(metaclass=PoolMeta):
                 if to_unpay:
                     Invoice.remove_payment_lines(to_unpay)
         if moves:
+            moves = list(moves)
             Move.draft(moves)
             Move.delete(moves)
 
