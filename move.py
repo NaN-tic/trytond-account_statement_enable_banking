@@ -12,4 +12,4 @@ class Move(metaclass=PoolMeta):
 
         if self.origin and isinstance(self.origin, StatementOrigin):
             return True
-        return self.allow_button_draft
+        return super().get_allow_draft(name)
