@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
-from trytond.pyson import Eval, Id
+from trytond.pyson import Eval, If, Id, Bool
 from trytond.config import config
 from trytond.i18n import gettext
 from trytond.transaction import Transaction
@@ -49,10 +49,21 @@ class Journal(metaclass=PoolMeta):
                 ('company', '=', Eval('company')),
                 ('company', '=', None),
             ]])
+    bank_account_number = fields.Function(
+        fields.Many2One('bank.account.number', 'Bank Account Number',
+                readonly=True),
+        'on_change_with_bank_account_number')
     enable_banking_session = fields.Many2One('enable_banking.session',
-        'Enable Banking Session', readonly=True)
-    enable_banking_session_valid_days = fields.TimeDelta('Enable Banking Session Valid Days',
-        help="Only allowed maximum 180 days.")
+        'Enable Banking Session',
+        domain=[
+            ('company', '=', Eval('company')),
+            ])
+    enable_banking_session_allowed_bank_accounts = fields.Function(
+        fields.Many2Many('bank.account', None, None, 'Allowed Bank Accounts',
+            context={
+                'company': Eval('company', -1),
+                }, depends={'company'}, readonly=True),
+        'on_change_with_enable_banking_session_allowed_bank_accounts')
     one_move_per_origin = fields.Boolean("One Move per Origin",
         help="Check if want to create only one move per origin when post it "
         "even it has more than one line. Else it create one move for eaach "
@@ -81,8 +92,17 @@ class Journal(metaclass=PoolMeta):
     @classmethod
     def __setup__(cls):
         super().__setup__()
+        cls.bank_account.domain.append(
+            If(Eval('enable_banking_session'),
+                ('id', 'in',
+                    Eval('enable_banking_session_allowed_bank_accounts', [])),
+                (),
+                ))
         cls._buttons.update({
-            'synchronize_statement_enable_banking': {},
+            'synchronize_statement_enable_banking': {
+                'invisible': ~Eval('bank_account', False),
+                'depends': ['bank_account'],
+                },
         })
 
     @staticmethod
@@ -109,23 +129,24 @@ class Journal(metaclass=PoolMeta):
     def default_max_amount_tolerance():
         return 0
 
-    @staticmethod
-    def default_enable_banking_session_valid_days():
-        return timedelta(days=30) # 30 days
+    @fields.depends('bank_account')
+    def on_change_with_bank_account_number(self, name=None):
+        if self.bank_account:
+            return self.bank_account.iban
+        return
 
-    @classmethod
-    def validate(cls, journals):
-        super().validate(journals)
-        for journal in journals:
-            journal.check_enable_banking_session_valid_days()
+    @fields.depends('enable_banking_session')
+    def on_change_with_enable_banking_session_allowed_bank_accounts(self, name=None):
+        if self.enable_banking_session:
+            return self.enable_banking_session.allowed_bank_accounts
+            #return self.enable_banking_session.get_allowed_bank_accounts()
+        return
 
-    def check_enable_banking_session_valid_days(self):
-        if (self.enable_banking_session_valid_days < timedelta(days=1)
-                or self.enable_banking_session_valid_days > timedelta(
-                    days=180)):
-            raise AccessError(
-                gettext('account_statement_enable_banking.'
-                    'msg_valid_days_out_of_range'))
+    #@classmethod
+    #def search_enable_banking_session_allowed_bank_accounts(cls, name, clause):
+    #    _, operator, value = clause
+    #    return [('id', 'in', [1])]
+    #    #return [('id', 'in', value)]
 
     def set_number(self, origins):
         '''
@@ -173,13 +194,17 @@ class Journal(metaclass=PoolMeta):
         ebconfig = EBConfiguration(1)
 
         if (not self.enable_banking_session
-                or not self.enable_banking_session.session
+                or not self.enable_banking_session.encrypted_session
                 or self.enable_banking_session.valid_until < datetime.now()):
             return
 
         # Search the account from the journal
         session = eval(self.enable_banking_session.session)
-        bank_numbers = [x.number_compact for x in self.bank_account.numbers]
+        bank_numbers = [x.number_compact for x in self.bank_account.numbers
+            if self.bank_account]
+        if not bank_numbers:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
         account_id = None
         for account in session['accounts']:
             if account['account_id']['iban'] in bank_numbers:

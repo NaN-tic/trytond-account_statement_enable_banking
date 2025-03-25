@@ -54,5 +54,8 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_repeated_related_to_used">
             <field name="text">The related "%(related_to)s" is usde in a line of the posted origin "%(origin)s."</field>
         </record>
+        <record model="ir.message" id="msg_missing_fernet_key">
+            <field name="text">Missing Fernet key.</field>
+        </record>
     </data>
 </tryton>

@@ -8,18 +8,13 @@ this repository contains the full copyright notices and license terms. -->
     <field name="company"/>
     <label name="valid_until"/>
     <field name="valid_until"/>
-    <notebook colspan="4">
-        <page string="Bank" id="bank">
-            <label name="bank"/>
-            <field name="bank"/>
-            <newline/>
-            <label name="aspsp_name"/>
-            <field name="aspsp_name"/>
-            <label name="aspsp_country"/>
-            <field name="aspsp_country"/>
-        </page>
-        <page string="Session" id="session">
-            <field name="session" colspan="4"/>
-        </page>
-    </notebook>
+    <newline/>
+    <label name="bank"/>
+    <field name="bank"/>
+    <newline/>
+    <label name="aspsp_name"/>
+    <field name="aspsp_name"/>
+    <label name="aspsp_country"/>
+    <field name="aspsp_country"/>
+    <field name="allowed_bank_accounts" colspan="4"/>
 </form>

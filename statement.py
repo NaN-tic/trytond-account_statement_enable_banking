@@ -2085,10 +2085,112 @@ class SynchronizeStatementEnableBankingStart(ModelView):
     "Synchronize Statement Enable Banking Start"
     __name__ = 'enable_banking.synchronize_statement.start'
 
+    enable_banking_session_valid_days = fields.TimeDelta(
+        'Enable Banking Session Valid Days',
+        states={
+            'invisible': Eval('enable_banking_session_valid', False),
+            }, help="Only allowed maximum 180 days.")
+    enable_banking_session_valid = fields.Boolean(
+        'Enable Banking Session Valid')
+
+    @staticmethod
+    def default_enable_banking_session_valid_days():
+        return timedelta(days=180)
+
 
 class SynchronizeStatementEnableBanking(Wizard):
     "Synchronize Statement Enable Banking"
     __name__ = 'enable_banking.synchronize_statement'
+
+    start = StateTransition()
+    select_session = StateView('enable_banking.synchronize_statement.select',
+        'account_statement_enable_banking.'
+        'enable_banking_synchronize_statement_select_form',
+        [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'check_session', 'tryton-ok', default=True),
+        ])
+    start_create_session = StateView(
+        'enable_banking.synchronize_statement.start_new',
+        'account_statement_enable_banking.'
+        'enable_banking_synchronize_statement_start_form',
+        [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'check_session', 'tryton-ok', default=True),
+        ])
+    create_session = StateAction(
+        'account_statement_enable_banking.url_session')
+    start_sync_statements = StateView(
+        'enable_banking.synchronize_statement.start_sync',
+        'account_statement_enable_banking.'
+        'enable_banking_synchronize_statement_start_form',
+        [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'check_session', 'tryton-ok', default=True),
+        ])
+    sync_statements = StateTransition()
+    check_session = StateTransition()
+
+    def transition_start(self):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        EBSession = pool.get('enable_banking.session')
+        base_headers = get_base_header()
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        if not journal or not journal.bank_account:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
+
+        if journal.enable_banking_session:
+            # We need to check the date and if we have the field session, if
+            # not the session was not created correctly and need to be deleted
+            eb_session = journal.enable_banking_session
+            if eb_session.session and not eb_session.session_expired:
+                session = eval(eb_session.session)
+                r = requests.get(
+                    f"{config.get('enable_banking', 'api_origin')}"
+                    f"/sessions/{session['session_id']}",
+                    headers=base_headers)
+                if r.status_code == 200:
+                    session = r.json()
+                    if session['status'] == 'AUTHORIZED':
+                        return 'start_sync_statements'
+            EBSession.delete([eb_session])
+        else:
+            eb_sessions = EBSession.search([
+                    ('company', '=', journal.company),
+                    ('valid_until', '>=', datetime.now()),
+                ])
+            for eb_session in eb_sessions:
+                if journal.bank in eb_session.allowed_bank_accounts:
+                    return 'select_session'
+        return 'start_create_session'
+
+    def default_start_create_session(self, fields):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        Date = pool.get('ir.date')
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        if not journal or not journal.bank_account:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
+
+        valid = (journal.enable_banking_session.valid_until >= Date.today()
+            if (journal.enable_banking_session
+                and journal.enable_banking_session.valid_until)
+            else False)
+
+        return {
+            'enable_banking_session_valid': valid,
+            'journal': journal,
+            }
+
+
+
 
     start = StateView('enable_banking.synchronize_statement.start',
         'account_statement_enable_banking.'
@@ -2101,6 +2203,27 @@ class SynchronizeStatementEnableBanking(Wizard):
     create_session = StateAction(
         'account_statement_enable_banking.url_session')
     sync_statements = StateTransition()
+
+    def default_start(self, fields):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        Date = pool.get('ir.date')
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        if not journal or not journal.bank_account:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
+
+        valid = (journal.enable_banking_session.valid_until >= Date.today()
+            if (journal.enable_banking_session
+                and journal.enable_banking_session.valid_until)
+            else False)
+
+        return {
+            'enable_banking_session_valid': valid,
+            'journal': journal,
+            }
 
     def transition_check_session(self):
         pool = Pool()
@@ -2118,8 +2241,7 @@ class SynchronizeStatementEnableBanking(Wizard):
             # We need to check the date and if we have the field session, if
             # not the session was not created correctly and need to be deleted
             eb_session = journal.enable_banking_session
-            if (eb_session.session and eb_session.valid_until and
-                    eb_session.valid_until >= datetime.now()):
+            if eb_session.session and not eb_session.session_expired:
                 session = eval(eb_session.session)
                 r = requests.get(
                     f"{config.get('enable_banking', 'api_origin')}"
@@ -2137,7 +2259,11 @@ class SynchronizeStatementEnableBanking(Wizard):
         Journal = pool.get('account.statement.journal')
         EBSession = pool.get('enable_banking.session')
 
-        journal = Journal(Transaction().context['active_id'])
+        journal_id = Transaction().context.get('active_id', None)
+        journal = Journal(journal_id) if journal_id else None
+        if not journal or not journal.bank_account:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
         bank_name = journal.bank_account.bank.party.name.lower()
         bic = (journal.bank_account.bank.bic or '').lower()
         if journal.bank_account.bank.party.addresses:
@@ -2145,6 +2271,16 @@ class SynchronizeStatementEnableBanking(Wizard):
         else:
             raise AccessError(gettext('account_statement_enable_banking.'
                     'msg_no_country'))
+
+        enable_banking_session_valid_days = (
+            self.start.enable_banking_session_valid_days)
+
+        if (enable_banking_session_valid_days < timedelta(days=1)
+                or enable_banking_session_valid_days > timedelta(
+                    days=180)):
+            raise AccessError(
+                gettext('account_statement_enable_banking.'
+                    'msg_valid_days_out_of_range'))
 
         # We fill the aspsp name and country using the bank account
         base_headers = get_base_header()
@@ -2178,12 +2314,12 @@ class SynchronizeStatementEnableBanking(Wizard):
         eb_session.bank = journal.bank_account.bank
         eb_session.session_id = token_hex(16)
         eb_session.valid_until = (
-            datetime.now() + journal.enable_banking_session_valid_days)
+            datetime.now() + enable_banking_session_valid_days)
         EBSession.save([eb_session])
         base_headers = get_base_header()
         body = {
             'access': {'valid_until': (datetime.now(UTC)
-                    + journal.enable_banking_session_valid_days).isoformat()},
+                    + enable_banking_session_valid_days).isoformat()},
             'aspsp': {
                 'name': journal.aspsp_name,
                 'country': journal.aspsp_country},
@@ -2257,12 +2393,11 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
             ('synchronize_journal', '=', True)
             ]
         for journal in Journal.search(domain):
-            if (journal.enable_banking_session is None
-                    or (journal.enable_banking_session
-                        and (journal.enable_banking_session.session is None
-                            or (journal.enable_banking_session.valid_until
-                                and journal.enable_banking_session.valid_until
-                                < datetime.now())))):
+            eb_session = journal.enable_banking_session
+            if (eb_session is None or (eb_session and (
+                            eb_session.session is None or (
+                                eb_session.valid_until
+                                and eb_session.session_expired)))):
                 journal_unsynchronized.append(journal)
         return journal_unsynchronized
 
