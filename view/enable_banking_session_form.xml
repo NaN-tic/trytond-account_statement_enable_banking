@@ -4,8 +4,6 @@ this repository contains the full copyright notices and license terms. -->
 <form>
     <label name="session_id"/>
     <field name="session_id"/>
-    <label name="company"/>
-    <field name="company"/>
     <label name="valid_until"/>
     <field name="valid_until"/>
     <newline/>
