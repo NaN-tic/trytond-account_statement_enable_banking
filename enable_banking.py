@@ -57,7 +57,6 @@ class EnableBankingSession(ModelSQL, ModelView):
     "Enable Banking Session"
     __name__ = 'enable_banking.session'
 
-    company = fields.Many2One('company.company', "Company", required=True)
     session_id = fields.Char("Session ID", readonly=True)
     valid_until = fields.DateTime('Valid Until', readonly=True)
     session = fields.Text("Session", readonly=True)
@@ -65,6 +64,15 @@ class EnableBankingSession(ModelSQL, ModelView):
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
     bank = fields.Many2One('bank', "Bank", readonly=True)
 
+    @classmethod
+    def __register__(cls, module_name):
+        table = cls.__table_handler__(module_name)
+        exist_company = table.column_exist('company')
+
+        super().__register__(module_name)
+
+        if exist_company:
+            table.drop_column('company')
 
 class EnableBankingSessionOK(Report):
     "Enable Banking Session OK"

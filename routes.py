@@ -5,7 +5,6 @@ from datetime import datetime
 import requests
 
 from trytond.protocols.wrappers import with_pool, with_transaction, allow_null_origin
-from trytond.transaction import Transaction
 from trytond.wsgi import app
 from trytond.config import config
 from .common import get_base_header
@@ -38,11 +37,11 @@ def redirect(request, pool):
             ext, content, _, _ = EBSessionReportKO.execute([], data)
 
         eb_session = eb_session[0]
-        with Transaction().set_context(company=eb_session.company.id):
-            eb_session.valid_until = datetime.strptime(session['access']['valid_until'], '%Y-%m-%dT%H:%M:%S.%f%z')
-            eb_session.session = session
-            EBSession.save([eb_session])
-            ext, content, _, _ = EBSessionReportOK.execute([], data)
+        eb_session.valid_until = datetime.strptime(
+            session['access']['valid_until'], '%Y-%m-%dT%H:%M:%S.%f%z')
+        eb_session.session = session
+        EBSession.save([eb_session])
+        ext, content, _, _ = EBSessionReportOK.execute([], data)
     else:
         ext, content, _, _ = EBSessionReportKO.execute([], data)
 
