@@ -2172,7 +2172,6 @@ class SynchronizeStatementEnableBanking(Wizard):
                     message=message))
 
         eb_session = EBSession()
-        eb_session.company = journal.company
         eb_session.aspsp_name = journal.aspsp_name
         eb_session.aspsp_country = journal.aspsp_country
         eb_session.bank = journal.bank_account.bank
