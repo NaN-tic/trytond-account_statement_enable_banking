@@ -897,6 +897,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ])
             if suggest_to_remove:
                 StatementSuggest.delete(suggest_to_remove)
+        # Before reconcile ensure the moves are posted to avoid that some
+        # possible estra moves, like writeoff, exchange, won't be posted.
+        Move.post([m for m, _ in moves])
         # Reconcile at the end to avoid problems with the related_to lines
         if move_lines:
             StatementLine.reconcile(move_lines)
