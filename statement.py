@@ -360,10 +360,9 @@ class Line(metaclass=PoolMeta):
             self.maturity_date = self.move_line.maturity_date
         if self.invoice:
             lines_to_pay = [l for l in self.invoice.lines_to_pay
-                if l.maturity_date and l.state == 'posted'
-                and l.reconciliation is None]
+                if l.maturity_date and l.reconciliation is None]
             oldest_line = min(lines_to_pay,
-                key=lambda line: line.maturity_date or '9999-12-31')
+                key=lambda line: line.maturity_date)
             self.maturity_date = oldest_line.maturity_date
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
