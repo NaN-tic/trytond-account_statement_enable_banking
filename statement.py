@@ -357,7 +357,11 @@ class Line(metaclass=PoolMeta):
                 self.description = (self.move_line.description
                     or self.move_line.move_description_used)
             self.account = self.move_line.account
-            self.maturity_date = self.move_line.maturity_date or None
+            self.maturity_date = self.move_line.maturity_date
+        if self.invoice:
+            oldest_line = min(self.invoice.lines_to_pay,
+                key=lambda line: line.maturity_date or '9999-12-31')
+            self.maturity_date = oldest_line.maturity_date
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
