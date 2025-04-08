@@ -11,10 +11,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="lines" colspan="2" height="250"
             view_ids="account_statement_enable_banking.origin_statement_line_view_tree_editable"/>
         </group>
-        <group id="lines_information" colspan="4" col="2">
-            <field name="suggested_lines_tree" height="250"/>
-            <field name="information"/>
-        </group>
         <group id="status" colspan="4" col="-1">
             <label name="state"/>
             <field name="state"/>
@@ -22,6 +18,10 @@ this repository contains the full copyright notices and license terms. -->
             <button name="register" icon="tryton-forward"/>
             <button name="search_suggestions" icon="tryton-search"/>
             <button name="post" icon="tryton-ok"/>
+        </group>
+        <group id="lines_information" colspan="4" col="2">
+            <field name="suggested_lines_tree" height="250"/>
+            <field name="information"/>
         </group>
     </xpath>
 </data>
