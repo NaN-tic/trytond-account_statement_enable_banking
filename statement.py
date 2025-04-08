@@ -359,8 +359,11 @@ class Line(metaclass=PoolMeta):
             self.account = self.move_line.account
             self.maturity_date = self.move_line.maturity_date
         if self.invoice:
-            oldest_line = min(self.invoice.lines_to_pay,
-                key=lambda line: line.maturity_date or '9999-12-31')
+            lines_to_pay = [l for l in self.invoice.lines_to_pay
+                if l.maturity_date and l.reconciliation is None]
+            oldest_line = (min(lines_to_pay,
+                    key=lambda line: line.maturity_date)
+                if lines_to_pay else None)
             self.maturity_date = oldest_line.maturity_date
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
@@ -1651,10 +1654,17 @@ class Origin(Workflow, metaclass=PoolMeta):
                 amount_second_currency = sign * amount_to_pay
             else:
                 amount_second_currency = sign * invoice.amount_to_pay
+            lines_to_pay = [l for l in related.lines_to_pay
+                if l.maturity_date and l.reconciliation is None]
+            oldest_line = (min(lines_to_pay,
+                    key=lambda line: line.maturity_date)
+                if lines_to_pay else None)
+            maturity_date = oldest_line.maturity_date
         else:
             amount=related.amount
             second_currency = related.second_currency
             amount_second_currency = related.amount_second_currency
+            maturity_date = related.maturity_date
 
         line = StatementLine()
         line.origin = origin
@@ -1668,7 +1678,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             line.second_currency = second_currency
             line.amount_second_currency = amount_second_currency
         line.date = origin.date
-        line.maturity_date = None
+        line.maturity_date = maturity_date
         line.description = origin.remittance_information
         return line
 
