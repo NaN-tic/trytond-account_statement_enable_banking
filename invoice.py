@@ -25,18 +25,27 @@ class Invoice(metaclass=PoolMeta):
 
     # Need to refactorize the fleid function, to allow to have all
     # the statement lines from ana origin in the same account move.
-    def get_reconciliation_lines(self, name):
+    @classmethod
+    def get_reconciliation_lines(cls, invoices, name):
         pool = Pool()
         Line = pool.get('account.move.line')
 
-        lines = super().get_reconciliation_lines(name)
-        if not lines:
-            return lines
-        new_lines = set()
-        reconciliation_lines_to_pay = [x.reconciliation
-            for x in self.lines_to_pay if x.reconciliation]
-        for line in Line.search([('id', 'in', lines)]):
-            if (line.party == self.party
-                    and line.reconciliation in reconciliation_lines_to_pay):
-                new_lines.add(line)
-        return [x.id for x in sorted(new_lines, key=lambda x: x.date)]
+        lines = super().get_reconciliation_lines(invoices, name)
+
+        # TODO optimitze search lines each invoice
+        for invoice in invoices:
+            new_lines = set()
+            reconciliation_lines_to_pay = [x.reconciliation
+                for x in invoice.lines_to_pay if x.reconciliation]
+            for line in Line.search([('id', 'in', lines)]):
+                if (line.party == invoice.party
+                        and line.reconciliation in reconciliation_lines_to_pay):
+                    new_lines.add(line)
+            invoice_id = invoice.id
+            nlines = [x.id for x in sorted(new_lines, key=lambda x: x.date)]
+            if nlines:
+                if invoice_id in lines:
+                    lines[invoice_id] += nlines
+                else:
+                    lines[invoice_id] = nlines
+        return lines
