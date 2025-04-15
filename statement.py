@@ -364,7 +364,8 @@ class Line(metaclass=PoolMeta):
             oldest_line = (min(lines_to_pay,
                     key=lambda line: line.maturity_date)
                 if lines_to_pay else None)
-            self.maturity_date = oldest_line.maturity_date
+            if oldest_line:
+                self.maturity_date = oldest_line.maturity_date
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
@@ -1659,7 +1660,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             oldest_line = (min(lines_to_pay,
                     key=lambda line: line.maturity_date)
                 if lines_to_pay else None)
-            maturity_date = oldest_line.maturity_date
+            if oldest_line:
+                maturity_date = oldest_line.maturity_date
         else:
             amount=related.amount
             second_currency = related.second_currency
