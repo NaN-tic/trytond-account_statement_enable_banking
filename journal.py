@@ -53,6 +53,9 @@ class Journal(metaclass=PoolMeta):
         fields.Many2One('bank.account.number', 'Bank Account Number',
                 readonly=True),
         'on_change_with_bank_account_number')
+    enable_banking_session_valid_days = fields.TimeDelta(
+        'Enable Banking Session Valid Days',
+        help="Only allowed maximum 180 days.")
     enable_banking_session = fields.Many2One('enable_banking.session',
         'Enable Banking Session',
         domain=[
@@ -99,10 +102,8 @@ class Journal(metaclass=PoolMeta):
                 (),
                 ))
         cls._buttons.update({
-            'synchronize_statement_enable_banking': {
-                'invisible': ~Eval('bank_account', False),
-                'depends': ['bank_account'],
-                },
+            'retrieve_enable_banking_session': {},
+            'synchronize_statement_enable_banking': {},
         })
 
     @staticmethod
@@ -135,6 +136,12 @@ class Journal(metaclass=PoolMeta):
             return self.bank_account.iban
         return
 
+    @fields.depends('bank_account')
+    def on_change_with_bank_account_number(self, name=None):
+        if self.bank_account:
+            return self.bank_account.iban
+        return
+
     @fields.depends('enable_banking_session')
     def on_change_with_enable_banking_session_allowed_bank_accounts(self, name=None):
         if self.enable_banking_session:
@@ -142,11 +149,25 @@ class Journal(metaclass=PoolMeta):
             #return self.enable_banking_session.get_allowed_bank_accounts()
         return
 
+    @classmethod
+    def validate(cls, journals):
+        super().validate(journals)
+        for journal in journals:
+            journal.check_enable_banking_session_valid_days()
+
     #@classmethod
     #def search_enable_banking_session_allowed_bank_accounts(cls, name, clause):
     #    _, operator, value = clause
     #    return [('id', 'in', [1])]
     #    #return [('id', 'in', value)]
+
+    def check_enable_banking_session_valid_days(self):
+        if (self.enable_banking_session_valid_days < timedelta(days=1)
+                or self.enable_banking_session_valid_days > timedelta(
+                    days=180)):
+            raise AccessError(
+                gettext('account_statement_enable_banking.'
+                    'msg_valid_days_out_of_range'))
 
     def set_number(self, origins):
         '''
@@ -180,11 +201,17 @@ class Journal(metaclass=PoolMeta):
 
     @classmethod
     @ModelView.button_action('account_statement_enable_banking.'
-        'act_enable_banking_synchronize_statement')
-    def synchronize_statement_enable_banking(cls, journals):
+        'act_enable_banking_retrieve_session')
+    def retrieve_enable_banking_session(cls, journals):
         pass
 
-    def synchronize_statements_enable_banking(self):
+    @classmethod
+    @ModelView.button
+    def synchronize_statement_enable_banking(cls, journals):
+        for journal in journals:
+            journal._synchronize_statements_enable_banking()
+
+    def _synchronize_statements_enable_banking(self):
         pool = Pool()
         EBConfiguration = pool.get('enable_banking.configuration')
         Statement = pool.get('account.statement')
@@ -193,18 +220,20 @@ class Journal(metaclass=PoolMeta):
 
         ebconfig = EBConfiguration(1)
 
-        if (not self.enable_banking_session
-                or not self.enable_banking_session.encrypted_session
+        if not self.enable_banking_session:
+            raise AccessError(
+                gettext('account_statement_enable_banking.msg_no_session'))
+
+        if (not self.enable_banking_session.encrypted_session
                 or self.enable_banking_session.valid_until < datetime.now()):
             return
 
         # Search the account from the journal
         session = eval(self.enable_banking_session.session)
-        bank_numbers = [x.number_compact for x in self.bank_account.numbers
-            if self.bank_account]
-        if not bank_numbers:
+        if not self.bank_account:
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
+        bank_numbers = [x.number_compact for x in self.bank_account.numbers]
         account_id = None
         for account in session['accounts']:
             if account['account_id']['iban'] in bank_numbers:

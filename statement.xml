@@ -250,20 +250,27 @@ this repository contains the full copyright notices and license terms. -->
             <field name="name">origin_statement_line_tree_editable</field>
         </record>
 
+        <record model="ir.model.button" id="statement_line_add_pending_button">
+            <field name="name">add_pending</field>
+            <field name="string">Add Pending</field>
+            <field name="model"
+                search="[('model', '=', 'account.statement.line')]"/>
+        </record>
+
         <!-- enable_banking.synchronize_statement -->
-        <record model="ir.ui.view" id="enable_banking_synchronize_statement_start_form">
-            <field name="model">enable_banking.synchronize_statement.start</field>
+        <record model="ir.ui.view" id="enable_banking_retrieve_session_start_form">
+            <field name="model">enable_banking.retrieve_session.start</field>
             <field name="type">form</field>
-            <field name="name">enable_banking_synchronize_statement_start</field>
+            <field name="name">enable_banking_retrieve_session_start</field>
         </record>
 
-        <record model="ir.action.wizard" id="act_enable_banking_synchronize_statement">
+        <record model="ir.action.wizard" id="act_enable_banking_retrieve_session">
             <field name="name">Synchronize Statement Enable Banking</field>
-            <field name="wiz_name">enable_banking.synchronize_statement</field>
+            <field name="wiz_name">enable_banking.retrieve_session</field>
         </record>
 
-        <record model="ir.model.button" id="synchronize_statement_enable_banking_button">
-            <field name="name">synchronize_statement_enable_banking</field>
+        <record model="ir.model.button" id="retrieve_session_enable_banking_button">
+            <field name="name">retrieve_session_enable_banking</field>
             <field name="string">Synchronize Statement Enable Banking</field>
             <field name="model" search="[('model', '=', 'account.statement.journal')]"/>
         </record>

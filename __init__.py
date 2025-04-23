@@ -11,12 +11,7 @@ from . import statement_analytic
 from . import invoice
 from . import account_bank
 from . import move
-from . import routes
 
-# We need to set the routes file here to activate the routes in tryton
-# if we dont have the routes file here, the routes will not be activated
-# and tryton will reuturn a 405 Method Not Allowed error
-__all__ = ['register', 'routes']
 
 def register():
     Pool.register(
@@ -32,14 +27,15 @@ def register():
         statement.OriginSuggestedLine,
         statement.AddMultipleInvoicesStart,
         statement.AddMultipleMoveLinesStart,
-        statement.SynchronizeStatementEnableBankingStart,
+        statement.RetrieveEnableBankingSessionStart,
+        statement.RetrieveEnableBankingSessionSelect,
         statement.OriginSynchronizeStatementEnableBankingAsk,
         invoice.Invoice,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
         statement.AddMultipleInvoices,
         statement.AddMultipleMoveLines,
-        statement.SynchronizeStatementEnableBanking,
+        statement.RetrieveEnableBankingSession,
         statement.OriginSynchronizeStatementEnableBanking,
         module='account_statement_enable_banking', type_='wizard')
     Pool.register(

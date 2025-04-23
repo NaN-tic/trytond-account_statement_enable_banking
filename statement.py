@@ -200,6 +200,13 @@ class Line(metaclass=PoolMeta):
         cls.description.states['readonly'] = _states['readonly']
         cls.related_to.states['readonly'] = _states['readonly']
 
+        cls._buttons.update({
+                'add_pending': {
+                    'invisible': Eval('origin_state') != 'registered',
+                    'depends': ['origin_state'],
+                    },
+                })
+
     @classmethod
     def _get_relations(cls):
         return super()._get_relations() + ['account.move.line']
@@ -555,6 +562,14 @@ class Line(metaclass=PoolMeta):
         default.setdefault('show_paid_invoices', None)
         return super().copy(lines, default=default)
 
+    @classmethod
+    @ModelView.button
+    def add_pending(cls, lines):
+        if not lines:
+            return
+        line = lines[0]
+        line.amount += line.origin.pending_amount
+        cls.save([line])
 
 class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
@@ -1585,9 +1600,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         def remove_duplicate_suggestions(suggesteds):
             seen = set()
             result = []
-            keys = ['name', 'parent', 'origin', 'party', 'date', 'related_to',
-                'account', 'amount', 'second_currency', 'similarity',
-                'amount_second_currency', 'state']
+            keys = ['parent', 'origin', 'party', 'account', 'amount', 'state',
+                    'second_currency', 'similarity','amount_second_currency']
             for suggest in suggesteds:
                 # Create an identifier based in the main keys.
                 identifier = tuple(suggest[key] for key in keys if key in suggest)
@@ -1600,6 +1614,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         if suggesteds_to_create:
             suggesteds_to_create = remove_duplicate_suggestions(
                 suggesteds_to_create)
+            suggesteds_to_create = sorted(suggesteds_to_create,
+                                          key=lambda d: d['similarity'],
+                                          reverse=True)[:10]
             SuggestedLine.create(suggesteds_to_create)
             for origin in origins:
                 suggested_use = None
@@ -2080,10 +2097,43 @@ class AddMultipleMoveLinesStart(ModelView):
     pending_amount = Monetary("Pending Amount", currency='currency', digits='currency',
         readonly=True)
 
+class RetrieveEnableBankingSessionStart(ModelView):
+    "Retrieve Enable Banking Session Start"
+    __name__ = 'enable_banking.retrieve_session.start'
 
-class SynchronizeStatementEnableBankingStart(ModelView):
-    "Synchronize Statement Enable Banking Start"
-    __name__ = 'enable_banking.synchronize_statement.start'
+    enable_banking_session_valid_days = fields.TimeDelta(
+        'Enable Banking Session Valid Days',
+        states={
+            'invisible': Eval('enable_banking_session_valid', False),
+            }, help="Only allowed maximum 180 days.")
+    enable_banking_session_valid = fields.Boolean(
+        'Enable Banking Session Valid')
+
+    @staticmethod
+    def default_enable_banking_session_valid_days():
+        return timedelta(days=180)
+
+class RetrieveEnableBankingSessionSelect(ModelView):
+    "Retrieve Enable Banking Session Select Session"
+    __name__ = 'enable_banking.retrieve_session.select_session'
+
+    found_session = fields.Function(fields.Many2One(
+        'enable_banking.session', "Found Session"),
+        'get_found_session')
+
+    def get_found_session(self, name):
+        pool = Pool()
+        EBSession = pool.get('enable_banking.session')
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = EBSession(active_id) if active_id else None
+        if not journal or not journal.bank_account:
+            return None
+        eb_session = EBSession.serch([
+            ('bank', '=', journal.bank_account.bank),
+            ('session_expired', '=', False),
+            ], limit=1)
+        return eb_session[0] if eb_session else None
 
     enable_banking_session_valid_days = fields.TimeDelta(
         'Enable Banking Session Valid Days',
@@ -2098,111 +2148,30 @@ class SynchronizeStatementEnableBankingStart(ModelView):
         return timedelta(days=180)
 
 
-class SynchronizeStatementEnableBanking(Wizard):
-    "Synchronize Statement Enable Banking"
-    __name__ = 'enable_banking.synchronize_statement'
+class RetrieveEnableBankingSession(Wizard):
+    "Retrieve Enable Banking Session"
+    __name__ = 'enable_banking.retrieve_session'
 
-    start = StateTransition()
-    select_session = StateView('enable_banking.synchronize_statement.select',
+    start = StateView('enable_banking.retrieve_session.start',
         'account_statement_enable_banking.'
-        'enable_banking_synchronize_statement_select_form',
-        [
-            Button('Cancel', 'end', 'tryton-cancel'),
-            Button('OK', 'check_session', 'tryton-ok', default=True),
-        ])
-    start_create_session = StateView(
-        'enable_banking.synchronize_statement.start_new',
-        'account_statement_enable_banking.'
-        'enable_banking_synchronize_statement_start_form',
-        [
-            Button('Cancel', 'end', 'tryton-cancel'),
-            Button('OK', 'check_session', 'tryton-ok', default=True),
-        ])
-    create_session = StateAction(
-        'account_statement_enable_banking.url_session')
-    start_sync_statements = StateView(
-        'enable_banking.synchronize_statement.start_sync',
-        'account_statement_enable_banking.'
-        'enable_banking_synchronize_statement_start_form',
-        [
-            Button('Cancel', 'end', 'tryton-cancel'),
-            Button('OK', 'check_session', 'tryton-ok', default=True),
-        ])
-    sync_statements = StateTransition()
-    check_session = StateTransition()
-
-    def transition_start(self):
-        pool = Pool()
-        Journal = pool.get('account.statement.journal')
-        EBSession = pool.get('enable_banking.session')
-        base_headers = get_base_header()
-
-        active_id = Transaction().context.get('active_id', None)
-        journal = Journal(active_id) if active_id else None
-        if not journal or not journal.bank_account:
-            raise AccessError(gettext(
-                    'account_statement_enable_banking.msg_no_bank_account'))
-
-        if journal.enable_banking_session:
-            # We need to check the date and if we have the field session, if
-            # not the session was not created correctly and need to be deleted
-            eb_session = journal.enable_banking_session
-            if eb_session.session and not eb_session.session_expired:
-                session = eval(eb_session.session)
-                r = requests.get(
-                    f"{config.get('enable_banking', 'api_origin')}"
-                    f"/sessions/{session['session_id']}",
-                    headers=base_headers)
-                if r.status_code == 200:
-                    session = r.json()
-                    if session['status'] == 'AUTHORIZED':
-                        return 'start_sync_statements'
-            EBSession.delete([eb_session])
-        else:
-            eb_sessions = EBSession.search([
-                    ('company', '=', journal.company),
-                    ('valid_until', '>=', datetime.now()),
-                ])
-            for eb_session in eb_sessions:
-                if journal.bank in eb_session.allowed_bank_accounts:
-                    return 'select_session'
-        return 'start_create_session'
-
-    def default_start_create_session(self, fields):
-        pool = Pool()
-        Journal = pool.get('account.statement.journal')
-        Date = pool.get('ir.date')
-
-        active_id = Transaction().context.get('active_id', None)
-        journal = Journal(active_id) if active_id else None
-        if not journal or not journal.bank_account:
-            raise AccessError(gettext(
-                    'account_statement_enable_banking.msg_no_bank_account'))
-
-        valid = (journal.enable_banking_session.valid_until >= Date.today()
-            if (journal.enable_banking_session
-                and journal.enable_banking_session.valid_until)
-            else False)
-
-        return {
-            'enable_banking_session_valid': valid,
-            'journal': journal,
-            }
-
-
-
-
-    start = StateView('enable_banking.synchronize_statement.start',
-        'account_statement_enable_banking.'
-        'enable_banking_synchronize_statement_start_form',
+        'enable_banking_retrieve_session_start_form',
         [
             Button('Cancel', 'end', 'tryton-cancel'),
             Button('OK', 'check_session', 'tryton-ok', default=True),
         ])
     check_session = StateTransition()
+    select_session = StateView(
+        'enable_banking.retrieve_session.select_session',
+        'account_statement_enable_banking.'
+        'enable_banking_retrieve_session_select_session_form',
+        [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('Create New Session', 'create_session', 'tryton-export'),
+            Button('Use Existing Session', 'use_session', 'tryton-refresh', default=True),
+        ])
     create_session = StateAction(
         'account_statement_enable_banking.url_session')
-    sync_statements = StateTransition()
+    use_session = StateTransition()
 
     def default_start(self, fields):
         pool = Pool()
@@ -2252,7 +2221,25 @@ class SynchronizeStatementEnableBanking(Wizard):
                     if session['status'] == 'AUTHORIZED':
                         return 'sync_statements'
             EBSession.delete([eb_session])
+
+        eb_session = EBSession.serch([
+            ('bank', '=', journal.bank_account.bank),
+            ('session_expired', '=', False),
+            ], limit=1)
+        if eb_session:
+            return 'select_session'
         return 'create_session'
+
+    def transition_use_session(self):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        eb_session = self.select_session.found_session
+        journal.enable_banking_session = eb_session
+        journal.save()
+        return 'end'
 
     def do_create_session(self, action):
         pool = Pool()
@@ -2342,15 +2329,6 @@ class SynchronizeStatementEnableBanking(Wizard):
         journal.save()
         return action, {}
 
-    def transition_sync_statements(self):
-        pool = Pool()
-        Journal = pool.get('account.statement.journal')
-        journal = Journal(Transaction().context['active_id'])
-        if not journal.enable_banking_session:
-            raise AccessError(
-                gettext('account_statement_enable_banking.msg_no_session'))
-        journal.synchronize_statements_enable_banking()
-        return 'end'
 
 
 class OriginSynchronizeStatementEnableBankingAsk(ModelView):

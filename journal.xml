@@ -9,5 +9,10 @@ this repository contains the full copyright notices and license terms. -->
             <field name="inherit" ref="account_statement.statement_journal_view_form"/>
             <field name="name">statement_journal_form</field>
         </record>
+        <record model="ir.model.button" id="retrieve_enable_banking_session_button">
+            <field name="name">retrieve_enable_banking_session</field>
+            <field name="string">Retrieve EB Session</field>
+            <field name="model" search="[('model', '=', 'account.statement.journal')]"/>
+        </record>
     </data>
 </tryton>

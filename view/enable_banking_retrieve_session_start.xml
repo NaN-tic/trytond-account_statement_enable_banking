@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<form>
+    <label string="Retrieve an enable banking session, creating one if it does not exist" id="warning_retrieve_session_enable_banking"/>
+    <newline/>
+    <label string="Do you want to continue?" id="warning_retrieve_session_enable_banking2"/>
+</form>
