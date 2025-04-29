@@ -11,6 +11,7 @@
   <field name="payment_date"/>
   <field name="debit" sum="Total debit"/>
   <field name="credit" sum="Total credit"/>
+  <field name="debit_credit_balance" sum="Total Debit-Credit"/>
   <field name="origin"/>
   <field name="move_origin"/>
   <field name="description"/>
