@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
-from trytond.pyson import Eval, Id
+from trytond.pyson import Eval, Id, If
 from trytond.config import config
 from trytond.i18n import gettext
 from trytond.transaction import Transaction

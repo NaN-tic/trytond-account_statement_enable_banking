@@ -2211,7 +2211,7 @@ class RetrieveEnableBankingSession(Wizard):
     select_session = StateView(
         'enable_banking.retrieve_session.select_session',
         'account_statement_enable_banking.'
-        'enable_banking_retrieve_session_select_session_form',
+        'enable_banking_retrieve_session_select_form',
         [
             Button('Cancel', 'end', 'tryton-cancel'),
             Button('Create New Session', 'create_session', 'tryton-export'),

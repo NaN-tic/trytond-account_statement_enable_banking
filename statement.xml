@@ -137,35 +137,10 @@ this repository contains the full copyright notices and license terms. -->
             <field name="group" ref="account.group_account"/>
         </record>
 
-        <record model="ir.model.button" id="statement_origin_cancel_button">
-            <field name="name">cancel</field>
-            <field name="string">Cancel</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
-        </record>
-        <record model="ir.model.button-res.group"
-            id="statement_origin_cancel_button_group_account">
-            <field name="button" ref="statement_origin_cancel_button"/>
-            <field name="group" ref="account.group_account_admin"/>
-        </record>
-
-        <record model="ir.model.button" id="statement_origin_search_suggestions_button">
-            <field name="name">search_suggestions</field>
-            <field name="string">Search Suggestions</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
-        </record>
-        <record model="ir.model.button-res.group"
-            id="search_suggestions_button_group_account">
-            <field name="button" ref="statement_origin_search_suggestions_button"/>
-            <field name="group" ref="account.group_account"/>
-        </record>
-
         <record model="ir.model.button" id="statement_origin_settle_last_line_button">
             <field name="name">settle_last_line</field>
             <field name="string">Settle Last Line</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
+            <field name="model">account.statement.origin</field>
         </record>
 
         <record model="ir.ui.view" id="statement_origin_view_form">
@@ -281,7 +256,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_line_add_pending_button">
             <field name="name">add_pending</field>
             <field name="string">Add Pending</field>
-            <field name="model">account.statement.line<field/>
+            <field name="model">account.statement.line</field>
         </record>
 
         <!-- enable_banking.synchronize_statement -->
@@ -289,6 +264,11 @@ this repository contains the full copyright notices and license terms. -->
             <field name="model">enable_banking.retrieve_session.start</field>
             <field name="type">form</field>
             <field name="name">enable_banking_retrieve_session_start</field>
+        </record>
+        <record model="ir.ui.view" id="enable_banking_retrieve_session_select_form">
+            <field name="model">enable_banking.retrieve_session.select_session</field>
+            <field name="type">form</field>
+            <field name="name">enable_banking_retrieve_session_select</field>
         </record>
 
         <record model="ir.action.wizard" id="act_enable_banking_retrieve_session">
