@@ -7,10 +7,10 @@
   <field name="reference"/>
   <field name="invoice_date" widget="date"/>
   <field name="party" expand="2"/>
-  <field name="untaxed_amount" sum="Untaxed"/>
-  <field name="tax_amount" sum="Tax"/>
-  <field name="total_amount" sum="Total"/>
+  <field name="untaxed_amount" sum="1"/>
+  <field name="tax_amount" sum="1"/>
+  <field name="total_amount" sum="1"/>
   <field name="state"/>
-  <field name="amount_to_pay_today" sum="Amount to Pay Today"/>
+  <field name="amount_to_pay_today" sum="1"/>
   <field name="description"/>
 </tree>

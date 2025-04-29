@@ -3,6 +3,10 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
+        <record model="ir.action.report" id="account_statement.report_statement">
+            <field name="active" eval="False"/>
+        </record>
+
         <!-- account.statement -->
         <record model="ir.ui.view" id="statement_view_tree">
             <field name="model">account.statement</field>
@@ -18,8 +22,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_register_button">
             <field name="name">register</field>
             <field name="string">Register</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement')]"/>
+            <field name="model">account.statement</field>
         </record>
         <record model="ir.model.button-res.group"
             id="statement_register_button_group_account">
@@ -93,8 +96,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_origin_register_button">
             <field name="name">register</field>
             <field name="string">Register</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
+            <field name="model">account.statement.origin</field>
         </record>
         <record model="ir.model.button-res.group"
             id="register_button_group_account">
@@ -105,12 +107,33 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_origin_post_button">
             <field name="name">post</field>
             <field name="string">Post</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
+            <field name="model">account.statement.origin</field>
         </record>
         <record model="ir.model.button-res.group"
             id="statement_origin_post_button_group_account">
             <field name="button" ref="statement_origin_post_button"/>
+            <field name="group" ref="account.group_account"/>
+        </record>
+
+        <record model="ir.model.button" id="statement_origin_cancel_button">
+            <field name="name">cancel</field>
+            <field name="string">Cancel</field>
+            <field name="model">account.statement.origin</field>
+        </record>
+        <record model="ir.model.button-res.group"
+            id="statement_origin_cancel_button_group_account">
+            <field name="button" ref="statement_origin_cancel_button"/>
+            <field name="group" ref="account.group_account_admin"/>
+        </record>
+
+        <record model="ir.model.button" id="statement_origin_search_suggestions_button">
+            <field name="name">search_suggestions</field>
+            <field name="string">Search Suggestions</field>
+            <field name="model">account.statement.origin</field>
+        </record>
+        <record model="ir.model.button-res.group"
+            id="search_suggestions_button_group_account">
+            <field name="button" ref="statement_origin_search_suggestions_button"/>
             <field name="group" ref="account.group_account"/>
         </record>
 
@@ -204,8 +227,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_line_multiple_invoices_button">
             <field name="name">multiple_invoices</field>
             <field name="string">Add Multiple Invoices</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
+            <field name="model">account.statement.origin</field>
         </record>
         <record model="ir.model.button-res.group"
             id="line_multiple_invoices_button_group_account">
@@ -228,8 +250,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_line_multiple_move_lines_button">
             <field name="name">multiple_move_lines</field>
             <field name="string">Add Multiple Move Lines</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin')]"/>
+            <field name="model">account.statement.origin</field>
         </record>
         <record model="ir.model.button-res.group"
             id="line_multiple_move_lines_button_group_account">
@@ -260,8 +281,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_line_add_pending_button">
             <field name="name">add_pending</field>
             <field name="string">Add Pending</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.line')]"/>
+            <field name="model">account.statement.line<field/>
         </record>
 
         <!-- enable_banking.synchronize_statement -->
@@ -279,7 +299,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="retrieve_session_enable_banking_button">
             <field name="name">retrieve_session_enable_banking</field>
             <field name="string">Synchronize Statement Enable Banking</field>
-            <field name="model" search="[('model', '=', 'account.statement.journal')]"/>
+            <field name="model">account.statement.journal</field>
         </record>
 
         <record model="ir.action.url" id="url_session">
@@ -484,8 +504,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_origin_suggested_line_propose_button">
             <field name="name">propose</field>
             <field name="string">Propose</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin.suggested.line')]"/>
+            <field name="model">account.statement.origin.suggested.line</field>
         </record>
         <record model="ir.model.button-res.group" id="suggest_button_group_account">
             <field name="button" ref="statement_origin_suggested_line_propose_button"/>
@@ -495,8 +514,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="statement_origin_suggested_line_use_button">
             <field name="name">use</field>
             <field name="string">Use</field>
-            <field name="model"
-                search="[('model', '=', 'account.statement.origin.suggested.line')]"/>
+            <field name="model">account.statement.origin.suggested.line</field>
         </record>
         <record model="ir.model.button-res.group"
             id="use_button_group_account">

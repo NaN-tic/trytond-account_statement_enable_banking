@@ -42,7 +42,7 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="test_connection_enable_banking_configuration_button">
             <field name="name">test_connection</field>
             <field name="string">Test Connection</field>
-            <field name="model" search="[('model', '=', 'enable_banking.configuration')]"/>
+            <field name="model">enable_banking.configuration</field>
         </record>
 
         <!-- enable_banking.session -->
@@ -73,7 +73,7 @@ this repository contains the full copyright notices and license terms. -->
         <!-- enable_banking.session_ok -->
         <record model="ir.action.report" id="report_session_ok">
             <field name="name">Enable Banking Session OK</field>
-            <field name="model"></field>
+            <field name="model" eval="None"/>
             <field name="report_name">enable_banking.session_ok</field>
             <field name="report">account_statement_enable_banking/session_ok.html</field>
             <field name="template_extension">html</field>
@@ -82,7 +82,7 @@ this repository contains the full copyright notices and license terms. -->
         <!-- enable_banking.session_ko -->
         <record model="ir.action.report" id="report_session_ko">
             <field name="name">Enable Banking Session KO</field>
-            <field name="model"></field>
+            <field name="model" eval="None"/>
             <field name="report_name">enable_banking.session_ko</field>
             <field name="report">account_statement_enable_banking/session_ko.html</field>
             <field name="template_extension">html</field>

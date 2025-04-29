@@ -25,7 +25,7 @@ from trytond.modules.account_statement.statement import Unequal
 from trytond import backend
 
 
-_ZERO = Decimal('0')
+_ZERO = Decimal(0)
 
 
 class Similarity(Function):
@@ -364,9 +364,17 @@ class Line(metaclass=PoolMeta):
                 self.party = self.move_line.party
             if not self.description:
                 self.description = (self.move_line.description
-                    or self.move_line.move_description)
+                    or self.move_line.move_description_used)
             self.account = self.move_line.account
             self.maturity_date = self.move_line.maturity_date or None
+        if self.invoice:
+            lines_to_pay = [l for l in self.invoice.lines_to_pay
+                if l.maturity_date and l.reconciliation is None]
+            oldest_line = (min(lines_to_pay,
+                    key=lambda line: line.maturity_date)
+                if lines_to_pay else None)
+            if oldest_line:
+                self.maturity_date = oldest_line.maturity_date
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
@@ -892,7 +900,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     continue
                 # partial payment. In this point the invoice is payed or
                 # partial payed, so the invoice.amount_to_pay >= 0.
-                if line.invoice and line.invoice.amount_to_pay >= 0:
+                if line.invoice and line.invoice_amount_to_pay != 0:
                     continue
                 line_ids.append(line.id)
                 if line.related_to:
@@ -911,7 +919,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_repeated_related_to_used',
-                        realted_to=lines_not_allowed[0].related_to,
+                        realted_to=str(lines_not_allowed[0].related_to),
                         origin=(lines_not_allowed[0].origin.rec_name
                             if lines_not_allowed[0].origin else '')))
             if lines_to_remove:
@@ -923,6 +931,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ])
             if suggest_to_remove:
                 StatementSuggest.delete(suggest_to_remove)
+        # Before reconcile ensure the moves are posted to avoid that some
+        # possible estra moves, like writeoff, exchange, won't be posted.
+        Move.post([m for m, _ in moves])
         # Reconcile at the end to avoid problems with the related_to lines
         if move_lines:
             StatementLine.reconcile(move_lines)
@@ -1672,10 +1683,18 @@ class Origin(Workflow, metaclass=PoolMeta):
                 amount_second_currency = sign * amount_to_pay
             else:
                 amount_second_currency = sign * invoice.amount_to_pay
+            lines_to_pay = [l for l in related.lines_to_pay
+                if l.maturity_date and l.reconciliation is None]
+            oldest_line = (min(lines_to_pay,
+                    key=lambda line: line.maturity_date)
+                if lines_to_pay else None)
+            if oldest_line:
+                maturity_date = oldest_line.maturity_date
         else:
             amount=related.amount
             second_currency = related.second_currency
             amount_second_currency = related.amount_second_currency
+            maturity_date = related.maturity_date
 
         line = StatementLine()
         line.origin = origin
@@ -1689,7 +1708,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             line.second_currency = second_currency
             line.amount_second_currency = amount_second_currency
         line.date = origin.date
-        line.maturity_date = None
+        line.maturity_date = maturity_date
         line.description = origin.remittance_information
         return line
 
@@ -1928,6 +1947,10 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     'depends': ['state'],
                     },
                 })
+
+    @staticmethod
+    def default_state():
+        return 'proposed'
 
     @fields.depends('origin', '_parent_origin.company')
     def on_change_with_company(self, name=None):
@@ -2354,6 +2377,37 @@ class RetrieveEnableBankingSession(Wizard):
         journal.save()
         return action, {}
 
+
+
+class OriginSynchronizeStatementEnableBankingAsk(ModelView):
+    "Statement Origin or Synchronize Statement Enable Banking Ask"
+    __name__ = 'enable_banking.origin_synchronize_statement.ask'
+
+    journals = fields.Many2Many('account.statement.journal', None, None,
+        'Journals', readonly=True, states={
+            'invisible': True,
+            })
+
+
+class OriginSynchronizeStatementEnableBanking(Wizard):
+    "Statement Origin or Synchronize Statement Enable Banking"
+    __name__ = 'enable_banking.origin_synchronize_statement'
+
+    start = StateTransition()
+    ask = StateView('enable_banking.origin_synchronize_statement.ask',
+        'account_statement_enable_banking.'
+        'origin_synchronize_statement_ask_view_form', [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('Origin', 'origin', 'tryton-cancel'),
+            Button('Journal', 'journal', 'tryton-ok', default=True),
+            ])
+    origin = StateAction('account_statement_enable_banking.'
+        'act_statement_origin_form')
+    journal = StateAction('account_statement.act_statement_journal_form')
+
+    def get_journals_unsynchonized(self):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
 
 
 class OriginSynchronizeStatementEnableBankingAsk(ModelView):
