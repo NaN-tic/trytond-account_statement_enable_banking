@@ -57,5 +57,8 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_missing_fernet_key">
             <field name="text">Missing Fernet key.</field>
         </record>
+        <record model="ir.message" id="msg_not_use_blocked_account_move">
+            <field name="text">The suggestion you are trying to use is a payment blocked account move, which is not valid.</field>
+        </record>
     </data>
 </tryton>

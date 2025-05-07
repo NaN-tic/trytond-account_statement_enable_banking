@@ -7,7 +7,6 @@ from cryptography.fernet import Fernet
 
 from trytond.pool import Pool
 from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
-from trytond.pyson import Eval
 from trytond.i18n import gettext
 from trytond.exceptions import UserError
 from trytond.config import config
@@ -73,10 +72,7 @@ class EnableBankingSession(ModelSQL, ModelView):
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
     bank = fields.Many2One('bank', "Bank", readonly=True)
     allowed_bank_accounts = fields.Function(fields.Many2Many(
-            'bank.account', None, None, 'Allowed Bank Accounts',
-            context={
-                'company': Eval('company', -1),
-                }, depends={'company'}, readonly=True),
+            'bank.account', None, None, 'Allowed Bank Accounts',readonly=True),
         'get_allowed_bank_accounts')
 
     @classmethod
@@ -157,8 +153,8 @@ class EnableBankingSession(ModelSQL, ModelView):
 
         if not self.encrypted_session:
             return []
-        # To ensure the text i converted correctly as a json to dict, change
-        # somethings
+        # To ensure the text is converted correctly as a json to dict, change
+        # some things
         session_text = self.session.replace("'", '"').replace("None", "null")
         session_text = session_text.replace("True", "true").replace("False",
             "false")
@@ -173,8 +169,7 @@ class EnableBankingSession(ModelSQL, ModelView):
                     ],
                 ])
         return [x.account.id for x in numbers
-            if x.account is not None and x.account.active
-            and self.company.party in x.account.owners]
+            if x.account is not None and x.account.active]
 
     @property
     def session_expired(self):

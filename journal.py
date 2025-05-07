@@ -136,12 +136,6 @@ class Journal(metaclass=PoolMeta):
             return self.bank_account.iban
         return
 
-    @fields.depends('bank_account')
-    def on_change_with_bank_account_number(self, name=None):
-        if self.bank_account:
-            return self.bank_account.iban
-        return
-
     @fields.depends('enable_banking_session')
     def on_change_with_enable_banking_session_allowed_bank_accounts(self, name=None):
         if self.enable_banking_session:

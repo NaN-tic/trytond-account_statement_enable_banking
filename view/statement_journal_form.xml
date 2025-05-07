@@ -30,7 +30,9 @@ this repository contains the full copyright notices and license terms. -->
         <label name="enable_banking_session"/>
         <field name="enable_banking_session"/>
 
-        <button name="retrieve_enable_banking_session" colspan="2"/>
-        <button name="synchronize_statement_enable_banking" colspan="2" string="Synchronize Statements"/>
+        <group colspan="4" id="EB Session">
+            <button name="retrieve_enable_banking_session" colspan="2"/>
+            <button name="synchronize_statement_enable_banking" colspan="2" string="Synchronize Statements"/>
+        </group>
     </xpath>
 </data>
