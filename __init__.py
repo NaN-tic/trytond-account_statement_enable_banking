@@ -32,14 +32,15 @@ def register():
         statement.OriginSuggestedLine,
         statement.AddMultipleInvoicesStart,
         statement.AddMultipleMoveLinesStart,
-        statement.SynchronizeStatementEnableBankingStart,
+        statement.RetrieveEnableBankingSessionStart,
+        statement.RetrieveEnableBankingSessionSelect,
         statement.OriginSynchronizeStatementEnableBankingAsk,
         invoice.Invoice,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
         statement.AddMultipleInvoices,
         statement.AddMultipleMoveLines,
-        statement.SynchronizeStatementEnableBanking,
+        statement.RetrieveEnableBankingSession,
         statement.OriginSynchronizeStatementEnableBanking,
         module='account_statement_enable_banking', type_='wizard')
     Pool.register(
