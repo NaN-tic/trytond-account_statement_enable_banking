@@ -226,7 +226,7 @@ class Journal(metaclass=PoolMeta):
         date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
         date_to = ((datetime.now() - timedelta(
                     days=self.offset_days_to or 0)).date())
-        if data_from > date_to:
+        if date_from > date_to:
             return
         query = {
             "date_from": date_from.isoformat(),
