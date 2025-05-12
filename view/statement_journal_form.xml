@@ -31,6 +31,8 @@ this repository contains the full copyright notices and license terms. -->
         <field name="enable_banking_session"/>
         <label name="enable_banking_session_valid_days"/>
         <field name="enable_banking_session_valid_days"/>
+        <label name="offset_days_to"/>
+        <field name="offset_days_to"/>
 
         <button name="synchronize_statement_enable_banking" colspan="4"/>
     </xpath>

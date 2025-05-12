@@ -77,6 +77,15 @@ class Journal(metaclass=PoolMeta):
         "This field if set is the maximum of the allowed tolerance. That is, "
         "if value is set when searching for similarities it will look for "
         "equal amounts or with +X, value that has been set here.")
+    offset_days_to = fields.Integer('Offset Days To',
+        domain=[
+            ('offset_days_to', '<=', 20),
+            ('offset_days_to', '>=', 0)
+            ],
+        help='Default offset days in the Bank transaction search. '
+        'Allow to not download "to" today, could be set "to" some days before.'
+        ' This field could be from 0 to 20. 0 meaning today, other value will '
+        'be substracted from today.')
 
     @classmethod
     def __setup__(cls):
@@ -112,6 +121,10 @@ class Journal(metaclass=PoolMeta):
     @staticmethod
     def default_enable_banking_session_valid_days():
         return timedelta(days=30) # 30 days
+
+    @staticmethod
+    def default_offset_days_to():
+        return 0
 
     @classmethod
     def validate(cls, journals):
@@ -211,8 +224,13 @@ class Journal(metaclass=PoolMeta):
         if not date:
             date = datetime.now()
         date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
+        date_to = ((datetime.now() - timedelta(
+                    days=self.offset_days_to or 0)).date())
+        if data_from > date_to:
+            return
         query = {
-            "date_from": date_from.isoformat()
+            "date_from": date_from.isoformat(),
+            "date_to": date_to.isoformat(),
             }
 
         # We need to create an statement, as is a required field for the origin
@@ -227,7 +245,7 @@ class Journal(metaclass=PoolMeta):
                 or statement.start_balance is None):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
-        statement.end_date = datetime.now()
+        statement.end_date = date_to
         statement.save()
         Statement.register([statement])
 
