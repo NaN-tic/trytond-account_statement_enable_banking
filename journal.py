@@ -245,7 +245,7 @@ class Journal(metaclass=PoolMeta):
                 or statement.start_balance is None):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
-        statement.end_date = date_to
+        statement.end_date = datetime.combine(date_to, datetime.min.time())
         statement.save()
         Statement.register([statement])
 
