@@ -1640,6 +1640,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         Date = pool.get('ir.date')
         Currency = pool.get('currency.currency')
 
+        maturity_date = None
         if isinstance(related, Invoice):
             with Transaction().set_context(with_payment=False):
                 invoice, = Invoice.browse([related])
