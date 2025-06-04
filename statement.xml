@@ -227,6 +227,31 @@ this repository contains the full copyright notices and license terms. -->
             <field name="group" ref="account.group_account"/>
         </record>
 
+
+        <record model="ir.action.wizard" id="wizard_link_invoice">
+            <field name="name">Link Invoice</field>
+            <field name="wiz_name">statement.link.invoice</field>
+            <field name="model">account.statement.origin</field>
+        </record>
+
+        <record model="ir.ui.view" id="statement_link_invoice_start_view_form">
+            <field name="model">statement.link.invoice.start</field>
+            <field name="type">form</field>
+            <field name="name">statement_link_invoice_start</field>
+        </record>
+
+        <record model="ir.ui.view" id="act_link_invoice_move_form">
+            <field name="model">statement.link.invoice.move</field>
+            <field name="type">form</field>
+            <field name="name">statement_link_invoice_move</field>
+        </record>
+
+        <record model="ir.model.button" id="statement_origin_link_invoice_button">
+            <field name="name">link_invoice</field>
+            <field name="string">Link Invoice</field>
+            <field name="model">account.statement.origin</field>
+        </record>
+
         <record model="ir.action.wizard" id="wizard_multiple_move_lines">
             <field name="name">Add Multiple Move Lines</field>
             <field name="wiz_name">account.statement.origin.multiple.move_lines</field>

@@ -636,6 +636,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
                     },
+                'link_invoice': {
+                    'invisible': Eval('state') != 'registered',
+                    'depends': ['state'],
+                    },
                 })
         cls.__rpc__.update({
                 'post': RPC(
@@ -1634,6 +1638,7 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     @classmethod
     def _get_statement_line(cls, origin, related):
+        print('entro get_statement_line')
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         Invoice = pool.get('account.invoice')
@@ -1683,6 +1688,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         line.date = origin.date
         line.maturity_date = maturity_date
         line.description = origin.remittance_information
+        print(line.origin)
         return line
 
     @classmethod
@@ -1723,6 +1729,12 @@ class Origin(Workflow, metaclass=PoolMeta):
     @ModelView.button_action(
             'account_statement_enable_banking.wizard_multiple_move_lines')
     def multiple_move_lines(cls, origins):
+        pass
+
+    @classmethod
+    @ModelView.button_action(
+            'account_statement_enable_banking.wizard_link_invoice')
+    def link_invoice(cls, origins):
         pass
 
     @classmethod
@@ -2042,6 +2054,124 @@ class AddMultipleInvoicesStart(ModelView):
     pending_amount = Monetary("Pending Amount", currency='currency', digits='currency',
         readonly=True)
 
+class LinkInvoiceStart(ModelView):
+    'Link Invoice Start'
+    __name__ = 'statement.link.invoice.start'
+
+    invoice = fields.Many2One('account.invoice', 'Invoice', required=True)
+
+class LinkInvoiceMove(ModelView):
+    'Link Invoice Move'
+    __name__ = 'statement.link.invoice.move'
+
+
+    journal = fields.Many2One('account.journal', "Journal")
+    description = fields.Char("Description")
+    account = fields.Many2One('account.account', "Account")
+    party = fields.Many2One('party.party', "Party")
+
+class LinkInvoice(Wizard):
+    'Link Statement Origin Invoice'
+    __name__ = 'statement.link.invoice'
+
+    start = StateView('statement.link.invoice.start',
+                      'account_statement_enable_banking.statement_link_invoice_start_view_form',
+                      [Button('Cancel', 'end', 'tryton-cancel'),
+                       Button('Apply', 'apply', 'tryton-ok')])
+
+    apply = StateTransition()
+    move = StateView('statement.link.invoice.move',
+                     'account_statement_enable_banking.act_link_invoice_move_form',
+                     [Button('Cancel', 'end', 'tryton-cancel'),
+                       Button('Move', 'move', 'tryton-ok')])
+
+    def transition_apply(self):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+        StatementLine = pool.get('account.statement.line')
+        Date = pool.get('ir.date')
+        Currency = pool.get('currency.currency')
+        Move = pool.get('account.move')
+        MoveLine = pool.get('account.move.line')
+
+
+        invoice = self.start.invoice
+        origins = StatementOrigin.browse(Transaction().context['active_ids'])
+        sign = -1 if invoice.type == 'in' else 1
+        amount = sign * invoice.amount_to_pay
+        origins_amount = sum(l.amount for l in origins)
+        new_lines = []
+        print(origins)
+        # for origin in origins:
+        #     new_line = StatementOrigin._get_statement_line(origin, invoice)
+        #     new_lines.append(new_line)
+        # StatementLine.save(new_lines)
+
+        for origin in origins:
+
+            line = StatementLine()
+            line.origin = origin
+            line.statement = origin.statement
+            line.suggested_line = None
+            line.related_to = invoice
+            line.party = invoice.party
+            line.account = invoice.account
+            line.amount = origin.amount
+            second_currency = invoice.currency
+            if origin.second_currency:
+                second_currency_date = invoice.currency_date or Date.today()
+                with Transaction().set_context(date=second_currency_date):
+                    amount_to_pay = Currency.compute(second_currency,
+                        invoice.amount_to_pay, origin.company.currency,
+                        round=True)
+                amount_second_currency = sign * amount_to_pay
+            else:
+                amount_second_currency = sign * invoice.amount_to_pay
+            if origin.second_currency:
+                line.second_currency = second_currency
+                line.amount_second_currency = amount_second_currency
+            line.date = origin.date
+            maturity_date = None
+            lines_to_pay = [l for l in invoice.lines_to_pay
+                if l.maturity_date and l.reconciliation is None]
+            oldest_line = (min(lines_to_pay,
+                    key=lambda line: line.maturity_date)
+                if lines_to_pay else None)
+            if oldest_line:
+                maturity_date = oldest_line.maturity_date
+            line.maturity_date = maturity_date
+            line.description = origin.remittance_information
+            new_lines.append(line)
+        print(new_lines)
+        StatementLine.save(new_lines)
+
+        if abs(amount - origins_amount) > 0.01:
+            # Create difference account_move
+            return 'move'
+        return 'end'
+
+    def transition_move(self):
+        pool = Pool()
+        Move = pool.get('account.move')
+        MoveLine = pool.get('account.move.line')
+        Date = pool.get('ir.date')
+
+        # Create a move with the difference
+        move = Move()
+        move.date = Date.today()
+        move.journal = self.move.journal
+        move.description = 'Difference for statement origin'
+        move.save()
+
+        # Create the move line for the difference
+        move_line = MoveLine()
+        move_line.move = move
+        move_line.account = self.move.account
+        move_line.debit = abs(self.start.invoice.amount_to_pay) if self.start.invoice.amount_to_pay < 0 else 0
+        move_line.credit = abs(self.start.invoice.amount_to_pay) if self.start.invoice.amount_to_pay > 0 else 0
+        move_line.save()
+
+        return 'end'
 
 class AddMultipleMoveLines(Wizard):
     'Add Multiple Move Lines'

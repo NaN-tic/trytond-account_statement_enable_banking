@@ -34,6 +34,8 @@ def register():
         statement.AddMultipleMoveLinesStart,
         statement.SynchronizeStatementEnableBankingStart,
         statement.OriginSynchronizeStatementEnableBankingAsk,
+        statement.LinkInvoiceStart,
+        statement.LinkInvoiceMove,
         invoice.Invoice,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
@@ -41,6 +43,7 @@ def register():
         statement.AddMultipleMoveLines,
         statement.SynchronizeStatementEnableBanking,
         statement.OriginSynchronizeStatementEnableBanking,
+        statement.LinkInvoice,
         module='account_statement_enable_banking', type_='wizard')
     Pool.register(
         enable_banking.EnableBankingSessionOK,
