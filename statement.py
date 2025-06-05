@@ -636,6 +636,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
                     },
+                'link_invoice': {
+                    'invisible': Eval('state') != 'registered',
+                    'depends': ['state'],
+                    },
                 })
         cls.__rpc__.update({
                 'post': RPC(
@@ -1726,6 +1730,12 @@ class Origin(Workflow, metaclass=PoolMeta):
         pass
 
     @classmethod
+    @ModelView.button_action(
+            'account_statement_enable_banking.wizard_link_invoice')
+    def link_invoice(cls, origins):
+        pass
+
+    @classmethod
     @ModelView.button
     @Workflow.transition('registered')
     def register(cls, origins):
@@ -2103,6 +2113,101 @@ class AddMultipleMoveLinesStart(ModelView):
         readonly=True)
     pending_amount = Monetary("Pending Amount", currency='currency', digits='currency',
         readonly=True)
+
+
+class LinkInvoiceStart(ModelView):
+    'Link Invoice Start'
+    __name__ = 'statement.link.invoice.start'
+
+    company = fields.Many2One('company.company', "Company")
+    currency = fields.Many2One('currency.currency', "Currency")
+    invoice = fields.Many2One('account.invoice', 'Invoice', required=True,
+        domain=[
+            ('company', '=', Eval('company', -1)),
+            ('currency', '=', Eval('currency', -1)),
+            ('state', '=', 'posted'),
+            ])
+    invoice_amount = Monetary("Invoice Amount", currency='currency', digits='currency',
+        readonly=True)
+    origins_amount = Monetary("Origins Amount", currency='currency', digits='currency',
+        readonly=True)
+    diff_amount = Monetary("Difference Amount", currency='currency', digits='currency',
+        readonly=True)
+    post_origin = fields.Boolean("Post Origins")
+
+    @fields.depends('invoice')
+    def on_change_with_invoice_amount(self, name=None):
+        if self.invoice:
+            return self.invoice.amount_to_pay
+
+    @fields.depends('invoice', 'origins_amount')
+    def on_change_with_diff_amount(self, name=None):
+        if self.invoice:
+            return self.invoice.amount_to_pay - self.origins_amount
+
+
+class LinkInvoice(Wizard):
+    'Link Statement Origin Invoice'
+    __name__ = 'statement.link.invoice'
+
+    start = StateView('statement.link.invoice.start',
+        'account_statement_enable_banking.\
+        statement_link_invoice_start_view_form',
+        [Button('Cancel', 'end', 'tryton-cancel'),
+            Button('Apply', 'apply', 'tryton-ok')])
+    apply = StateTransition()
+
+    def default_start(self, fields):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+
+        origins = StatementOrigin.browse(Transaction().context['active_ids'])
+        origins_amount = sum(l.amount for l in origins)
+        origin = origins[0]
+        origin_lines = {
+            origin.number: origin.lines
+            for origin in origins
+            if getattr(origin, 'lines', [])
+            }
+        if origin_lines:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_origins_with_lines',
+                    origins=", ".join(origin_lines.keys())))
+        return {
+            'company': origin.company.id,
+            'currency': origin.currency.id,
+            'origins_amount': origins_amount,
+            'post_origin': True,
+            }
+
+    def transition_apply(self):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+        StatementLine = pool.get('account.statement.line')
+
+        origins = StatementOrigin.browse(Transaction().context['active_ids'])
+        invoice = self.start.invoice
+        amount = invoice.amount_to_pay
+        origins_amount = sum(l.amount for l in origins)
+        if abs(amount) < abs(origins_amount):
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.\
+                    msg_not_eougth_amount_to_pay',
+                    amount_to_pay=amount,
+                    origins_amount=origins_amount))
+
+        lines = []
+        print(origins)
+        for origin in origins:
+            line = StatementOrigin._get_statement_line(origin, invoice)
+            line.amount = origin.amount
+            lines.append(line)
+        StatementLine.save(lines)
+
+        if self.start.post_origin:
+            StatementOrigin.post(origins)
+
+        return 'end'
 
 
 class SynchronizeStatementEnableBankingStart(ModelView):
