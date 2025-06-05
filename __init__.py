@@ -35,7 +35,6 @@ def register():
         statement.SynchronizeStatementEnableBankingStart,
         statement.OriginSynchronizeStatementEnableBankingAsk,
         statement.LinkInvoiceStart,
-        statement.LinkInvoiceMove,
         invoice.Invoice,
         module='account_statement_enable_banking', type_='model')
     Pool.register(

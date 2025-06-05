@@ -240,12 +240,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="name">statement_link_invoice_start</field>
         </record>
 
-        <record model="ir.ui.view" id="act_link_invoice_move_form">
-            <field name="model">statement.link.invoice.move</field>
-            <field name="type">form</field>
-            <field name="name">statement_link_invoice_move</field>
-        </record>
-
         <record model="ir.model.button" id="statement_origin_link_invoice_button">
             <field name="name">link_invoice</field>
             <field name="string">Link Invoice</field>
