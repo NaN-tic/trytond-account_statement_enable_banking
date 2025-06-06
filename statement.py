@@ -2138,12 +2138,14 @@ class LinkInvoiceStart(ModelView):
     @fields.depends('invoice')
     def on_change_with_invoice_amount(self, name=None):
         if self.invoice:
-            return self.invoice.amount_to_pay
+            sign = -1 if self.invoice.type == 'in' else 1
+            return sign * self.invoice.amount_to_pay
 
     @fields.depends('invoice', 'origins_amount')
     def on_change_with_diff_amount(self, name=None):
         if self.invoice:
-            return self.invoice.amount_to_pay - self.origins_amount
+            sign = -1 if self.invoice.type == 'in' else 1
+            return (sign * self.invoice.amount_to_pay) - self.origins_amount
 
 
 class LinkInvoice(Wizard):
