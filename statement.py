@@ -1516,6 +1516,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not origins:
             return
 
+        origins_without_lines = origins
         # Before a new search remove all suggested lines, but control if any
         # of them are related to a statement line.
         suggests = SuggestedLine.search([
@@ -1525,17 +1526,13 @@ class Origin(Workflow, metaclass=PoolMeta):
             lines = StatementLine.search([
                     ('suggested_line', 'in', [x.id for x in suggests])
                 ])
-            if lines:
-                origins_name = ", ".join([x.origin.rec_name
-                        for x in lines if x.origin])
-                raise AccessError(
-                    gettext('account_statement_enable_banking.'
-                        'msg_suggested_line_related_to_statement_line',
-                        origins_name=origins_name))
+            origins_with_lines = set(x.origin.id for x in lines if x.origin)
+            origins_without_lines = [o for o in origins
+                if o.id not in origins_with_lines]
             SuggestedLine.delete(suggests)
 
         suggesteds_to_create = []
-        for origin in origins:
+        for origin in origins_without_lines:
             pending_amount = origin.pending_amount
             if pending_amount == _ZERO:
                 return
