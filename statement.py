@@ -2196,7 +2196,6 @@ class LinkInvoice(Wizard):
                     origins_amount=origins_amount))
 
         lines = []
-        print(origins)
         for origin in origins:
             line = StatementOrigin._get_statement_line(origin, invoice)
             line.amount = origin.amount
