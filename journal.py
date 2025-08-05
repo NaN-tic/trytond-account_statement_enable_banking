@@ -265,6 +265,8 @@ class Journal(metaclass=PoolMeta):
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
+                last_transaction_date = None
+                origins = []
                 for transaction in response['transactions']:
                     entry_reference = transaction.get('entry_reference', None)
                     # The entry_reference is set to None if not exist in
@@ -306,8 +308,10 @@ class Journal(metaclass=PoolMeta):
                         statement_origin.balance = (
                             balance_after_transaction.get('amount', None))
                     total_amount += statement_origin.amount
-                    statement_origin.date = datetime.strptime(
+                    transaction_date = datetime.strptime(
                         transaction[ebconfig.date_field], '%Y-%m-%d').date()
+                    statement_origin.date = transaction_date
+                    last_transaction_date = transaction_date
                     information_dict = {}
                     for key, value in transaction.items():
                         if value is None or key in self._keys_not_needed():
@@ -328,12 +332,23 @@ class Journal(metaclass=PoolMeta):
                         elif isinstance(value, list):
                             information_dict[key] = ", ".join(value)
                     statement_origin.information = information_dict
+                    origins.append(statement_origin)
                     to_save.append(statement_origin)
+                StatementOrigin.save(origins)
                 if not continuation_key:
                     statement.end_balance = (
                         statement.start_balance + total_amount)
                     statement.save()
                     break
+                elif (last_transaction_date
+                        and last_transaction_date != query.get("date_from")):
+                    # TODO: Remove when some Spanish Bnaks solve the recursive
+                    # calls problem. (eg: Bankinter)
+                    # If the problem with the continuation_key is not solved
+                    # and in one day you have more than 30 transactions, this
+                    # patch will not solve the problem.
+                    continuation_key = None
+                    query["date_from"] = last_transaction_date.isoformat()
             else:
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
@@ -342,7 +357,6 @@ class Journal(metaclass=PoolMeta):
                         error_message=str(r.text)))
 
         if to_save:
-            StatementOrigin.save(to_save)
             to_save.sort(reverse=True)
             to_save.sort(key=lambda x: x.date)
             self.set_number(to_save)
