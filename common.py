@@ -6,7 +6,11 @@ from urllib.parse import urlparse
 
 from trytond.config import config
 
+KEYPATH = config.get('enable_banking', 'keypath')
+
 def get_base_header():
+    if not KEYPATH:
+        return {}
     iat = int(datetime.now().timestamp())
     jwt_body = {
             "iss": "enablebanking.com",
@@ -14,11 +18,8 @@ def get_base_header():
             "iat": iat,
             "exp": iat + 86400,
         }
-    jwt = pyjwt.encode(
-            jwt_body,
-            open(config.get('enable_banking', 'keypath'), "rb").read(),
-            algorithm='RS256',
-            headers={'kid': config.get('enable_banking', 'applicationid')})
+    jwt = pyjwt.encode(jwt_body, open(KEYPATH, "rb").read(), algorithm='RS256',
+        headers={'kid': config.get('enable_banking', 'applicationid')})
 
     url = config.get('enable_banking', 'api_origin')
     host = urlparse(url).netloc
@@ -34,5 +35,5 @@ def get_base_header():
         #"Psu-Accept-language": # PSU accept language
         #"Psu-Geo-Location":	# Comma separated latitude and longitude coordinates without spaces
         "Authorization": f"Bearer {jwt}",
-    }
+        }
     return base_headers
