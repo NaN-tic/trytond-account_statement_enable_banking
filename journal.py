@@ -257,6 +257,8 @@ class Journal(metaclass=PoolMeta):
         while True:
             if continuation_key:
                 query["continuation_key"] = continuation_key
+            else:
+                query.pop("continuation_key", None)
 
             r = requests.get(
                 f"{config.get('enable_banking', 'api_origin')}"
@@ -267,7 +269,8 @@ class Journal(metaclass=PoolMeta):
                 continuation_key = response.get('continuation_key')
                 last_transaction_date = None
                 origins = []
-                for transaction in response['transactions']:
+                transactions = response['transactions']
+                for transaction in transactions:
                     entry_reference = transaction.get('entry_reference', None)
                     # The entry_reference is set to None if not exist in
                     # transaction result, but could exist and be and empty
@@ -349,6 +352,11 @@ class Journal(metaclass=PoolMeta):
                     # patch will not solve the problem.
                     continuation_key = None
                     query["date_from"] = last_transaction_date.isoformat()
+                elif not last_transaction_date and not transactions:
+                    continuation_key = None
+                    date_obj = datetime.strptime(query.get("date_from"), "%Y-%m-%d")
+                    next_day = date_obj + timedelta(days=1)
+                    query["date_from"] = next_day.strftime("%Y-%m-%d")
             else:
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
