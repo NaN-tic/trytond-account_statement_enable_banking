@@ -60,5 +60,11 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_not_use_blocked_account_move">
             <field name="text">The suggestion you are trying to use is a payment blocked account move, which is not valid.</field>
         </record>
+        <record model="ir.message" id="msg_origins_with_lines">
+            <field name="text">The origins "%(origins)s" have lines. If you want to use them to pay an Invoice, you need to remvove this lines related.</field>
+        </record>
+        <record model="ir.message" id="msg_not_enough_amount_to_pay">
+            <field name="text">The invoice has not enougth amount to pay. It's %(amount_to_pay)s € and the origins selected sum %(origins_amount)s €.</field>
+        </record>
     </data>
 </tryton>

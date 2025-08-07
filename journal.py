@@ -91,6 +91,15 @@ class Journal(metaclass=PoolMeta):
         "This field if set is the maximum of the allowed tolerance. That is, "
         "if value is set when searching for similarities it will look for "
         "equal amounts or with +X, value that has been set here.")
+    offset_days_to = fields.Integer('Offset Days To',
+        domain=[
+            ('offset_days_to', '<=', 20),
+            ('offset_days_to', '>=', 0)
+            ],
+        help='Default offset days in the Bank transaction search. '
+        'Allow to not download "to" today, could be set "to" some days before.'
+        ' This field could be from 0 to 20. 0 meaning today, other value will '
+        'be substracted from today.')
 
     @classmethod
     def __setup__(cls):
@@ -142,6 +151,10 @@ class Journal(metaclass=PoolMeta):
             return self.enable_banking_session.allowed_bank_accounts
             #return self.enable_banking_session.get_allowed_bank_accounts()
         return
+
+    @staticmethod
+    def default_offset_days_to():
+        return 0
 
     @classmethod
     def validate(cls, journals):
@@ -259,8 +272,13 @@ class Journal(metaclass=PoolMeta):
         if not date:
             date = datetime.now()
         date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
+        date_to = ((datetime.now() - timedelta(
+                    days=self.offset_days_to or 0)).date())
+        if date_from > date_to:
+            return
         query = {
-            "date_from": date_from.isoformat()
+            "date_from": date_from.isoformat(),
+            "date_to": date_to.isoformat(),
             }
 
         # We need to create an statement, as is a required field for the origin
@@ -275,7 +293,7 @@ class Journal(metaclass=PoolMeta):
                 or statement.start_balance is None):
             statement.start_balance = Decimal(0)
         statement.start_date = datetime.combine(date_from, datetime.min.time())
-        statement.end_date = datetime.now()
+        statement.end_date = datetime.combine(date_to, datetime.min.time())
         statement.save()
         Statement.register([statement])
 
@@ -287,6 +305,8 @@ class Journal(metaclass=PoolMeta):
         while True:
             if continuation_key:
                 query["continuation_key"] = continuation_key
+            else:
+                query.pop("continuation_key", None)
 
             r = requests.get(
                 f"{config.get('enable_banking', 'api_origin')}"
@@ -295,7 +315,10 @@ class Journal(metaclass=PoolMeta):
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
-                for transaction in response['transactions']:
+                last_transaction_date = None
+                origins = []
+                transactions = response['transactions']
+                for transaction in transactions:
                     entry_reference = transaction.get('entry_reference', None)
                     # The entry_reference is set to None if not exist in
                     # transaction result, but could exist and be and empty
@@ -336,8 +359,10 @@ class Journal(metaclass=PoolMeta):
                         statement_origin.balance = (
                             balance_after_transaction.get('amount', None))
                     total_amount += statement_origin.amount
-                    statement_origin.date = datetime.strptime(
+                    transaction_date = datetime.strptime(
                         transaction[ebconfig.date_field], '%Y-%m-%d').date()
+                    statement_origin.date = transaction_date
+                    last_transaction_date = transaction_date
                     information_dict = {}
                     for key, value in transaction.items():
                         if value is None or key in self._keys_not_needed():
@@ -358,12 +383,28 @@ class Journal(metaclass=PoolMeta):
                         elif isinstance(value, list):
                             information_dict[key] = ", ".join(value)
                     statement_origin.information = information_dict
+                    origins.append(statement_origin)
                     to_save.append(statement_origin)
+                StatementOrigin.save(origins)
                 if not continuation_key:
                     statement.end_balance = (
                         statement.start_balance + total_amount)
                     statement.save()
                     break
+                elif (last_transaction_date
+                        and last_transaction_date != query.get("date_from")):
+                    # TODO: Remove when some Spanish Bnaks solve the recursive
+                    # calls problem. (eg: Bankinter)
+                    # If the problem with the continuation_key is not solved
+                    # and in one day you have more than 30 transactions, this
+                    # patch will not solve the problem.
+                    continuation_key = None
+                    query["date_from"] = last_transaction_date.isoformat()
+                elif not last_transaction_date and not transactions:
+                    continuation_key = None
+                    date_obj = datetime.strptime(query.get("date_from"), "%Y-%m-%d")
+                    next_day = date_obj + timedelta(days=1)
+                    query["date_from"] = next_day.strftime("%Y-%m-%d")
             else:
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
@@ -372,7 +413,6 @@ class Journal(metaclass=PoolMeta):
                         error_message=str(r.text)))
 
         if to_save:
-            StatementOrigin.save(to_save)
             to_save.sort(reverse=True)
             to_save.sort(key=lambda x: x.date)
             self.set_number(to_save)

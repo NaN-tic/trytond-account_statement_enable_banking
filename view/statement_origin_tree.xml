@@ -11,5 +11,6 @@ this repository contains the full copyright notices and license terms. -->
         <button name="cancel"/>
         <field name="remittance_information" tree_invisible="1"/>
         <button name="search_suggestions" tree_invisible="1"/>
+        <button name="link_invoice" tree_invisible="1"/>
     </xpath>
 </data>
