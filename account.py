@@ -7,6 +7,7 @@ from trytond.pool import Pool, PoolMeta
 from trytond.model import fields
 from trytond.tools import grouped_slice, reduce_ids
 from trytond.transaction import Transaction
+from trytond.modules.currency.fields import Monetary
 
 
 class Move(metaclass=PoolMeta):
@@ -25,6 +26,9 @@ class MoveLine(metaclass=PoolMeta):
         'get_payment_fields', searcher='search_payment_group')
     payment_date = fields.Function(fields.Date('Payment Date'),
         'get_payment_fields', searcher='search_payment_date')
+    debit_credit_balance = fields.Function(Monetary(
+        'Debit-Credit Balance', digits=(16, 2)),
+        'get_debit_credit_balance')
 
     @classmethod
     def get_payment_fields(cls, lines, name):
@@ -43,6 +47,9 @@ class MoveLine(metaclass=PoolMeta):
             cursor.execute(*query)
             result.update(dict(cursor.fetchall()))
         return result
+
+    def get_debit_credit_balance(self, name):
+        return self.debit - self.credit
 
     @classmethod
     def search_payment_group(cls, name, clause):

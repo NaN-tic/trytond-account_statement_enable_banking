@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
+this repository contains the full copyright notices and license terms. -->
+<form>
+    <label string="A valid session has been found for the journal's bank account:" id="retrieve_session_valid_session"/>
+    <label name="found_session"/>
+    <field name="found_session"/>
+    <newline/>
+    <label string="NOTE: Choosing to generate a new session will delete this existing one" id="retrieve_session_valid_session_delete"/>
+</form>
