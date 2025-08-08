@@ -2,6 +2,10 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
+msgctxt "field:account.move.line,debit_credit_balance:"
+msgid "Debit-Credit Balance"
+msgstr "Saldo Débito-Crédito"
+
 msgctxt "field:account.invoice,paid_directly:"
 msgid "Has Payed directly"
 msgstr "Ha pagado directamente"
