@@ -1002,7 +1002,7 @@ class Origin(Workflow, metaclass=PoolMeta):
     def increase_similarity_by_interval_date(self, date, interval_date=None,
             similarity=0):
         """
-        This funtion increases the similarity if the dates are equal or in the
+        This function increases the similarity if the dates are equal or in the
         interval.
         """
         if date:
@@ -1026,7 +1026,7 @@ class Origin(Workflow, metaclass=PoolMeta):
     def increase_similarity_by_party(self, party, similarity_parties,
             similarity=0):
         """
-        This funtion increases the similarity if the party is similar.
+        This function increases the similarity if the party is similar.
         """
         if party:
             party_id = party.id
