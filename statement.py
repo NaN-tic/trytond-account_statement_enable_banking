@@ -303,8 +303,8 @@ class Line(metaclass=PoolMeta):
         if not self.show_paid_invoices:
             super().on_change_party()
 
-    @fields.depends('amount', 'account', methods=['invoice', 'move_line',
-        'invoice_amount_to_pay'])
+    @fields.depends('amount', 'account', 'origin', '_parent_origin.id',
+        methods=['invoice', 'move_line', 'invoice_amount_to_pay'])
     def on_change_amount(self):
         if self.invoice:
             if self.invoice.account != self.account:
@@ -330,7 +330,13 @@ class Line(metaclass=PoolMeta):
                             and self.amount < self.move_line.amount))):
                 self.amount = self.move_line.amount
         else:
+            # By default, super().on_change_amount() may set the account
+            # automatically based on the sign of the amount, but we don't want
+            # that
+            account = self.account
             super().on_change_amount()
+            if self.origin:
+                self.account = account
 
     @fields.depends('account', methods=['move_line'])
     def on_change_account(self):
