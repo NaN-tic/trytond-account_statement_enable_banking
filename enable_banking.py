@@ -14,6 +14,8 @@ from trytond.transaction import Transaction
 from .common import get_base_header
 from trytond.report import Report
 
+FERNET_KEY = config.get('cryptography', 'fernet_key')
+
 
 class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
     "Enable Banking Configuration"
@@ -140,12 +142,11 @@ class EnableBankingSession(ModelSQL, ModelView):
 
     @classmethod
     def get_fernet_key(cls):
-        fernet_key = config.get('cryptography', 'fernet_key')
-        if not fernet_key:
+        if not FERNET_KEY:
             raise UserError(gettext(
                     'account_statement_enable_banking.msg_missing_fernet_key'))
         else:
-            return Fernet(fernet_key)
+            return Fernet(FERNET_KEY)
 
     def get_allowed_bank_accounts(self, name=None):
         pool = Pool()
