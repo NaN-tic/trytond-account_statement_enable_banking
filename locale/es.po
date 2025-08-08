@@ -54,6 +54,11 @@ msgctxt "field:account.statement.journal,enable_banking_session:"
 msgid "Enable Banking Session"
 msgstr "Sesion Enable Banking"
 
+msgctxt ""
+"field:account.statement.journal,enable_banking_session_allowed_bank_accounts:"
+msgid "Allowed Bank Accounts"
+msgstr "Cuentas bancarias permitidas"
+
 msgctxt "field:account.statement.journal,enable_banking_session_valid_days:"
 msgid "Enable Banking Session Valid Days"
 msgstr "Días validez sesión Enable Banking"
@@ -267,6 +272,34 @@ msgctxt "field:enable_banking.origin_synchronize_statement.ask,journals:"
 msgid "Journals"
 msgstr "Diarios"
 
+msgctxt ""
+"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid:"
+msgid "Enable Banking Session Valid"
+msgstr "Sesión válida Enable Banking"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
+msgid "Enable Banking Session Valid Days"
+msgstr "Días de sesión vàlida Enable Banking"
+
+msgctxt "field:enable_banking.retrieve_session.select_session,found_session:"
+msgid "Found Session"
+msgstr "Sesión encontrada"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.start,enable_banking_session_valid:"
+msgid "Enable Banking Session Valid"
+msgstr "Sesión válida Enable Banking"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
+msgid "Enable Banking Session Valid Days"
+msgstr "Días de sesión vàlida Enable Banking"
+
+msgctxt "field:enable_banking.session,allowed_bank_accounts:"
+msgid "Allowed Bank Accounts"
+msgstr "Cuentas bancarias permitidas"
+
 msgctxt "field:enable_banking.session,aspsp_country:"
 msgid "ASPSP Country"
 msgstr "País ASPSP"
@@ -414,6 +447,16 @@ msgstr "Escoge que fecha utilizar al importar extractos."
 msgctxt "help:enable_banking.configuration,offset:"
 msgid "Offset in days to apply when importing statements manually"
 msgstr "Offset en días que se aplicará al importar extractos manualmente"
+
+msgctxt ""
+"help:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
+msgid "Only allowed maximum 180 days."
+msgstr "Solo se permite un máximo de 180 días."
+
+msgctxt ""
+"help:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
+msgid "Only allowed maximum 180 days."
+msgstr "Solo se permite un máximo de 180 días."
 
 msgctxt ""
 "model:account.statement.origin.information,string:eb_balance_after_transaction"
@@ -598,13 +641,21 @@ msgctxt "model:enable_banking.origin_synchronize_statement.ask,name:"
 msgid "Statement Origin or Synchronize Statement Enable Banking Ask"
 msgstr "Origen del extracto o Sincronizar extracto Enable Banking Pregunta"
 
+msgctxt "model:enable_banking.retrieve_session.select_session,name:"
+msgid "Retrieve Enable Banking Session Select Session"
+msgstr "Escoge sesión Recupera sesión Enable Banking"
+
+msgctxt "model:enable_banking.retrieve_session.start,name:"
+msgid "Retrieve Enable Banking Session Start"
+msgstr "Inicio Recupera sesión Enable Banking"
+
 msgctxt "model:enable_banking.session,name:"
 msgid "Enable Banking Session"
 msgstr "Sesión Enable Banking"
 
-msgctxt "model:enable_banking.synchronize_statement.start,name:"
-msgid "Synchronize Statement Enable Banking Start"
-msgstr "Sincronizar Asientos Enable Banking Inicio"
+msgctxt "model:ir.action,name:"
+msgid "Synchronize Statement Enable Banking"
+msgstr "Sincroniza Extractos a través de Enable Banking"
 
 msgctxt ""
 "model:ir.action,name:act_account_statement_origin_suggested_line_view"
@@ -615,13 +666,13 @@ msgctxt "model:ir.action,name:act_enable_banking_configuration_form"
 msgid "Enable Banking Configuration"
 msgstr "Configuración"
 
+msgctxt "model:ir.action,name:act_enable_banking_retrieve_session"
+msgid "Synchronize Statement Enable Banking"
+msgstr "Sincronizar extractos Enable Banking"
+
 msgctxt "model:ir.action,name:act_enable_banking_session_form"
 msgid "Enable Banking Session"
 msgstr "Sesión Enable Banking"
-
-msgctxt "model:ir.action,name:act_enable_banking_synchronize_statement"
-msgid "Synchronize Statement Enable Banking"
-msgstr "Sincroniza Extractos a través de Enable Banking"
 
 msgctxt "model:ir.action,name:act_origin_move_lines_form"
 msgid "Move Lines"
@@ -859,8 +910,8 @@ msgstr "Registrar"
 
 msgctxt ""
 "model:ir.model.button,string:synchronize_statement_enable_banking_button"
-msgid "Synchronize Statement Enable Banking"
-msgstr "Sincroniza Extractos a través de Enable Banking"
+msgid "Syncronize Statements"
+msgstr "Sincronizar extractos"
 
 msgctxt ""
 "model:ir.model.button,string:test_connection_enable_banking_configuration_button"
@@ -993,6 +1044,10 @@ msgctxt "view:account.statement.journal:"
 msgid "Similarity in Search"
 msgstr "Similitud en la búsqueda"
 
+msgctxt "view:account.statement.journal:"
+msgid "Synchronize Statements"
+msgstr "Sincronizar extractos"
+
 msgctxt "view:account.statement:"
 msgid "End Time"
 msgstr "Hora final"
@@ -1010,6 +1065,23 @@ msgstr ""
 "Hay uno o más diarios de extracto con la sesión de Enable Banking caducada. "
 "¿Quieres ir a los Orígenes o a los Diarios para actualizar las sesiones?"
 
+msgctxt "view:enable_banking.retrieve_session.select_session:"
+msgid "A valid session has been found for the journal's bank account:"
+msgstr ""
+"Se ha encontrado una sesión válida para la cuenta bancaria del diario:"
+
+msgctxt "view:enable_banking.retrieve_session.select_session:"
+msgid "NOTE: Choosing to generate a new session will delete this existing one"
+msgstr "NOTA: Al escoger generar una nueva sesión se eliminará la existente."
+
+msgctxt "view:enable_banking.retrieve_session.start:"
+msgid "Do you want to continue?"
+msgstr "¿Quieres continuar?"
+
+msgctxt "view:enable_banking.retrieve_session.start:"
+msgid "Retrieve an enable banking session, creating one if it does not exist"
+msgstr "Recupera una sesión bancaria habilitada, creando una si no existe"
+
 msgctxt "view:enable_banking.session:"
 msgid "Bank"
 msgstr "Banco"
@@ -1017,16 +1089,6 @@ msgstr "Banco"
 msgctxt "view:enable_banking.session:"
 msgid "Session"
 msgstr "Sesión"
-
-msgctxt "view:enable_banking.synchronize_statement.start:"
-msgid "Do you want to continue?"
-msgstr "¿Quieres continuar?"
-
-msgctxt "view:enable_banking.synchronize_statement.start:"
-msgid ""
-"It will proceed to connect with the bank and synchronize the statements."
-msgstr ""
-"Se procederá a conectarse y sincronizar las líneas de extracto del banco."
 
 msgctxt ""
 "wizard_button:account.statement.origin.multiple.invoices,start,create_lines:"
@@ -1062,11 +1124,24 @@ msgid "Origin"
 msgstr "Origenes"
 
 msgctxt ""
-"wizard_button:enable_banking.synchronize_statement,start,check_session:"
+"wizard_button:enable_banking.retrieve_session,select_session,create_session:"
+msgid "Create New Session"
+msgstr "Crear nueva sesión"
+
+msgctxt "wizard_button:enable_banking.retrieve_session,select_session,end:"
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgctxt ""
+"wizard_button:enable_banking.retrieve_session,select_session,use_session:"
+msgid "Use Existing Session"
+msgstr "Usar sesión existente"
+
+msgctxt "wizard_button:enable_banking.retrieve_session,start,check_session:"
 msgid "OK"
 msgstr "Aceptar"
 
-msgctxt "wizard_button:enable_banking.synchronize_statement,start,end:"
+msgctxt "wizard_button:enable_banking.retrieve_session,start,end:"
 msgid "Cancel"
 msgstr "Cancelar"
 

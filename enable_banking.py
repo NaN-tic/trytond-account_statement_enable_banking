@@ -1,8 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
+import json
+from datetime import datetime
 from cryptography.fernet import Fernet
 
+from trytond.pool import Pool
 from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
 from trytond.i18n import gettext
 from trytond.exceptions import UserError
@@ -69,6 +72,9 @@ class EnableBankingSession(ModelSQL, ModelView):
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
     bank = fields.Many2One('bank', "Bank", readonly=True)
+    allowed_bank_accounts = fields.Function(fields.Many2Many(
+            'bank.account', None, None, 'Allowed Bank Accounts',readonly=True),
+        'get_allowed_bank_accounts')
 
     @classmethod
     def __register__(cls, module_name):
@@ -144,6 +150,30 @@ class EnableBankingSession(ModelSQL, ModelView):
         else:
             return Fernet(FERNET_KEY)
 
+    def get_allowed_bank_accounts(self, name=None):
+        pool = Pool()
+        BankNumber = pool.get('bank.account.number')
+
+        if not self.encrypted_session:
+            return []
+        session = json.loads(self.session)
+        accounts = session.get('accounts') if session else {}
+        iban_numbers = [x.get('account_id', {}).get('iban') for x in accounts]
+        numbers = BankNumber.search([
+                ('type', '=', 'iban'),
+                ['OR',
+                    ('number', 'in', iban_numbers),
+                    ('number_compact', 'in', iban_numbers),
+                    ],
+                ])
+        return [x.account.id for x in numbers
+            if x.account is not None and x.account.active]
+
+    @property
+    def session_expired(self):
+        if self.valid_until and self.valid_until >= datetime.now():
+            return False
+        return True
 
 class EnableBankingSessionOK(Report):
     "Enable Banking Session OK"
