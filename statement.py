@@ -409,7 +409,7 @@ class Line(metaclass=PoolMeta):
 
         # As a 'core' difference, the value of the line amount must be the
         # amount of the movement, invoice or payment. Not the line amount
-        # pending. It could induce an incorrect concept nad misunderstunding.
+        # pending. It could induce an incorrect concept and misunderstunding.
         amount = None
         if self.invoice and self.invoice.id in invoice_id2amount_to_pay:
             amount = invoice_id2amount_to_pay.get(
@@ -824,7 +824,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         '''
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
-        StatementSuggest = pool.get('account.statement.origin.suggested.line')
+        StatementSuggestion = pool.get(
+            'account.statement.origin.suggested.line')
         Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
 
@@ -910,12 +911,12 @@ class Origin(Workflow, metaclass=PoolMeta):
             if lines_to_remove:
                 StatementLine.delete(lines_to_remove)
 
-            suggest_to_remove = StatementSuggest.search([
+            suggestions_to_remove = StatementSuggestion.search([
                     ('related_to', 'in', related_tos),
                     ('id', 'not in', suggested_ids),
                     ])
-            if suggest_to_remove:
-                StatementSuggest.delete(suggest_to_remove)
+            if suggestions_to_remove:
+                StatementSuggestion.delete(suggestions_to_remove)
         # Before reconcile ensure the moves are posted to avoid that some
         # possible estra moves, like writeoff, exchange, won't be posted.
         Move.post([m for m, _ in moves])
