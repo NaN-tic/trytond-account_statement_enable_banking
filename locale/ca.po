@@ -275,6 +275,10 @@ msgctxt "field:enable_banking.session,bank:"
 msgid "Bank"
 msgstr "Banc"
 
+msgctxt "field:enable_banking.session,encrypted_session:"
+msgid "Encrypted Session"
+msgstr "Sessió xifrada"
+
 msgctxt "field:enable_banking.session,session:"
 msgid "Session"
 msgstr "Sessió"
@@ -714,6 +718,10 @@ msgid "Error getting statements: \"%(error_code)s\" \"%(error_message)s\""
 msgstr ""
 "S'ha produït un error mentre s'intentava obtenir les línies d'extracte: "
 "\"%(error_code)s\" \"%(error_message)s\""
+
+msgctxt "model:ir.message,text:msg_missing_fernet_key"
+msgid "Missing Fernet key."
+msgstr "Falta la clau Fernet."
 
 msgctxt "model:ir.message,text:msg_no_bank_account"
 msgid ""
