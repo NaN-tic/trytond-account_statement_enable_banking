@@ -200,7 +200,6 @@ class Line(metaclass=PoolMeta):
         cls.account.states['readonly'] = _states['readonly']
         cls.description.states['readonly'] = _states['readonly']
         cls.related_to.states['readonly'] = _states['readonly']
-
         cls._buttons.update({
                 'add_pending': {
                     'invisible': Eval('origin_state') != 'registered',
