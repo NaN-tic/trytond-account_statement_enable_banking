@@ -367,7 +367,7 @@ class Line(metaclass=PoolMeta):
                 self.description = (self.move_line.description
                     or self.move_line.move_description_used)
             self.account = self.move_line.account
-            self.maturity_date = self.move_line.maturity_date or None
+            self.maturity_date = self.move_line.maturity_date
         if self.invoice:
             lines_to_pay = [l for l in self.invoice.lines_to_pay
                 if l.maturity_date and l.reconciliation is None]
