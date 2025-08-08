@@ -162,12 +162,6 @@ class Journal(metaclass=PoolMeta):
         for journal in journals:
             journal.check_enable_banking_session_valid_days()
 
-    #@classmethod
-    #def search_enable_banking_session_allowed_bank_accounts(cls, name, clause):
-    #    _, operator, value = clause
-    #    return [('id', 'in', [1])]
-    #    #return [('id', 'in', value)]
-
     def check_enable_banking_session_valid_days(self):
         if (self.enable_banking_session_valid_days < timedelta(days=1)
                 or self.enable_banking_session_valid_days > timedelta(
