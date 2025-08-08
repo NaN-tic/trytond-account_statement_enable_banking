@@ -11,6 +11,6 @@
   <field name="tax_amount" sum="1"/>
   <field name="total_amount" sum="1"/>
   <field name="state"/>
-  <field name="amount_to_pay_today"/>
+  <field name="amount_to_pay_today" sum="1"/>
   <field name="description"/>
 </tree>
