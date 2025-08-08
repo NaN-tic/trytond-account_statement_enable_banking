@@ -2244,7 +2244,7 @@ class LinkInvoice(Wizard):
         if abs(amount) < abs(origins_amount):
             raise AccessError(gettext(
                     'account_statement_enable_banking.\
-                    msg_not_eougth_amount_to_pay',
+                    msg_not_enough_amount_to_pay',
                     amount_to_pay=amount,
                     origins_amount=origins_amount))
 
