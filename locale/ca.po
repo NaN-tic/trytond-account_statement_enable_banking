@@ -50,10 +50,6 @@ msgctxt "field:account.statement.journal,aspsp_name:"
 msgid "ASPSP Name"
 msgstr "Nom ASPSP"
 
-msgctxt "field:account.statement.journal,bank_account_number:"
-msgid "Bank Account Number"
-msgstr "Número compte bancari"
-
 msgctxt "field:account.statement.journal,enable_banking_session:"
 msgid "Enable Banking Session"
 msgstr "Sessió Enable Banking"

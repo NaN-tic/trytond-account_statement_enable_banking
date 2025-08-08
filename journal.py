@@ -49,10 +49,6 @@ class Journal(metaclass=PoolMeta):
                 ('company', '=', Eval('company')),
                 ('company', '=', None),
             ]])
-    bank_account_number = fields.Function(
-        fields.Many2One('bank.account.number', 'Bank Account Number',
-                readonly=True),
-        'on_change_with_bank_account_number')
     enable_banking_session_valid_days = fields.TimeDelta(
         'Enable Banking Session Valid Days',
         help="Only allowed maximum 180 days.")
@@ -139,17 +135,10 @@ class Journal(metaclass=PoolMeta):
     def default_max_amount_tolerance():
         return 0
 
-    @fields.depends('bank_account')
-    def on_change_with_bank_account_number(self, name=None):
-        if self.bank_account:
-            return self.bank_account.iban
-        return
-
     @fields.depends('enable_banking_session')
     def on_change_with_enable_banking_session_allowed_bank_accounts(self, name=None):
         if self.enable_banking_session:
             return self.enable_banking_session.allowed_bank_accounts
-            #return self.enable_banking_session.get_allowed_bank_accounts()
         return
 
     @staticmethod
