@@ -53,10 +53,7 @@ class Journal(metaclass=PoolMeta):
         'Enable Banking Session Valid Days',
         help="Only allowed maximum 180 days.")
     enable_banking_session = fields.Many2One('enable_banking.session',
-        'Enable Banking Session',
-        domain=[
-            ('company', '=', Eval('company')),
-            ])
+        'Enable Banking Session')
     enable_banking_session_allowed_bank_accounts = fields.Function(
         fields.Many2Many('bank.account', None, None, 'Allowed Bank Accounts',
             context={
@@ -136,10 +133,10 @@ class Journal(metaclass=PoolMeta):
         return 0
 
     @fields.depends('enable_banking_session')
-    def on_change_with_enable_banking_session_allowed_bank_accounts(self, name=None):
+    def on_change_with_enable_banking_session_allowed_bank_accounts(self,
+            name=None):
         if self.enable_banking_session:
             return self.enable_banking_session.allowed_bank_accounts
-        return
 
     @staticmethod
     def default_offset_days_to():

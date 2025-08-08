@@ -64,7 +64,6 @@ class EnableBankingSession(ModelSQL, ModelView):
     "Enable Banking Session"
     __name__ = 'enable_banking.session'
 
-    company = fields.Many2One('company.company', "Company", required=True)
     session_id = fields.Char("Session ID", readonly=True)
     valid_until = fields.DateTime('Valid Until', readonly=True)
     encrypted_session = fields.Binary('Encrypted Session')
