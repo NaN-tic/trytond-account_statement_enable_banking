@@ -153,12 +153,7 @@ class EnableBankingSession(ModelSQL, ModelView):
 
         if not self.encrypted_session:
             return []
-        # To ensure the text is converted correctly as a json to dict, change
-        # some things
-        session_text = self.session.replace("'", '"').replace("None", "null")
-        session_text = session_text.replace("True", "true").replace("False",
-            "false")
-        session = json.loads(session_text)
+        session = json.loads(self.session)
         accounts = session.get('accounts') if session else {}
         iban_numbers = [x.get('account_id', {}).get('iban') for x in accounts]
         numbers = BankNumber.search([

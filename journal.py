@@ -1,5 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import json
 import requests
 from decimal import Decimal
 from datetime import datetime, timedelta
@@ -216,7 +217,7 @@ class Journal(metaclass=PoolMeta):
             return
 
         # Search the account from the journal
-        session = eval(self.enable_banking_session.session)
+        session = json.loads(self.enable_banking_session.session)
         if not self.bank_account:
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
