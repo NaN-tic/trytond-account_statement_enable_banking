@@ -1,13 +1,17 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import requests
+from cryptography.fernet import Fernet
 
 from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
 from trytond.i18n import gettext
 from trytond.exceptions import UserError
 from trytond.config import config
+from trytond.transaction import Transaction
 from .common import get_base_header
 from trytond.report import Report
+
+FERNET_KEY = config.get('cryptography', 'fernet_key')
 
 
 class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
@@ -59,20 +63,87 @@ class EnableBankingSession(ModelSQL, ModelView):
 
     session_id = fields.Char("Session ID", readonly=True)
     valid_until = fields.DateTime('Valid Until', readonly=True)
-    session = fields.Text("Session", readonly=True)
+    encrypted_session = fields.Binary('Encrypted Session')
+    session = fields.Function(fields.Text('Session'),
+        'get_session', 'set_session')
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
     bank = fields.Many2One('bank', "Bank", readonly=True)
 
     @classmethod
     def __register__(cls, module_name):
+        cursor = Transaction().connection.cursor()
         table = cls.__table_handler__(module_name)
         exist_company = table.column_exist('company')
+        sql_table = cls.__table__()
+
+        session = table.column_exist('session')
 
         super().__register__(module_name)
 
         if exist_company:
             table.drop_column('company')
+        if session:
+            cursor.execute(*sql_table.select(sql_table.id, sql_table.session))
+            for sessions in cursor.fetchall():
+                session_id = sessions[0]
+                session_txt = sessions[1]
+                encrypted_session = None
+                if session_txt:
+                    fernet = cls.get_fernet_key()
+                    if not fernet:
+                        continue
+                    encrypted_session = fernet.encrypt(session_txt.encode())
+                cursor.execute(*sql_table.update(
+                        columns=[sql_table.encrypted_session],
+                        values=[encrypted_session],
+                        where=sql_table.id == session_id))
+
+            table.drop_column('session')
+
+    @classmethod
+    def get_session(cls, eb_sessions, name=None):
+        psessions = []
+        for eb_session in eb_sessions:
+            session = eb_session._get_session(name)
+            if not session:
+                continue
+            psessions.append(session)
+
+        if not psessions:
+            return {x.id:None for x in eb_sessions}
+
+        return {
+            eb_session.id: psession if psession else None
+            for (eb_session, psession) in zip(eb_sessions, psessions)
+            }
+
+    def _get_session(self, name=None):
+        if not self.encrypted_session:
+            return None
+        fernet = self.get_fernet_key()
+        if not fernet:
+            return None
+        return fernet.decrypt(self.encrypted_session).decode()
+
+    @classmethod
+    def set_session(cls, eb_sessions, name, value):
+        encrypted_session = None
+        if value:
+            fernet = cls.get_fernet_key()
+            if not fernet:
+                return
+            encrypted_session = fernet.encrypt(value.encode())
+        cls.write(eb_sessions, {'encrypted_session': encrypted_session})
+
+    @classmethod
+    def get_fernet_key(cls):
+        if not FERNET_KEY:
+            raise UserError(gettext(
+                    'account_statement_enable_banking.msg_missing_fernet_key'))
+        else:
+            return Fernet(FERNET_KEY)
+
 
 class EnableBankingSessionOK(Report):
     "Enable Banking Session OK"
