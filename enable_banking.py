@@ -80,12 +80,15 @@ class EnableBankingSession(ModelSQL, ModelView):
     def __register__(cls, module_name):
         cursor = Transaction().connection.cursor()
         table = cls.__table_handler__(module_name)
+        exist_company = table.column_exist('company')
         sql_table = cls.__table__()
 
         session = table.column_exist('session')
 
         super().__register__(module_name)
 
+        if exist_company:
+            table.drop_column('company')
         if session:
             cursor.execute(*sql_table.select(sql_table.id, sql_table.session))
             for sessions in cursor.fetchall():
