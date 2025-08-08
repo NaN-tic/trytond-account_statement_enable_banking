@@ -958,7 +958,7 @@ class Origin(Workflow, metaclass=PoolMeta):
     def increase_similarity_by_interval_date(self, date, interval_date=None,
             similarity=0):
         """
-        This funtion increase the similarity if the dates are equal or in the
+        This function increases the similarity if the dates are equal or in the
         interval.
         """
         if date:
@@ -982,7 +982,7 @@ class Origin(Workflow, metaclass=PoolMeta):
     def increase_similarity_by_party(self, party, similarity_parties,
             similarity=0):
         """
-        This funtion increase the similarity if the party are similar.
+        This function increases the similarity if the party is similar.
         """
         if party:
             party_id = party.id
@@ -1066,7 +1066,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             similarity=0):
         """
         Create one or more suggested registers based on the move_lines.
-        If there are more than one move_line, it will be grouped under
+        If there are more than one move_line, it will be grouped under a
         parent.
         """
         pool = Pool()
@@ -1114,11 +1114,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Group = pool.get('account.payment.group')
 
-        suggesteds = []
+        suggested_lines = []
         groups = []
 
         if not amount:
-            return suggesteds, groups
+            return suggested_lines, groups
 
         kind = 'receivable' if amount > _ZERO else 'payable'
         domain = self._search_clearing_payment_group_reconciliation_domain(
@@ -1148,8 +1148,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'similarity': similarity,
                 'state': 'proposed',
                 }
-            suggesteds.append(values)
-        return suggesteds, groups
+            suggested_lines.append(values)
+        return suggested_lines, groups
 
     def _search_clearing_payment_reconciliation_domain(self, amount=None,
             exclude=None):
@@ -1171,11 +1171,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Payment = pool.get('account.payment')
 
-        suggesteds = []
+        suggested_lines = []
         move_lines = []
 
         if not amount:
-            return suggesteds, move_lines
+            return suggested_lines, move_lines
 
         domain = self._search_clearing_payment_reconciliation_domain(amount,
             exclude)
@@ -1190,11 +1190,11 @@ class Origin(Workflow, metaclass=PoolMeta):
             if party:
                 similarity = self.increase_similarity_by_party(
                     party, parties, similarity=similarity)
-            parent, to_create = self.create_payment_suggested_line(
+            to_create = self.create_payment_suggested_line(
                 move_lines, amount, name=name, payment=True,
                 similarity=similarity)
-            suggesteds.extend(to_create)
-        return suggesteds, move_lines
+            suggested_lines.extend(to_create)
+        return suggested_lines, move_lines
 
     def _search_payment_reconciliation_domain(self, exclude_groups=None,
             exclude_lines=None):
@@ -1335,14 +1335,14 @@ class Origin(Workflow, metaclass=PoolMeta):
             parties=None, exclude=None, second_currency=None):
         """
         Search for any move line, not related to invoice or payments that the
-        amount it the origin pending_amount
+        accumulated sum of amounts matches the origin pending_amount
         """
         pool = Pool()
         MoveLine = pool.get('account.move.line')
 
         suggesteds = []
 
-        # search only for the same ammount and possible party
+        # Search only for the same amount and possible party
         if not amount:
             return suggesteds
 
@@ -1447,7 +1447,7 @@ class Origin(Workflow, metaclass=PoolMeta):
     def _search_suggested_reconciliation_simlarity(self, amount, company=None,
             information=None, threshold=0):
         """
-        Search for old origins lines. Reproducing the same line/s created.
+        Search for old origin lines. Reproducing the same line/s created.
         """
         pool = Pool()
         Statement = pool.get('account.statement')
@@ -1767,8 +1767,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         lines = [x for o in origins for x in o.lines]
         # It's an awful hack to set the state, but it's needed to ensure the
-        # Error of statement state in Move.post is not applied when try to
-        # concile and individual origin. For this, need the state == 'posted'.
+        # Error of statement state in Move.post is not applied when trying to
+        # concile an individual origin. For this, need the state == 'posted'.
         statements = [o.statement for o in origins]
         statement_state = []
         for origin in origins:
