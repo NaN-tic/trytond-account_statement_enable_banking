@@ -1,5 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import json
 import requests
 from datetime import datetime, UTC, timedelta
 from decimal import Decimal
@@ -2247,7 +2248,7 @@ class SynchronizeStatementEnableBanking(Wizard):
             eb_session = journal.enable_banking_session
             if (eb_session.session and eb_session.valid_until and
                     eb_session.valid_until >= datetime.now()):
-                session = eval(eb_session.session)
+                session = json.loads(eb_session.session)
                 r = requests.get(
                     f"{config.get('enable_banking', 'api_origin')}"
                     f"/sessions/{session['session_id']}",
