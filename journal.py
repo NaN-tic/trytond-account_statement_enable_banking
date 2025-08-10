@@ -8,11 +8,10 @@ from datetime import datetime, timedelta
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
 from trytond.pyson import Eval, Id, If
-from trytond.config import config
 from trytond.i18n import gettext
 from trytond.transaction import Transaction
 from trytond.model.exceptions import AccessError
-from .common import get_base_header
+from .common import get_base_header, URL
 
 
 class Journal(metaclass=PoolMeta):
@@ -290,8 +289,7 @@ class Journal(metaclass=PoolMeta):
                 query.pop("continuation_key", None)
 
             r = requests.get(
-                f"{config.get('enable_banking', 'api_origin')}"
-                f"/accounts/{account_id}/transactions",
+                f"{URL}/accounts/{account_id}/transactions",
                 params=query, headers=base_headers)
             if r.status_code == 200:
                 response = r.json()
