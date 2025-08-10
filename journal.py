@@ -420,7 +420,7 @@ class Journal(metaclass=PoolMeta):
                 ('synchronize_journal', '=', True),
                 ('company.id', '=', company_id),
                 ]):
-            journal.synchronize_statements_enable_banking()
+            journal._synchronize_statements_enable_banking()
 
 
 class Cron(metaclass=PoolMeta):
