@@ -7,8 +7,7 @@ import requests
 
 from trytond.protocols.wrappers import with_pool, with_transaction, allow_null_origin
 from trytond.wsgi import app
-from trytond.config import config
-from .common import get_base_header
+from .common import get_base_header, URL
 
 
 @app.route('/<database_name>/enable_banking/redirect')
@@ -24,7 +23,7 @@ def redirect(request, pool):
         auth_code = request.args['code']
     base_headers = get_base_header()
 
-    r = requests.post(f"{config.get('enable_banking', 'api_origin')}/sessions",
+    r = requests.post(f"{URL}/sessions",
         json={"code": auth_code}, headers=base_headers)
 
     data = {'model': EBSession.__name__}
