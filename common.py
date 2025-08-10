@@ -7,6 +7,10 @@ from urllib.parse import urlparse
 from trytond.config import config
 
 KEYPATH = config.get('enable_banking', 'keypath')
+URL = config.get('enable_banking', 'api_origin', default='https://sandbox.enablebanking.com')
+APPLICATION_ID = config.get('enable_banking', 'applicationid')
+REDIRECT_URL = config.get('enable_banking', 'redirecturl')
+
 
 def get_base_header():
     if not KEYPATH:
@@ -19,10 +23,9 @@ def get_base_header():
             "exp": iat + 86400,
         }
     jwt = pyjwt.encode(jwt_body, open(KEYPATH, "rb").read(), algorithm='RS256',
-        headers={'kid': config.get('enable_banking', 'applicationid')})
+        headers={'kid': APPLICATION_ID})
 
-    url = config.get('enable_banking', 'api_origin')
-    host = urlparse(url).netloc
+    host = urlparse(URL).netloc
     base_headers = {
         "Host": host,
         "Accept": "application/json",

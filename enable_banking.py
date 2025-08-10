@@ -11,7 +11,7 @@ from trytond.i18n import gettext
 from trytond.exceptions import UserError
 from trytond.config import config
 from trytond.transaction import Transaction
-from .common import get_base_header
+from .common import get_base_header, URL
 from trytond.report import Report
 
 FERNET_KEY = config.get('cryptography', 'fernet_key')
@@ -49,7 +49,7 @@ class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
     @ModelView.button
     def test_connection(cls, aspsps):
         base_headers = get_base_header()
-        r = requests.get(f"{config.get('enable_banking', 'api_origin')}/application",
+        r = requests.get(f"{URL}/application",
             headers=base_headers)
         if r.status_code == 200:
             raise UserError(gettext(
