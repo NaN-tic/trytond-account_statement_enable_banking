@@ -731,6 +731,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         return (self.information.get('remittance_information', '')
             if self.information else '')
 
+    def get_information_value(self, field):
+        if self.information:
+            return self.information.get(field, '')
+        return ''
+
     @classmethod
     def search_remittance_information(cls, name, clause):
         pool = Pool()
@@ -961,23 +966,42 @@ class Origin(Workflow, metaclass=PoolMeta):
             StatementLine.reconcile(move_lines)
         return moves
 
-    def similarity_parties(self, compare, threshold=0.13):
+    def similarity_parties(self, information, debtor_creditor=None,
+                           threshold=0.13):
         """
-        This function return a dictionary with the possible parties ID on
-        'key' and the similairty on 'value'.
-        It compare the 'compare' value with the parties name, based on the
-        similarities journal deffined values.
-        Set the similarity threshold to 0.13 as is the minimum value detecte
-        that return a correct match with multiple words in compare field.
+        This function returns a dictionary with the possible parties ID on
+        'key' and the similarity on 'value'.
+        It compares the 'information' (remittance information) value with the
+        parties' name, based on the similarity values defined on the journal.
+        Additionaly, compare the creditor's or debtor's name, depending if the
+        amount is positive or negative, respectively.
+        If a party appears during both searchs, the greatest similarity is taken
+        Default similarity threshold is set to 0.13 as is the minimum value
+        detected that returns a correct match with multiple words in compare field.
         """
+
+        parties = {}
+        for party, similarity in self.similarity_query(information, threshold):
+            parties[party] = round(similarity * 10)
+
+        if debtor_creditor:
+            for party, similarity in self.similarity_query(
+                debtor_creditor, threshold):
+                if party in parties:
+                    parties[party] = max(parties[party],
+                        round(similarity * 10))
+                else:
+                    parties[party] = round(similarity * 10)
+        return parties
+
+    def similarity_query(self, compare, threshold):
         pool = Pool()
         Party = pool.get('party.party')
         party_table = Party.__table__()
         cursor = Transaction().connection.cursor()
 
         if not compare:
-            return
-
+            return []
         similarity = Similarity(party_table.name, compare)
         if hasattr(Party, 'trade_name'):
             similarity = Greatest(similarity, Similarity(party_table.trade_name,
@@ -986,10 +1010,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             where=(similarity >= threshold))
         cursor.execute(*query)
 
-        parties = {}
-        for party, similarity in cursor.fetchall():
-            parties[party] = round(similarity * 10)
-        return parties
+        return cursor.fetchall()
 
     def increase_similarity_by_interval_date(self, date, interval_date=None,
             similarity=0):
@@ -1581,8 +1602,15 @@ class Origin(Workflow, metaclass=PoolMeta):
             if pending_amount == _ZERO:
                 return
 
+            debtor_creditor = None
+            if origin.amount > 0:
+                debtor_creditor = origin.get_information_value('debtor_name')
+            elif origin.amount < 0:
+                debtor_creditor = origin.get_information_value('creditor_name')
+
             information = origin.remittance_information
-            similarity_parties = origin.similarity_parties(information)
+            similarity_parties = origin.similarity_parties(information,
+                debtor_creditor=debtor_creditor)
             threshold = origin.similarity_threshold
             acceptable = origin.acceptable_similarity
             groups = []
