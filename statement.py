@@ -629,6 +629,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             | (~Eval('statement_state').in_(
                     ['draft', 'registered', 'validated']))
             )
+        cls.party.states['invisible'] = True
+        cls.account.states['invisible'] = True
+
         cls._transitions |= set((
                 ('registered', 'posted'),
                 ('registered', 'cancelled'),
