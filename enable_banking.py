@@ -96,6 +96,9 @@ class EnableBankingSession(ModelSQL, ModelView):
                 session_txt = sessions[1]
                 encrypted_session = None
                 if session_txt:
+                    session_txt = session_txt.replace("'", '"').replace(
+                        'None', 'null').replace('True', 'true').replace(
+                        'False', 'false')
                     fernet = cls.get_fernet_key()
                     if not fernet:
                         continue

@@ -49,9 +49,6 @@ class Journal(metaclass=PoolMeta):
                 ('company', '=', Eval('company')),
                 ('company', '=', None),
             ]])
-    enable_banking_session_valid_days = fields.TimeDelta(
-        'Enable Banking Session Valid Days',
-        help="Only allowed maximum 180 days.")
     enable_banking_session = fields.Many2One('enable_banking.session',
         'Enable Banking Session')
     enable_banking_session_allowed_bank_accounts = fields.Function(
@@ -141,20 +138,6 @@ class Journal(metaclass=PoolMeta):
     @staticmethod
     def default_offset_days_to():
         return 0
-
-    @classmethod
-    def validate(cls, journals):
-        super().validate(journals)
-        for journal in journals:
-            journal.check_enable_banking_session_valid_days()
-
-    def check_enable_banking_session_valid_days(self):
-        if (self.enable_banking_session_valid_days < timedelta(days=1)
-                or self.enable_banking_session_valid_days > timedelta(
-                    days=180)):
-            raise AccessError(
-                gettext('account_statement_enable_banking.'
-                    'msg_valid_days_out_of_range'))
 
     def set_number(self, origins):
         '''

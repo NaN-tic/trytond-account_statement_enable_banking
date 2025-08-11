@@ -15,8 +15,7 @@ from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 from trytond.transaction import Transaction
-from trytond.config import config
-from .common import get_base_header
+from .common import get_base_header, URL, REDIRECT_URL
 from trytond.i18n import gettext
 from trytond.model.exceptions import AccessError
 from trytond.exceptions import UserError
@@ -2464,8 +2463,7 @@ class RetrieveEnableBankingSession(Wizard):
             if eb_session.session and not eb_session.session_expired:
                 session = json.loads(eb_session.session)
                 r = requests.get(
-                    f"{config.get('enable_banking', 'api_origin')}"
-                    f"/sessions/{session['session_id']}",
+                    f"{URL}/sessions/{session['session_id']}",
                     headers=base_headers)
                 if r.status_code == 200:
                     session = r.json()
@@ -2522,9 +2520,7 @@ class RetrieveEnableBankingSession(Wizard):
 
         # We fill the aspsp name and country using the bank account
         base_headers = get_base_header()
-        r = requests.get(
-            f"{config.get('enable_banking', 'api_origin')}/aspsps",
-            headers=base_headers)
+        r = requests.get(f"{URL}/aspsps", headers=base_headers)
         response = r.json()
         aspsp_found = False
         for aspsp in response.get("aspsps", []):
@@ -2555,19 +2551,20 @@ class RetrieveEnableBankingSession(Wizard):
         EBSession.save([eb_session])
         base_headers = get_base_header()
         body = {
-            'access': {'valid_until': (datetime.now(UTC)
-                    + enable_banking_session_valid_days).isoformat()},
+            'access': {
+                'valid_until': (datetime.now(UTC)
+                    + enable_banking_session_valid_days).isoformat(),
+                },
             'aspsp': {
                 'name': journal.aspsp_name,
-                'country': journal.aspsp_country},
+                'country': journal.aspsp_country,
+                },
             'state': eb_session.session_id,
-            'redirect_url': config.get('enable_banking', 'redirecturl'),
+            'redirect_url': REDIRECT_URL,
             'psu_type': 'personal',
         }
 
-        r = requests.post(f"{config.get('enable_banking', 'api_origin')}/auth",
-            json=body, headers=base_headers)
-
+        r = requests.post(f"{URL}/auth", json=body, headers=base_headers)
         if r.status_code == 200:
             action['url'] = r.json()['url']
         else:
