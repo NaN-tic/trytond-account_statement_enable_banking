@@ -2169,10 +2169,11 @@ class RetrieveEnableBankingSessionSelect(ModelView):
         journal = EBSession(active_id) if active_id else None
         if not journal or not journal.bank_account:
             return None
-        eb_session = EBSession.serch([
+        eb_sessions = EBSession.search([
             ('bank', '=', journal.bank_account.bank),
-            ('session_expired', '=', False),
-            ], limit=1)
+            ])
+        eb_session = [ebs for ebs in eb_sessions
+            if ebs.session_expired is False]
         return eb_session[0] if eb_session else None
 
     enable_banking_session_valid_days = fields.TimeDelta(
@@ -2332,7 +2333,6 @@ class RetrieveEnableBankingSession(Wizard):
 
         return {
             'enable_banking_session_valid': valid,
-            'journal': journal,
             }
 
     def transition_check_session(self):
@@ -2362,10 +2362,11 @@ class RetrieveEnableBankingSession(Wizard):
                         return 'sync_statements'
             EBSession.delete([eb_session])
 
-        eb_session = EBSession.serch([
+        eb_sessions = EBSession.search([
             ('bank', '=', journal.bank_account.bank),
-            ('session_expired', '=', False),
-            ], limit=1)
+            ])
+        eb_session = [ebs for ebs in eb_sessions
+            if ebs.session_expired is False]
         if eb_session:
             return 'select_session'
         return 'create_session'
