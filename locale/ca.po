@@ -912,11 +912,6 @@ msgid "Search Suggestions"
 msgstr "Cerca Suggeriments"
 
 msgctxt ""
-"model:ir.model.button,string:statement_origin_settle_last_line_button"
-msgid "Settle Last Line"
-msgstr "Saldar última línia"
-
-msgctxt ""
 "model:ir.model.button,string:statement_origin_suggested_line_propose_button"
 msgid "Propose"
 msgstr "Proposa"

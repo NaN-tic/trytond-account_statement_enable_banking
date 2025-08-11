@@ -661,10 +661,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
                     },
-                'settle_last_line': {
-                    'invisible': ((Eval('state') != 'registered') | (Eval('pending_amount', 0) == 0)),
-                    'depends': ['state', 'pending_amount'],
-                    },
                 'link_invoice': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
@@ -1907,20 +1903,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         lines = [x for origin in origins for x in origin.lines]
         StatementLine.cancel_lines(lines)
 
-    @classmethod
-    @ModelView.button
-    def settle_last_line(cls, origins):
-        pool = Pool()
-        StatementLine = pool.get('account.statement.line')
-
-        lines_to_save = []
-        for origin in origins:
-            if not origin.lines:
-                continue
-            last_line = origin.lines[-1]
-            last_line.amount += origin.pending_amount
-            lines_to_save.append(last_line)
-        StatementLine.save(lines_to_save)
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     'Account Statement Origin Suggested Line'

@@ -11,7 +11,6 @@ this repository contains the full copyright notices and license terms. -->
             <field name="lines" colspan="2" height="250"
             view_ids="account_statement_enable_banking.origin_statement_line_view_tree_editable"/>
         </group>
-        <button name="settle_last_line" colspan="2"/>
         <group id="status" colspan="4" col="-1">
             <label name="state"/>
             <field name="state"/>
