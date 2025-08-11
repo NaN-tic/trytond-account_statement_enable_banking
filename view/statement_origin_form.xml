@@ -1,27 +1,40 @@
-<?xml version="1.0"?>
-<!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
-this repository contains the full copyright notices and license terms. -->
-<data>
-    <xpath expr="/form/field[@name='information']" position="replace"/>
-    <xpath expr="/form/field[@name='lines']" position="replace"/>
-    <xpath expr="/form" position="inside">
-        <group id="insert_lines" yfill="1" yexpand="1" colspan="4" col="2">
-            <button name="multiple_invoices"/>
-            <button name="multiple_move_lines"/>
-            <field name="lines" colspan="2" height="250"
-            view_ids="account_statement_enable_banking.origin_statement_line_view_tree_editable"/>
-        </group>
-        <group id="status" colspan="4" col="-1">
-            <label name="state"/>
-            <field name="state"/>
-            <button name="cancel" icon="tryton-cancel"/>
-            <button name="register" icon="tryton-forward"/>
-            <button name="search_suggestions" icon="tryton-search"/>
-            <button name="post" icon="tryton-ok"/>
-        </group>
-        <group id="lines_information" colspan="4" col="2">
-            <field name="suggested_lines_tree" height="250"/>
-            <field name="information"/>
-        </group>
-    </xpath>
-</data>
+<form col="8">
+    <label name="statement"/>
+    <field name="statement"/>
+    <label name="company"/>
+    <field name="company"/>
+    <label name="number"/>
+    <field name="number"/>
+    <label name="date"/>
+    <field name="date"/>
+
+    <label name="amount"/>
+    <field name="amount"/>
+    <label name="pending_amount"/>
+    <field name="pending_amount"/>
+    <label name="amount_second_currency"/>
+    <field name="amount_second_currency"/>
+    <label name="second_currency"/>
+    <field name="second_currency"/>
+
+    <label name="description"/>
+    <field name="description" colspan="4"/>
+    <group id="buttons" colspan="3">
+        <button name="multiple_invoices"/>
+        <button name="multiple_move_lines"/>
+    </group>
+
+    <field name="lines" colspan="8" height="250" view_ids="account_statement_enable_banking.origin_statement_line_view_tree_editable"/>
+    <group id="status" colspan="8" col="-1">
+        <label name="state"/>
+        <field name="state"/>
+        <button name="cancel" icon="tryton-cancel"/>
+        <button name="register" icon="tryton-forward"/>
+        <button name="search_suggestions" icon="tryton-search"/>
+        <button name="post" icon="tryton-ok"/>
+    </group>
+    <group id="lines_information" colspan="8" col="2">
+        <field name="suggested_lines_tree" height="250"/>
+        <field name="information"/>
+    </group>
+</form>
