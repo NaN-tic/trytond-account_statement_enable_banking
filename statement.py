@@ -1283,7 +1283,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     'payments': [payment],
                     }
 
-            # Some Bancs group payments from different, but consecutive dates.
+            # Some Banks group payments by different, but consecutive dates.
             # Normally the day before the payment value date + the date.
             delta = timedelta(days=1)
             origin_date = self.date
@@ -1320,7 +1320,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                         date, similarity=acceptable)
                     payment_lines = [x.line for x in vals['payments']]
                     lines.extend(payment_lines)
-                    # Only check the party similarity if have one payment
+                    # Only check the party similarity if it has a single payment
                     if len(groups['groups']) == 1 and len(payment_lines) == 1:
                         party = vals['payments'][0].party
                         if party and parties:
