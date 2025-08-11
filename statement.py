@@ -1029,13 +1029,13 @@ class Origin(Workflow, metaclass=PoolMeta):
             if not interval_date:
                 interval_date = timedelta(days=3)
             if date in control_dates:
-                similarity += 3
+                similarity += 6
             else:
                 for control_date in control_dates:
                     start_date = control_date - interval_date
                     end_date = control_date + interval_date
                     if start_date <= date <= end_date:
-                        similarity += 2
+                        similarity += 4
                         break
         return similarity
 
@@ -1048,9 +1048,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             party_id = party.id
             if party_id in similarity_parties:
                 if similarity_parties[party_id] >= self.acceptable_similarity:
-                    similarity += 3
+                    similarity += 6
                 else:
-                    similarity += 2
+                    similarity += 4
         return similarity
 
     def _get_suggested_values(self, parent, name, line, amount, related_to,
