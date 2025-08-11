@@ -1277,11 +1277,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Payment = pool.get('account.payment')
 
-        suggesteds = []
+        suggested_lines = []
         move_lines = []
 
         if not amount:
-            return suggesteds, move_lines
+            return suggested_lines, move_lines
 
         domain = self._search_payment_reconciliation_domain(exclude_groups,
             exclude_lines)
@@ -1347,15 +1347,15 @@ class Origin(Workflow, metaclass=PoolMeta):
                 for p in v['payments']])
             to_create = self.create_payment_suggested_line(move_lines,
                 amount, name=name, similarity=acceptable)
-            suggesteds.extend(to_create)
+            suggested_lines.extend(to_create)
         elif groups['amount'] != _ZERO:
             lines = []
             for key, vals in groups['groups'].items():
-                group = key[0]
-                date = key[1]
                 if vals['payments'] in used_payments:
                     continue
                 if vals['amount'] == abs(amount):
+                    group = key[0]
+                    date = key[1]
                     similarity = self.increase_similarity_by_interval_date(
                         date, similarity=acceptable)
                     payment_lines = [x.line for x in vals['payments']]
@@ -1370,10 +1370,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     to_create = self.create_payment_suggested_line(
                         payment_lines, amount, name=name,
                         similarity=similarity)
-                    suggesteds.extend(to_create)
+                    suggested_lines.extend(to_create)
                     used_payments.append(vals['payments'])
             move_lines.extend(lines)
-        return suggesteds, move_lines
+        return suggested_lines, move_lines
 
     def _search_move_line_reconciliation_domain(self, exclude_ids=None,
             second_currency=None):
@@ -1400,11 +1400,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
 
-        suggesteds = []
+        suggested_lines = []
 
         # Search only for the same amount and possible party
         if not amount:
-            return suggesteds
+            return suggested_lines
 
         # Prepapre the base domain
         line_ids = [x.id for x in exclude] if exclude else None
@@ -1439,7 +1439,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     name = line.party.rec_name
                 to_create = self.create_move_suggested_line([line],
                     amount, name=name, similarity=similarity)
-                suggesteds.extend(to_create)
+                suggested_lines.extend(to_create)
             else:
                 party = line.party
                 origin = line.move_origin
@@ -1482,7 +1482,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 to_create = self.create_move_suggested_line(
                     values['lines'], amount, name=origin.rec_name,
                     similarity=similarity)
-                suggesteds.extend(to_create)
+                suggested_lines.extend(to_create)
 
         # Check if there are more than one move from the same party
         # that sum the pending_amount
@@ -1501,8 +1501,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 name = party.rec_name
                 to_create = self.create_move_suggested_line(
                     values['lines'], amount, name=name, similarity=similarity)
-                suggesteds.extend(to_create)
-        return suggesteds
+                suggested_lines.extend(to_create)
+        return suggested_lines
 
     def _search_suggested_reconciliation_simlarity(self, amount, company=None,
             information=None, threshold=0):
@@ -1523,10 +1523,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not company:
             company = Transaction().context.get('company')
 
-        suggesteds = []
+        suggested_lines = []
 
         if not amount or not information or not company:
-            return suggesteds
+            return suggested_lines
 
         similarity_column = Similarity(JsonbExtractPathText(
                 origin_table.information, 'remittance_information'),
@@ -1549,14 +1549,14 @@ class Origin(Workflow, metaclass=PoolMeta):
             acceptable = int(origins[1] * 10)
             if acceptable == last_similarity:
                 continue
-            suggests = []
+            suggestions = []
             for line in origin.lines:
                 values = self._get_suggested_values(None, name, line,
                     line.amount, None, acceptable)
-                suggests.append(values)
-            if len(suggests) == 1:
-                suggests[0]['amount'] = amount
-            elif len(suggests) > 1:
+                suggestions.append(values)
+            if len(suggestions) == 1:
+                suggestions[0]['amount'] = amount
+            elif len(suggestions) > 1:
                 parent = SuggestedLine()
                 parent.origin = self
                 parent.name = name
@@ -1564,12 +1564,12 @@ class Origin(Workflow, metaclass=PoolMeta):
                 parent.state = 'proposed'
                 parent.similarity = acceptable
                 parent.save()
-                for suggest in suggests:
-                    suggest['parent'] = parent
-                    suggest['name'] = ''
-            suggesteds.extend(suggests)
+                for suggestion in suggestions:
+                    suggestion['parent'] = parent
+                    suggestion['name'] = ''
+            suggested_lines.extend(suggestions)
             last_similarity = acceptable
-        return suggesteds
+        return suggested_lines
 
     @classmethod
     def _search_reconciliation(cls, origins):
