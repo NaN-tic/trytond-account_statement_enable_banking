@@ -199,6 +199,12 @@ class Line(metaclass=PoolMeta):
         cls.account.states['readonly'] = _states['readonly']
         cls.description.states['readonly'] = _states['readonly']
         cls.related_to.states['readonly'] = _states['readonly']
+        cls._buttons.update({
+                'add_pending': {
+                    'invisible': Eval('origin_state') != 'registered',
+                    'depends': ['origin_state'],
+                    },
+                })
 
     @classmethod
     def _get_relations(cls):
@@ -568,6 +574,17 @@ class Line(metaclass=PoolMeta):
         default.setdefault('suggested_line', None)
         default.setdefault('show_paid_invoices', None)
         return super().copy(lines, default=default)
+
+    @classmethod
+    @ModelView.button
+    def add_pending(cls, lines):
+        Origin = Pool().get('account.statement.origin')
+        if not lines:
+            return
+        line = lines[0]
+        if isinstance(line.origin, Origin):
+            line.amount += line.origin.pending_amount
+            line.save()
 
 
 class Origin(Workflow, metaclass=PoolMeta):
