@@ -69,7 +69,7 @@ msgstr "Tolerancia de importe máximo"
 
 msgctxt "field:account.statement.journal,min_amount_tolerance:"
 msgid "Min Amount tolerance"
-msgstr "Tolerancia de imporrte mínimo"
+msgstr "Tolerancia de importe mínimo"
 
 msgctxt "field:account.statement.journal,offset_days_to:"
 msgid "Offset Days To"
