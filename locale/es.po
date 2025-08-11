@@ -809,7 +809,7 @@ msgid ""
 " delete that move. Do you want to continue?"
 msgstr ""
 "La línea tiene el asiento \"%(move)s\" relacionado. Cancelar o eliminar la "
-"línea eliminarar este asiento. ¿Quieres continuar?"
+"línea eliminará este asiento. ¿Quieres continuar?"
 
 msgctxt "model:ir.message,text:msg_origin_pending_amount"
 msgid ""
