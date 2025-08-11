@@ -433,10 +433,13 @@ class Line(metaclass=PoolMeta):
         pool = Pool()
         Warning = pool.get('res.user.warning')
         Move = pool.get('account.move')
+        Line = pool.get('account.move.line')
         Reconciliation = pool.get('account.move.reconciliation')
         Invoice = pool.get('account.invoice')
 
         moves = set()
+        to_unreconcile = []
+        to_unpay = []
         for line in lines:
             if line.move:
                 warning_key = Warning.format(
@@ -447,17 +450,17 @@ class Line(metaclass=PoolMeta):
                             'msg_origin_line_with_move',
                             move=line.move.rec_name))
                 moves.add(line.move)
-                to_unreconcile = [x.reconciliation for x in line.move.lines
+                to_unreconcile += [x.reconciliation for x in line.move.lines
                     if x.reconciliation]
-                if to_unreconcile:
-                    to_unreconcile = Reconciliation.browse([
-                            x.id for x in to_unreconcile])
-                    Reconciliation.delete(to_unreconcile)
                 # On possible related invoices, need to unlink the payment
                 # lines
-                to_unpay = [x for x in line.move.lines if x.invoice_payment]
-                if to_unpay:
-                    Invoice.remove_payment_lines(to_unpay)
+                to_unpay += [x for x in line.move.lines if x.invoice_payment]
+        if to_unreconcile:
+            to_unreconcile = Reconciliation.browse(to_unreconcile)
+            Reconciliation.delete(to_unreconcile)
+        if to_unpay:
+            to_unpay = Line.browse(to_unpay)
+            Invoice.remove_payment_lines(to_unpay)
         if moves:
             moves = list(moves)
             Move.draft(moves)
