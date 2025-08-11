@@ -870,13 +870,13 @@ msgid "Add Pending"
 msgstr "Afegeix pendent"
 
 msgctxt "model:ir.model.button,string:statement_line_multiple_invoices_button"
-msgid "Add Multiple Invoices"
-msgstr "Afegeix diverses factures"
+msgid "Add Invoices"
+msgstr "Afegeix factures"
 
 msgctxt ""
 "model:ir.model.button,string:statement_line_multiple_move_lines_button"
-msgid "Add Multiple Move Lines"
-msgstr "Afegeix diversos apunts comptables"
+msgid "Add Move Lines"
+msgstr "Afegeix apunts comptables"
 
 msgctxt "model:ir.model.button,string:statement_origin_cancel_button"
 msgid "Cancel"
