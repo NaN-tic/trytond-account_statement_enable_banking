@@ -1669,17 +1669,17 @@ class Origin(Workflow, metaclass=PoolMeta):
                         pending_amount, company=origin.company,
                         information=information, threshold=threshold))
 
-        def remove_duplicate_suggestions(suggesteds):
+        def remove_duplicate_suggestions(suggested_lines):
             seen = set()
             result = []
-            keys = ['name', 'parent', 'origin', 'party', 'date', 'related_to',
-                'account', 'amount', 'second_currency', 'similarity',
-                'amount_second_currency', 'state']
-            for suggest in suggesteds:
-                # Create an identifier based in the main keys.
-                identifier = tuple(suggest[key] for key in keys if key in suggest)
+            keys = ['parent', 'origin', 'party', 'account', 'amount',
+                'second_currency', 'amount_second_currency']
+            for suggestion in suggested_lines:
+                # Create an identifier based on the main keys
+                identifier = tuple(suggestion[key]
+                    for key in keys if key in suggestion)
                 if identifier not in seen:
-                    result.append(suggest)
+                    result.append(suggestion)
                     seen.add(identifier)
             return result
 
