@@ -1619,7 +1619,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             groups = []
             move_lines = []
 
-            # If account_pauyment_clearing modules is isntalled search first
+            # If account_payment_clearing modules is installed search first
             # for the groups or payments
             if Clearing:
                 # Search by possible payment groups with clearing journal
