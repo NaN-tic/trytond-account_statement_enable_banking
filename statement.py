@@ -17,6 +17,7 @@ from trytond.wizard import (
 from trytond.transaction import Transaction
 from .common import get_base_header, URL, REDIRECT_URL
 from trytond.i18n import gettext
+from trytond.exceptions import UserWarning
 from trytond.model.exceptions import AccessError
 from trytond.modules.account_statement.exceptions import (
     StatementValidateError, StatementValidateWarning)
@@ -2004,8 +2005,11 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     def use(cls, recomended):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
+        MoveLine = pool.get('account.move.line')
+        Warning = pool.get('res.user.warning')
 
         to_create = []
+        to_warn = []
         for recomend in recomended:
             if recomend.origin.state == 'posted':
                 continue
@@ -2013,11 +2017,25 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             for child in childs:
                 if child.state == 'used':
                     continue
+                related_to = getattr(child, 'related_to', None)
+                if isinstance(related_to, MoveLine) and related_to.payment_blocked:
+                    to_warn.append(related_to)
                 description = child.origin.remittance_information
                 values = cls.get_suggested_values(child, description)
                 to_create.append(values)
             if len(childs) > 1:
                 cls.write(list(childs), {'state': 'used'})
+        if to_warn:
+            names = ', '.join(x.rec_name for x in to_warn)
+            if len(to_warn) > 5:
+                names += '...'
+            warning_key = Warning.format('use_move_line_payment_blocked',
+                to_warn)
+            if Warning.check(warning_key):
+                raise UserWarning(warning_key,
+                    gettext('account_statement_enable_banking.'
+                        'msg_not_use_blocked_account_move',
+                        move_lines=names))
         StatementLine.create(to_create)
 
 
