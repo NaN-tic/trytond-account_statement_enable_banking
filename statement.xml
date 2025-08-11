@@ -51,26 +51,23 @@ this repository contains the full copyright notices and license terms. -->
         </record>
         <record model="ir.action.act_window.view" id="act_statement_origin_form_view2">
             <field name="sequence" eval="20"/>
-            <field name="view" ref="account_statement.statement_origin_view_form"/>
+            <field name="view" ref="statement_origin_form"/>
             <field name="act_window" ref="act_statement_origin_form"/>
         </record>
-        <record model="ir.action.act_window.domain"
-            id="act_statement_origin_form_domain_registered">
+        <record model="ir.action.act_window.domain" id="act_statement_origin_form_domain_registered">
             <field name="name">Registered</field>
             <field name="sequence" eval="20"/>
             <field name="domain" eval="[('state', '=', 'registered')]" pyson="1"/>
             <field name="count" eval="True"/>
             <field name="act_window" ref="act_statement_origin_form"/>
         </record>
-        <record model="ir.action.act_window.domain"
-            id="act_statement_origin_form_domain_posted">
+        <record model="ir.action.act_window.domain" id="act_statement_origin_form_domain_posted">
             <field name="name">Posted</field>
             <field name="sequence" eval="30"/>
             <field name="domain" eval="[('state', '=', 'posted')]" pyson="1"/>
             <field name="act_window" ref="act_statement_origin_form"/>
         </record>
-        <record model="ir.action.act_window.domain"
-            id="act_statement_origin_form_domain_all">
+        <record model="ir.action.act_window.domain" id="act_statement_origin_form_domain_all">
             <field name="name">All</field>
             <field name="sequence" eval="9999"/>
             <field name="domain"></field>
@@ -131,15 +128,15 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Search Suggestions</field>
             <field name="model">account.statement.origin</field>
         </record>
-        <record model="ir.model.button-res.group"
-            id="search_suggestions_button_group_account">
+        <record model="ir.model.button-res.group" id="search_suggestions_button_group_account">
             <field name="button" ref="statement_origin_search_suggestions_button"/>
             <field name="group" ref="account.group_account"/>
         </record>
 
-        <record model="ir.ui.view" id="statement_origin_view_form">
+        <record model="ir.ui.view" id="statement_origin_form">
             <field name="model">account.statement.origin</field>
-            <field name="inherit" ref="account_statement.statement_origin_view_form"/>
+            <field name="priority" eval="10"/>
+            <field name="type">form</field>
             <field name="name">statement_origin_form</field>
         </record>
         <record model="ir.ui.view" id="statement_origin_view_tree">
@@ -195,7 +192,7 @@ this repository contains the full copyright notices and license terms. -->
 
         <record model="ir.model.button" id="statement_line_multiple_invoices_button">
             <field name="name">multiple_invoices</field>
-            <field name="string">Add Multiple Invoices</field>
+            <field name="string">Add Invoices</field>
             <field name="model">account.statement.origin</field>
         </record>
         <record model="ir.model.button-res.group"
@@ -218,7 +215,7 @@ this repository contains the full copyright notices and license terms. -->
 
         <record model="ir.model.button" id="statement_line_multiple_move_lines_button">
             <field name="name">multiple_move_lines</field>
-            <field name="string">Add Multiple Move Lines</field>
+            <field name="string">Add Move Lines</field>
             <field name="model">account.statement.origin</field>
         </record>
         <record model="ir.model.button-res.group"

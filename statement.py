@@ -117,9 +117,6 @@ class Statement(metaclass=PoolMeta):
         pass
 
 
-_states = {
-    'readonly': ~Eval('statement_state', '').in_(['draft', 'registered'])
-    }
 
 
 class Line(metaclass=PoolMeta):
@@ -185,21 +182,20 @@ class Line(metaclass=PoolMeta):
             ('reconciliation', '=', None),
             ('invoice_payment', '=', None),
             ]
-        cls.statement.states['readonly'] = _states['readonly']
-        cls.number.states['readonly'] = _states['readonly']
-        cls.date.states['readonly'] = (
-            _states['readonly'] | Bool(Eval('origin', 0))
-            )
-        cls.amount.states['readonly'] = _states['readonly']
-        cls.amount_second_currency.states['readonly'] = _states['readonly']
-        cls.second_currency.states['readonly'] = _states['readonly']
-        cls.party.states['readonly'] = _states['readonly']
+        _readonly = ~Eval('statement_state', '').in_(['draft', 'registered'])
+        cls.statement.states['readonly'] = _readonly
+        cls.number.states['readonly'] = _readonly
+        cls.date.states['readonly'] = _readonly | Bool(Eval('origin', 0))
+        cls.amount.states['readonly'] = _readonly
+        cls.amount_second_currency.states['readonly'] = _readonly
+        cls.second_currency.states['readonly'] = _readonly
+        cls.party.states['readonly'] = _readonly
         cls.party.states['required'] = (Eval('party_required', False)
             & (Eval('statement_state').in_(['draft', 'registered']))
             )
-        cls.account.states['readonly'] = _states['readonly']
-        cls.description.states['readonly'] = _states['readonly']
-        cls.related_to.states['readonly'] = _states['readonly']
+        cls.account.states['readonly'] = _readonly
+        cls.description.states['readonly'] = _readonly
+        cls.related_to.states['readonly'] = _readonly
         cls._buttons.update({
                 'add_pending': {
                     'invisible': Eval('origin_state') != 'registered',
@@ -594,10 +590,14 @@ class Origin(Workflow, metaclass=PoolMeta):
     entry_reference = fields.Char("Entry Reference", readonly=True)
     suggested_lines = fields.One2Many(
         'account.statement.origin.suggested.line', 'origin',
-        'Suggested Lines', states=_states)
+        'Suggested Lines', states={
+            'readonly': Bool(Eval('synchronized', False)),
+            })
     suggested_lines_tree = fields.Function(
         fields.Many2Many('account.statement.origin.suggested.line', None, None,
-            'Suggested Lines', states=_states), 'get_suggested_lines_tree')
+            'Suggested Lines', states={
+                'readonly': Bool(Eval('synchronized', False)),
+                }), 'get_suggested_lines_tree')
     balance = Monetary("Balance", currency='currency', digits='currency',
         readonly=True)
     state = fields.Selection([
@@ -608,6 +608,8 @@ class Origin(Workflow, metaclass=PoolMeta):
     remittance_information = fields.Function(
         fields.Char('Remittance Information'), 'get_remittance_information',
         searcher='search_remittance_information')
+    synchronized = fields.Function(fields.Boolean('Synchronized'),
+        'on_change_with_synchronized')
 
     @classmethod
     def __setup__(cls):
@@ -615,23 +617,24 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.number.search_unaccented = False
         cls._order.insert(0, ('date', 'ASC'))
         cls._order.insert(1, ('number', 'ASC'))
-        cls.statement.states['readonly'] = _states['readonly']
-        cls.number.states['readonly'] = _states['readonly']
-        cls.date.states['readonly'] = _states['readonly']
-        cls.amount.states['readonly'] = _states['readonly']
-        cls.amount_second_currency.states['readonly'] = _states['readonly']
-        cls.second_currency.states['readonly'] = _states['readonly']
-        cls.party.states['readonly'] = _states['readonly']
-        cls.account.states['readonly'] = _states['readonly']
-        cls.description.states['readonly'] = _states['readonly']
+
+        _sync_readonly = Bool(Eval('synchronized', False))
+        _state_readonly = ~Eval('statement_state', '').in_(['draft',
+                    'registered'])
+        cls.statement.states['readonly'] = _sync_readonly
+        cls.number.states['readonly'] = _sync_readonly
+        cls.date.states['readonly'] = _sync_readonly
+        cls.amount.states['readonly'] = _sync_readonly
+        cls.amount_second_currency.states['readonly'] = _state_readonly
+        cls.second_currency.states['readonly'] = _state_readonly
+        cls.party.states['readonly'] = _state_readonly
+        cls.account.states['readonly'] = _state_readonly
+        cls.description.states['readonly'] = _state_readonly
         cls.lines.states['readonly'] = (
             (Eval('statement_id', -1) < 0)
             | (~Eval('statement_state').in_(
                     ['draft', 'registered', 'validated']))
             )
-        cls.party.states['invisible'] = True
-        cls.account.states['invisible'] = True
-
         cls._transitions |= set((
                 ('registered', 'posted'),
                 ('registered', 'cancelled'),
@@ -642,30 +645,37 @@ class Origin(Workflow, metaclass=PoolMeta):
                 'multiple_invoices': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
+                    'icon': 'tryton-add',
                     },
                 'multiple_move_lines': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
+                    'icon': 'tryton-add',
                     },
                 'register': {
                     'invisible': Eval('state') != 'cancelled',
                     'depends': ['state'],
+                    'icon': 'tryton-forward',
                     },
                 'post': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
+                    'icon': 'tryton-ok',
                     },
                 'cancel': {
                     'invisible': Eval('state') == 'cancelled',
                     'depends': ['state'],
+                    'icon': 'tryton-cancel',
                     },
                 'search_suggestions': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
+                    'icon': 'tryton-search',
                     },
                 'link_invoice': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
+                    'icon': 'tryton-link',
                     },
                 })
         cls.__rpc__.update({
@@ -684,6 +694,12 @@ class Origin(Workflow, metaclass=PoolMeta):
         except AttributeError:
             state = None
         return self.state or state
+
+    @fields.depends('statement', '_parent_statement.journal')
+    def on_change_with_synchronized(self, name=None):
+        if self.statement and self.statement.journal.enable_banking_session:
+            return True
+        return False
 
     @property
     @fields.depends('statement', '_parent_statement.journal')
