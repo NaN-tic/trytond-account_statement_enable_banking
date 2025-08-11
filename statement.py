@@ -2344,7 +2344,8 @@ class RetrieveEnableBankingSession(Wizard):
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
 
-        valid = (journal.enable_banking_session.valid_until >= Date.today()
+        valid = (
+            journal.enable_banking_session.valid_until.date() >= Date.today()
             if (journal.enable_banking_session
                 and journal.enable_banking_session.valid_until)
             else False)
