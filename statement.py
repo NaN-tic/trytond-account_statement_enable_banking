@@ -17,13 +17,14 @@ from trytond.wizard import (
 from trytond.transaction import Transaction
 from .common import get_base_header, URL, REDIRECT_URL
 from trytond.i18n import gettext
+from trytond.exceptions import UserWarning
 from trytond.model.exceptions import AccessError
-from trytond.exceptions import UserError
 from trytond.modules.account_statement.exceptions import (
     StatementValidateError, StatementValidateWarning)
 from trytond.modules.currency.fields import Monetary
 from trytond.modules.account_statement.statement import Unequal
 from trytond import backend
+
 
 _ZERO = Decimal(0)
 
@@ -584,7 +585,8 @@ class Line(metaclass=PoolMeta):
         line = lines[0]
         if isinstance(line.origin, Origin):
             line.amount += line.origin.pending_amount
-            cls.save([line])
+            line.save()
+
 
 class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
@@ -1363,7 +1365,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             ('reconciliation', '=', None),
             ('account.reconcile', '=', True),
             ('invoice_payment', '=', None),
-            ('payment_blocked', '=', False),
             ]
         if second_currency:
             domain.append(('second_currency', '=', second_currency))
@@ -2088,8 +2089,10 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         MoveLine = pool.get('account.move.line')
+        Warning = pool.get('res.user.warning')
 
         to_create = []
+        to_warn = []
         for recomend in recomended:
             if recomend.origin.state == 'posted':
                 continue
@@ -2097,18 +2100,25 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             for child in childs:
                 if child.state == 'used':
                     continue
-
                 related_to = getattr(child, 'related_to', None)
                 if isinstance(related_to, MoveLine) and related_to.payment_blocked:
-                    raise UserError(
-                        gettext('account_statement_enable_banking.'
-                            'msg_not_use_blocked_account_move'))
+                    to_warn.append(related_to)
                 description = child.origin.remittance_information
-
                 values = cls.get_suggested_values(child, description)
                 to_create.append(values)
             if len(childs) > 1:
                 cls.write(list(childs), {'state': 'used'})
+        if to_warn:
+            names = ', '.join(x.rec_name for x in to_warn)
+            if len(to_warn) > 5:
+                names += '...'
+            warning_key = Warning.format('use_move_line_payment_blocked',
+                to_warn)
+            if Warning.check(warning_key):
+                raise UserWarning(warning_key,
+                    gettext('account_statement_enable_banking.'
+                        'msg_not_use_blocked_account_move',
+                        move_lines=names))
         StatementLine.create(to_create)
 
 
@@ -2260,10 +2270,11 @@ class RetrieveEnableBankingSessionSelect(ModelView):
         journal = EBSession(active_id) if active_id else None
         if not journal or not journal.bank_account:
             return None
-        eb_session = EBSession.serch([
+        eb_sessions = EBSession.search([
             ('bank', '=', journal.bank_account.bank),
-            ('session_expired', '=', False),
-            ], limit=1)
+            ])
+        eb_session = [ebs for ebs in eb_sessions
+            if ebs.session_expired is False]
         return eb_session[0] if eb_session else None
 
     enable_banking_session_valid_days = fields.TimeDelta(
@@ -2423,7 +2434,6 @@ class RetrieveEnableBankingSession(Wizard):
 
         return {
             'enable_banking_session_valid': valid,
-            'journal': journal,
             }
 
     def transition_check_session(self):
@@ -2453,10 +2463,11 @@ class RetrieveEnableBankingSession(Wizard):
                         return 'sync_statements'
             EBSession.delete([eb_session])
 
-        eb_session = EBSession.serch([
+        eb_sessions = EBSession.search([
             ('bank', '=', journal.bank_account.bank),
-            ('session_expired', '=', False),
-            ], limit=1)
+            ])
+        eb_session = [ebs for ebs in eb_sessions
+            if ebs.session_expired is False]
         if eb_session:
             return 'select_session'
         return 'create_session'
