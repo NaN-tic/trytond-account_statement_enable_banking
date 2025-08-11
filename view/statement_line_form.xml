@@ -9,4 +9,7 @@ this repository contains the full copyright notices and license terms. -->
         <label name="maturity_date"/>
         <field name="maturity_date"/>
     </xpath>
+    <xpath expr="//field[@name='move']" position="after">
+        <button name="add_pending"/>
+    </xpath>
 </data>

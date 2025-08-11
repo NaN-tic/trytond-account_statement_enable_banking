@@ -266,6 +266,12 @@ this repository contains the full copyright notices and license terms. -->
             <field name="name">origin_statement_line_tree_editable</field>
         </record>
 
+        <record model="ir.model.button" id="statement_line_add_pending_button">
+            <field name="name">add_pending</field>
+            <field name="string">Add Pending</field>
+            <field name="model">account.statement.line</field>
+        </record>
+
         <!-- enable_banking.synchronize_statement -->
         <record model="ir.ui.view" id="enable_banking_retrieve_session_start_form">
             <field name="model">enable_banking.retrieve_session.start</field>
