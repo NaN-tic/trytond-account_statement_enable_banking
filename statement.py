@@ -1584,23 +1584,26 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not origins:
             return
 
-        origins_without_lines = origins
         # Before a new search remove all suggested lines, but control if any
         # of them are related to a statement line.
-        suggests = SuggestedLine.search([
+        suggestions = SuggestedLine.search([
                 ('origin', 'in', origins),
                 ])
-        if suggests:
+        if suggestions:
             lines = StatementLine.search([
-                    ('suggested_line', 'in', [x.id for x in suggests])
-                ])
-            origins_with_lines = set(x.origin.id for x in lines if x.origin)
-            origins_without_lines = [o for o in origins
-                if o.id not in origins_with_lines]
-            SuggestedLine.delete(suggests)
+                    ('suggested_line', 'in', suggestions)
+                    ])
+            if lines:
+                origins_name = ", ".join([x.origin.rec_name
+                        for x in lines if x.origin])
+                raise AccessError(
+                    gettext('account_statement_enable_banking.'
+                        'msg_suggested_line_related_to_statement_line',
+                        origins_name=origins_name))
 
-        suggesteds_to_create = []
-        for origin in origins_without_lines:
+        SuggestedLine.delete(suggestions)
+        suggested_lines_to_create = []
+        for origin in origins:
             pending_amount = origin.pending_amount
             if pending_amount == _ZERO:
                 return
@@ -1624,47 +1627,45 @@ class Origin(Workflow, metaclass=PoolMeta):
             if Clearing:
                 # Search by possible payment groups with clearing journal
                 # deffined
-                suggest_lines, used_groups = (
+                suggested_lines, used_groups = (
                     origin.
                     _search_suggested_reconciliation_clearing_payment_group(
                         pending_amount, acceptable=acceptable))
-                suggesteds_to_create.extend(suggest_lines)
+                suggested_lines_to_create.extend(suggested_lines)
                 groups.extend(used_groups)
 
                 # Search by possible payments with clearing journal deffined
-                suggest_lines, used_move_lines = (
+                suggested_lines, used_move_lines = (
                     origin._search_suggested_reconciliation_clearing_payment(
                         pending_amount, acceptable=acceptable,
                         parties=similarity_parties, exclude=groups))
-                suggesteds_to_create.extend(suggest_lines)
+                suggested_lines_to_create.extend(suggested_lines)
                 move_lines.extend(used_move_lines)
 
             # Search by possible part or all of payment groups
-            suggest_lines, used_move_lines = (
+            suggested_lines, used_move_lines = (
                 origin._search_suggested_reconciliation_payment(pending_amount,
                     acceptable=acceptable, parties=similarity_parties,
                     exclude_groups=groups, exclude_lines=move_lines))
-            suggesteds_to_create.extend(suggest_lines)
+            suggested_lines_to_create.extend(suggested_lines)
             move_lines.extend(used_move_lines)
 
             # Search by move_line, with or without origin and party
-            suggest_lines = (
+            suggested_lines_to_create.extend(
                 origin._search_suggested_reconciliation_move_line(
                     pending_amount, acceptable=acceptable,
                     parties=similarity_parties, exclude=move_lines))
-            suggesteds_to_create.extend(suggest_lines)
 
             # Search by second currency
             if origin.second_currency and origin.amount_second_currency != 0:
-                suggest_lines = (
+                suggested_lines_to_create.extend(
                     origin._search_suggested_reconciliation_move_line(
                         origin.amount_second_currency, acceptable=acceptable,
                         parties=similarity_parties,
                         second_currency=origin.second_currency))
-                suggesteds_to_create.extend(suggest_lines)
 
             # Search by simlarity, using the PostreSQL Trigram
-            suggesteds_to_create.extend(
+            suggested_lines_to_create.extend(
                 origin._search_suggested_reconciliation_simlarity(
                         pending_amount, company=origin.company,
                         information=information, threshold=threshold))
@@ -1683,30 +1684,50 @@ class Origin(Workflow, metaclass=PoolMeta):
                     seen.add(identifier)
             return result
 
-        suggesteds_use = []
-        if suggesteds_to_create:
-            suggesteds_to_create = remove_duplicate_suggestions(
-                suggesteds_to_create)
-            SuggestedLine.create(suggesteds_to_create)
+        suggestions_to_use = []
+        if suggested_lines_to_create:
+            suggested_lines_to_create = remove_duplicate_suggestions(
+                suggested_lines_to_create)
+            SuggestedLine.create(suggested_lines_to_create)
             for origin in origins:
-                suggested_use = None
-                before_similarity = 0.0
-                for suggest in SuggestedLine.search([
+                suggestion_to_use = None
+                best_suggestions = SuggestedLine.search([
                         ('origin', '=', origin),
                         ('parent', '=', None),
                         ('similarity', '>=', origin.acceptable_similarity)
-                        ]):
-                    if suggest.similarity == before_similarity:
-                        suggested_use = None
-                        break
-                    elif suggest.similarity < before_similarity:
-                        break
-                    suggested_use = suggest
-                    before_similarity = suggest.similarity
-                if suggested_use:
-                    suggesteds_use.append(suggested_use)
-        if suggesteds_use:
-            SuggestedLine.use(suggesteds_use)
+                        ], order=[('similarity', 'DESC')], limit=2)
+                #If the best suggestion is more similar than the second one,
+                #we take it to use, else, the user must pick the suggestion
+                if (len(best_suggestions) == 1 or
+                    ((len(best_suggestions) == 2 and
+                      best_suggestions[0].similarity >
+                      best_suggestions[1].similarity))):
+                    suggestion_to_use = best_suggestions[0]
+                if suggestion_to_use:
+                    suggestions_to_use.append(suggestion_to_use)
+
+        if suggestions_to_use:
+            SuggestedLine.use(suggestions_to_use)
+
+        # Trim remaining suggestions to a max of the best 10
+        origins_to_save = []
+        for origin in origins:
+            if len(origin.suggested_lines) <= 10:
+                continue
+            parent_suggestions = SuggestedLine.search([
+                    ('origin', '=', origin),
+                    ('parent', '=', None),
+                    ('state', '=', 'proposed'),
+                    ], order=[('similarity', 'DESC')], limit=10)
+            child_suggestions = SuggestedLine.search([
+                    ('origin', '=', origin),
+                    ('parent', 'in', [x.id for x in parent_suggestions]),
+                    ])
+            origin.suggested_lines = parent_suggestions + child_suggestions
+            origins_to_save.append(origin)
+
+        if origins_to_save:
+            cls.save(origins_to_save)
 
     @classmethod
     def _get_statement_line(cls, origin, related):
