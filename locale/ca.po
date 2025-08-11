@@ -861,6 +861,18 @@ msgid ""
 msgstr ""
 "El camp Dies validesa sessió Enable Banking han de tenir entre 1 i 90 dies."
 
+msgctxt "model:ir.model.button,string:retrieve_enable_banking_session_button"
+msgid "Retrieve EB Session"
+msgstr "Recuperar Sessió EB"
+
+msgctxt "model:ir.model.button,string:retrieve_session_enable_banking_button"
+msgid "Synchronize Statement Enable Banking"
+msgstr "Sincronitza extracte Enable Banking"
+
+msgctxt "model:ir.model.button,string:statement_line_add_pending_button"
+msgid "Add Pending"
+msgstr "Afegeix pendent"
+
 msgctxt "model:ir.model.button,string:statement_line_multiple_invoices_button"
 msgid "Add Multiple Invoices"
 msgstr "Afegeix diverses factures"
