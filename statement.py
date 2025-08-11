@@ -1094,7 +1094,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         parent = None
         to_create = []
         if not move_lines:
-            return parent, to_create
+            return to_create
         elif len(move_lines) > 1:
             parent = SuggestedLine()
             parent.origin = self
@@ -1120,7 +1120,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             values = self._get_suggested_values(parent, name, line, amount,
                 related_to, similarity)
             to_create.append(values)
-        return parent, to_create
+        return to_create
 
     def create_move_suggested_line(self, move_lines, amount, name,
             similarity=0):
@@ -1136,7 +1136,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         parent = None
         to_create = []
         if not move_lines:
-            return parent, to_create
+            return to_create
         elif len(move_lines) > 1:
             parent = SuggestedLine()
             parent.origin = self
@@ -1153,7 +1153,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             values = self._get_suggested_values(parent, name, line, amount,
                 related_to, similarity)
             to_create.append(values)
-        return parent, to_create
+        return to_create
 
     def _search_clearing_payment_group_reconciliation_domain(self, amount=None,
             kind=None):
@@ -1345,7 +1345,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
             move_lines.extend([p.line for v in groups['groups'].values()
                 for p in v['payments']])
-            parent, to_create = self.create_payment_suggested_line(move_lines,
+            to_create = self.create_payment_suggested_line(move_lines,
                 amount, name=name, similarity=acceptable)
             suggesteds.extend(to_create)
         elif groups['amount'] != _ZERO:
@@ -1367,7 +1367,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                             similarity = self.increase_similarity_by_party(
                                 party, parties, similarity=similarity)
                     name = group.rec_name if group else name
-                    parent, to_create = self.create_payment_suggested_line(
+                    to_create = self.create_payment_suggested_line(
                         payment_lines, amount, name=name,
                         similarity=similarity)
                     suggesteds.extend(to_create)
@@ -1437,7 +1437,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     name = line.move_origin.rec_name
                 elif party:
                     name = line.party.rec_name
-                parent, to_create = self.create_move_suggested_line([line],
+                to_create = self.create_move_suggested_line([line],
                     amount, name=name, similarity=similarity)
                 suggesteds.extend(to_create)
             else:
@@ -1479,7 +1479,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if party and parties:
                     similarity = self.increase_similarity_by_party(party,
                         parties, similarity=similarity)
-                _, to_create = self.create_move_suggested_line(
+                to_create = self.create_move_suggested_line(
                     values['lines'], amount, name=origin.rec_name,
                     similarity=similarity)
                 suggesteds.extend(to_create)
@@ -1499,7 +1499,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     similarity = self.increase_similarity_by_party(party,
                         parties, similarity=similarity)
                 name = party.rec_name
-                _, to_create = self.create_move_suggested_line(
+                to_create = self.create_move_suggested_line(
                     values['lines'], amount, name=name, similarity=similarity)
                 suggesteds.extend(to_create)
         return suggesteds
