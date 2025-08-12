@@ -188,12 +188,12 @@ msgstr "Cuenta"
 
 msgctxt "field:account.statement.origin.suggested.line,amount:"
 msgid "Amount"
-msgstr "Cantidad"
+msgstr "Importe"
 
 msgctxt ""
 "field:account.statement.origin.suggested.line,amount_second_currency:"
 msgid "Amount Second Currency"
-msgstr "Cantidad Segunda Moneda"
+msgstr "Importe Segunda Moneda"
 
 msgctxt "field:account.statement.origin.suggested.line,analytic_accounts:"
 msgid "Analytic Accounts"
@@ -606,7 +606,7 @@ msgstr "Estado"
 msgctxt ""
 "model:account.statement.origin.information,string:eb_transaction_amount"
 msgid "Transaction Amount"
-msgstr "Cantidad de transacción"
+msgstr "Importe de transacción"
 
 msgctxt ""
 "model:account.statement.origin.information,string:eb_transaction_date"
