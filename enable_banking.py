@@ -74,7 +74,7 @@ class EnableBankingSession(ModelSQL, ModelView):
     bank = fields.Many2One('bank', "Bank", readonly=True)
     allowed_bank_accounts = fields.Function(fields.Many2Many(
             'bank.account', None, None, 'Allowed Bank Accounts',readonly=True),
-        'get_allowed_bank_accounts')
+        'get_allowed_bank_accounts', searcher='search_allowed_bank_accounts')
 
     @classmethod
     def __register__(cls, module_name):
@@ -83,6 +83,7 @@ class EnableBankingSession(ModelSQL, ModelView):
         exist_company = table.column_exist('company')
         sql_table = cls.__table__()
 
+        # TODO: 'session' migration could be removed in v7.6
         session = table.column_exist('session')
 
         super().__register__(module_name)
@@ -153,13 +154,14 @@ class EnableBankingSession(ModelSQL, ModelView):
         else:
             return Fernet(FERNET_KEY)
 
-    def get_allowed_bank_accounts(self, name=None):
+    @classmethod
+    def _get_bank_accounts(cls, enable_banking_session):
         pool = Pool()
         BankNumber = pool.get('bank.account.number')
 
-        if not self.encrypted_session:
+        if not enable_banking_session.encrypted_session:
             return []
-        session = json.loads(self.session)
+        session = json.loads(enable_banking_session.session)
         accounts = session.get('accounts') if session else {}
         iban_numbers = [x.get('account_id', {}).get('iban') for x in accounts]
         numbers = BankNumber.search([
@@ -171,6 +173,41 @@ class EnableBankingSession(ModelSQL, ModelView):
                 ])
         return [x.account.id for x in numbers
             if x.account is not None and x.account.active]
+
+    def get_allowed_bank_accounts(self, name=None):
+        pool = Pool()
+        EnableBankingSession = pool.get('enable_banking.session')
+
+        return EnableBankingSession._get_bank_accounts(self)
+
+    @classmethod
+    def search_allowed_bank_accounts(cls, name, clause):
+        _, operator, value = clause
+        ids = []
+        enable_banking_sessions = cls.search([])
+        if value:
+            session_iban_numbers = {}
+            for enable_banking_session in enable_banking_sessions:
+                session_iban_numbers[enable_banking_session.id] = (
+                    cls._get_bank_accounts(enable_banking_session))
+
+            for session, bank_accounts in session_iban_numbers.items():
+                if operator == '=':
+                    if value in bank_accounts:
+                        ids.append(session)
+                elif operator == '!=':
+                    if value not in bank_accounts:
+                        ids.append(session)
+                elif operator == 'in':
+                    if all(x in bank_accounts for x in value):
+                        ids.append(session)
+                else:
+                    if not all(x in bank_accounts for x in value):
+                        ids.append(session)
+        else:
+            ids = [x.id for x in enable_banking_sessions]
+
+        return [('id', 'in', ids)]
 
     @property
     def session_expired(self):
