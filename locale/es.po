@@ -108,8 +108,8 @@ msgid "Show Paid Invoices"
 msgstr "Mostrar facturas pagadas"
 
 msgctxt "field:account.statement.line,suggested_line:"
-msgid "Suggested Lines"
-msgstr "Líneas sugeridas"
+msgid "Suggested Line"
+msgstr "Línea sugerida"
 
 msgctxt "field:account.statement.origin,balance:"
 msgid "Balance"
