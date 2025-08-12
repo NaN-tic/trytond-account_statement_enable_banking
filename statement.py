@@ -2246,25 +2246,8 @@ class RetrieveEnableBankingSessionSelect(ModelView):
     "Retrieve Enable Banking Session Select Session"
     __name__ = 'enable_banking.retrieve_session.select_session'
 
-    found_session = fields.Function(fields.Many2One(
-        'enable_banking.session', "Found Session"),
-        'get_found_session')
-
-    def get_found_session(self, name):
-        pool = Pool()
-        EBSession = pool.get('enable_banking.session')
-
-        active_id = Transaction().context.get('active_id', None)
-        journal = EBSession(active_id) if active_id else None
-        if not journal or not journal.bank_account:
-            return None
-        eb_sessions = EBSession.search([
-            ('bank', '=', journal.bank_account.bank),
-            ])
-        eb_session = [ebs for ebs in eb_sessions
-            if ebs.session_expired is False]
-        return eb_session[0] if eb_session else None
-
+    found_session = fields.Many2One('enable_banking.session', "Found Session",
+        readonly=True)
     enable_banking_session_valid_days = fields.TimeDelta(
         'Enable Banking Session Valid Days',
         states={
@@ -2382,7 +2365,9 @@ class SynchronizeStatementEnableBankingStart(ModelView):
 class RetrieveEnableBankingSession(Wizard):
     "Retrieve Enable Banking Session"
     __name__ = 'enable_banking.retrieve_session'
+    start_state = 'check_session_before_start'
 
+    check_session_before_start = StateTransition()
     start = StateView('enable_banking.retrieve_session.start',
         'account_statement_enable_banking.'
         'enable_banking_retrieve_session_start_form',
@@ -2403,6 +2388,32 @@ class RetrieveEnableBankingSession(Wizard):
     create_session = StateAction(
         'account_statement_enable_banking.url_session')
     use_session = StateTransition()
+
+    def transition_check_session_before_start(self):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        base_headers = get_base_header()
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        if not journal or not journal.bank_account:
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_no_bank_account'))
+
+        if journal.enable_banking_session:
+            # We need to check the date and if we have the field session, if
+            # not the session was not created correctly and need to be deleted
+            eb_session = journal.enable_banking_session
+            if eb_session.session and not eb_session.session_expired:
+                session = json.loads(eb_session.session)
+                r = requests.get(
+                    f"{URL}/sessions/{session['session_id']}",
+                    headers=base_headers)
+                if r.status_code == 200:
+                    session = r.json()
+                    if session['status'] == 'AUTHORIZED':
+                        return 'end'
+        return 'start'
 
     def default_start(self, fields):
         pool = Pool()
@@ -2429,7 +2440,6 @@ class RetrieveEnableBankingSession(Wizard):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         EBSession = pool.get('enable_banking.session')
-        base_headers = get_base_header()
 
         active_id = Transaction().context.get('active_id', None)
         journal = Journal(active_id) if active_id else None
@@ -2437,19 +2447,10 @@ class RetrieveEnableBankingSession(Wizard):
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
 
-        if journal.enable_banking_session:
-            # We need to check the date and if we have the field session, if
-            # not the session was not created correctly and need to be deleted
-            eb_session = journal.enable_banking_session
-            if eb_session.session and not eb_session.session_expired:
-                session = json.loads(eb_session.session)
-                r = requests.get(
-                    f"{URL}/sessions/{session['session_id']}",
-                    headers=base_headers)
-                if r.status_code == 200:
-                    session = r.json()
-                    if session['status'] == 'AUTHORIZED':
-                        return 'sync_statements'
+        # We need to check the date and if we have the field session, if
+        # not, the session was not created correctly and need to be deleted
+        eb_session = journal.enable_banking_session
+        if eb_session and eb_session.session and eb_session.session_expired:
             EBSession.delete([eb_session])
 
         eb_sessions = EBSession.search([
@@ -2460,6 +2461,25 @@ class RetrieveEnableBankingSession(Wizard):
         if eb_session:
             return 'select_session'
         return 'create_session'
+
+    def default_select_session(self, fields):
+        pool = Pool()
+        Journal = pool.get('account.statement.journal')
+        EBSession = pool.get('enable_banking.session')
+
+        active_id = Transaction().context.get('active_id', None)
+        journal = Journal(active_id) if active_id else None
+        if not journal or not journal.bank_account:
+            return None
+        eb_sessions = EBSession.search([
+            ('bank', '=', journal.bank_account.bank),
+            ])
+        eb_session = [ebs for ebs in eb_sessions
+            if ebs.session_expired is False]
+
+        return {
+            'found_session': eb_session[0].id if eb_session else None,
+            }
 
     def transition_use_session(self):
         pool = Pool()
@@ -2558,7 +2578,6 @@ class RetrieveEnableBankingSession(Wizard):
         journal.enable_banking_session = eb_session
         journal.save()
         return action, {}
-
 
 
 class OriginSynchronizeStatementEnableBankingAsk(ModelView):
