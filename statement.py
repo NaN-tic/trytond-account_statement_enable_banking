@@ -1717,7 +1717,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             parent_suggestions = SuggestedLine.search([
                     ('origin', '=', origin),
                     ('parent', '=', None),
-                    ('state', '=', 'proposed'),
                     ], order=[('similarity', 'DESC')], limit=10)
             child_suggestions = SuggestedLine.search([
                     ('origin', '=', origin),
