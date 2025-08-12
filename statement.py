@@ -130,7 +130,7 @@ class Line(metaclass=PoolMeta):
         depends=['related_to'],
         help="Set a date to make the line payable or receivable.")
     suggested_line = fields.Many2One('account.statement.origin.suggested.line',
-        'Suggested Lines',
+        'Suggested Line',
         states={
             'readonly': Eval('origin_state') != 'registered',
             })
