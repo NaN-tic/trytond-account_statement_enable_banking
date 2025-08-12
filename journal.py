@@ -50,10 +50,10 @@ class Journal(metaclass=PoolMeta):
                 ('company', '=', None),
             ]])
     enable_banking_session = fields.Many2One('enable_banking.session',
-        'Enable Banking Session')
-    enable_banking_session_encrypted = fields.Function(fields.Boolean(
-            'Enable Banking Session Encrypted'),
-        'on_change_with_enable_banking_session_encrypted')
+        'Enable Banking Session',
+        domain=[
+                ('allowed_bank_accounts', '=', Eval('bank_account')),
+                ])
     enable_banking_session_allowed_bank_accounts = fields.Function(
         fields.Many2Many('bank.account', None, None, 'Allowed Bank Accounts',
             context={
@@ -98,8 +98,7 @@ class Journal(metaclass=PoolMeta):
     def __setup__(cls):
         super().__setup__()
         cls.bank_account.domain.append(
-            If(Eval('enable_banking_session')
-                & Eval('enable_banking_session_encrypted'),
+            If(Eval('enable_banking_session_allowed_bank_accounts', []),
                 ('id', 'in',
                     Eval('enable_banking_session_allowed_bank_accounts', [])),
                 (),
@@ -132,14 +131,6 @@ class Journal(metaclass=PoolMeta):
     @staticmethod
     def default_max_amount_tolerance():
         return 0
-
-    @fields.depends('enable_banking_session')
-    def on_change_with_enable_banking_session_encrypted(self,
-            name=None):
-        if (self.enable_banking_session
-                and self.enable_banking_session.encrypted_session):
-            return True
-        return False
 
     @fields.depends('enable_banking_session')
     def on_change_with_enable_banking_session_allowed_bank_accounts(self,
