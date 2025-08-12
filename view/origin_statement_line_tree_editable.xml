@@ -12,5 +12,6 @@ this repository contains the full copyright notices and license terms. -->
     <field name="description" expand="1"/>
     <field name="maturity_date" optional="0"/>
     <field name="show_paid_invoices" optional="0"/>
-    <button name="add_pending"/>
+    <field name="suggested_line" optional="1"/>
+    <button name="add_pending" optional="0"/>
 </tree>

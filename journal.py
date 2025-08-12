@@ -21,7 +21,7 @@ class Journal(metaclass=PoolMeta):
         required=True,
         domain=[
             ('similarity_threshold', '>', 0),
-            ('similarity_threshold', '<=', 10),
+            ('similarity_threshold', '<=', 100),
             ],
         help='The thershold used for similarity function in origin lines '
         'search')
@@ -29,7 +29,7 @@ class Journal(metaclass=PoolMeta):
         'Acceptable Similarity', required=True,
         domain=[
             ('acceptable_similarity', '>', 0),
-            ('acceptable_similarity', '<=', 10),
+            ('acceptable_similarity', '<=', 100),
             ],
         help='The minimum similarity allowed to set the statement line '
         'direclty from suggested lines.')
