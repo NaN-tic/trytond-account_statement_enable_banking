@@ -34,7 +34,7 @@
         <button name="post" icon="tryton-ok"/>
     </group>
     <group id="lines_information" colspan="8" col="2">
-        <field name="suggested_lines_tree" height="250"/>
+        <field name="suggested_lines_tree" height="500"/>
         <field name="information"/>
     </group>
 </form>
