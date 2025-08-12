@@ -605,7 +605,7 @@ msgstr "Estat"
 msgctxt ""
 "model:account.statement.origin.information,string:eb_transaction_amount"
 msgid "Transaction Amount"
-msgstr "Quantitat de transacció"
+msgstr "Import de transacció"
 
 msgctxt ""
 "model:account.statement.origin.information,string:eb_transaction_date"
