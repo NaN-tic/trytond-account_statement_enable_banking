@@ -1561,7 +1561,6 @@ class Origin(Workflow, metaclass=PoolMeta):
     def escape(self):
         SuggestedLine = Pool().get('account.statement.origin.suggested.line')
 
-        return False
         lines = SuggestedLine.search([
                 ('origin', '=', self),
                 ('parent', '=', None),
@@ -2031,11 +2030,9 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     @classmethod
     def write(cls, *args):
         super().write(*args)
-        print('Writing...')
         actions = iter(args)
         to_save = []
         for suggestions, values in zip(actions, actions):
-            print('Writing suggestions', suggestions, values)
             if 'weight' not in values.keys():
                 for suggestion in suggestions:
                     suggestion.update_weight()
@@ -2157,9 +2154,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             suggestion.parent = parent
             amount += suggestion.amount
 
-        print('XXX')
         cls.save(suggestions)
-        print('-' * 40)
         parent.amount = amount
         parent.save()
         if parent.weight > 180:
