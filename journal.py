@@ -23,7 +23,7 @@ class Journal(metaclass=PoolMeta):
             ('similarity_threshold', '>', 0),
             ('similarity_threshold', '<=', 100),
             ],
-        help='The thershold used for similarity function in origin lines '
+        help='The threshold used for similarity function in origin lines '
         'search')
     acceptable_similarity = fields.Integer(
         'Acceptable Similarity', required=True,

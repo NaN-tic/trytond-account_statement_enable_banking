@@ -45,15 +45,6 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_valid_days_out_of_range">
             <field name="text">The Enable Banking Session Valid Days fields must be between 1 and 90 days.</field>
         </record>
-        <record model="ir.message" id="msg_payments">
-            <field name="text">Payments</field>
-        </record>
-        <record model="ir.message" id="msg_similarity">
-            <field name="text">Similarity</field>
-        </record>
-        <record model="ir.message" id="msg_combination">
-            <field name="text">Combination</field>
-        </record>
         <record model="ir.message" id="msg_repeated_related_to_used">
             <field name="text">The related "%(related_to)s" is usde in a line of the posted origin "%(origin)s."</field>
         </record>

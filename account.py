@@ -104,3 +104,17 @@ class MoveLine(metaclass=PoolMeta):
 
         return super().reconcile(*lines_list, date=date, writeoff=writeoff,
             description=description, delegate_to=delegate_to)
+
+
+class Payment(metaclass=PoolMeta):
+    __name__ = 'account.payment'
+
+    def get_rec_name(self, name):
+        Invoice = Pool().get('account.invoice')
+
+        res = super().get_rec_name(name)
+
+        origin = self.line and self.line.move_origin
+        if isinstance(origin, Invoice):
+            res += f' ({origin.rec_name})'
+        return res

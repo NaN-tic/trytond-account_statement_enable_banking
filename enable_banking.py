@@ -1,5 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import cryptography
 import requests
 import json
 from datetime import datetime
@@ -134,7 +135,12 @@ class EnableBankingSession(ModelSQL, ModelView):
         fernet = self.get_fernet_key()
         if not fernet:
             return None
-        return fernet.decrypt(self.encrypted_session).decode()
+        try:
+            return fernet.decrypt(self.encrypted_session).decode()
+        except cryptography.fernet.InvalidToken:
+            PRODUCTION = config.get('database', 'production', default=False)
+            if PRODUCTION:
+                raise
 
     @classmethod
     def set_session(cls, eb_sessions, name, value):
@@ -159,7 +165,7 @@ class EnableBankingSession(ModelSQL, ModelView):
         pool = Pool()
         BankNumber = pool.get('bank.account.number')
 
-        if not enable_banking_session.encrypted_session:
+        if not enable_banking_session.session:
             return []
         session = json.loads(enable_banking_session.session)
         accounts = session.get('accounts') if session else {}
