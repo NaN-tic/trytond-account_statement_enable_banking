@@ -1,9 +1,13 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import re
 import difflib
 import json
 import math
 import requests
+import functools
+from dateutils import relativedelta
+from unidecode import unidecode
 from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
@@ -27,7 +31,6 @@ from trytond.modules.currency.fields import Monetary
 from trytond.modules.account_statement.statement import Unequal
 from trytond import backend
 from trytond.config import config
-from trytond.tools import cached_property
 
 
 ZERO = Decimal(0)
@@ -41,11 +44,14 @@ TARGET_COMBINATIONS = config.get('enable_banking', 'target_combinations',
 # Note that it will be computed up to 20 times, so multiply by 20 to get the
 # total time
 
-def normal(x, mean=0, stddev=1):
-    'Density function of a normal distribution'
-    exponent = -((x - mean) ** 2) / (2 * stddev ** 2)
-    return (1 / (stddev * math.sqrt(2 * math.pi))) * math.exp(exponent)
+@functools.cache
+def gaussian_score(x, mean, stddev):
+    'Return 1 at x==mean and decay like a Gaussian as |x-mean| increases.'
+    if stddev <= 0:
+        raise ValueError("stddev must be positive")
+    return math.exp(-((x - mean) ** 2) / (2.0 * (stddev ** 2)))
 
+@functools.cache
 def candidate_size(k, max_n=10000):
     low = k
     high = 1000000
@@ -58,12 +64,37 @@ def candidate_size(k, max_n=10000):
     n = low
     return min(n, max_n)
 
-def longest_common_substring(str1, str2):
-    str1 = str1.replace('-', '').replace('/', '').replace(' ', '')
-    str2 = str2.replace('-', '').replace('/', '').replace(' ', '')
-    matcher = difflib.SequenceMatcher(None, str1, str2)
-    match = matcher.find_longest_match(0, len(str1), 0, len(str2))
+def clean_string(s):
+    s = unidecode(s.lower())
+    # remove punctuation, keep letters/digits/space
+    s = s.replace('/', ' ').replace('.', ' ').replace('-', ' ')
+    s = re.sub(r"[^\w\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+@functools.cache
+def longest_common_substring(a, b):
+    a = clean_string(a)
+    b = clean_string(b)
+    matcher = difflib.SequenceMatcher(None, a, b)
+    match = matcher.find_longest_match(0, len(a), 0, len(b))
     return match.size
+
+def compare_party(party_name, text):
+    if not party_name:
+        return 0
+    party_name = clean_string(party_name)
+    text = clean_string(text)
+    names = [party_name]
+    if ' ' in party_name:
+        # Change the last word for the first one
+        start, _, end = party_name.rpartition(' ')
+        names.append(end + ' ' + start)
+    percent = 0
+    for name in names:
+        length = longest_common_substring(name, text)
+        percent = max(length / len(name), percent)
+    return int(round(percent * 100))
 
 
 class Similarity(Function):
@@ -1007,26 +1038,34 @@ class Origin(Workflow, metaclass=PoolMeta):
             StatementLine.reconcile(move_lines)
         return moves
 
-    def similar_parties_query(self, compare):
+    def similar_parties_query(self, text):
         pool = Pool()
         Party = pool.get('party.party')
 
         party_table = Party.__table__()
         cursor = Transaction().connection.cursor()
 
-        if not compare:
-            return []
+        if not text:
+            return {}
 
-        similarity = Similarity(party_table.name, compare)
+        similarity = Similarity(party_table.name, text)
         if hasattr(Party, 'trade_name'):
             similarity = Greatest(similarity, Similarity(party_table.trade_name,
-                compare))
+                text))
         query = party_table.select(party_table.id, similarity,
             where=(similarity >= PARTY_SIMILARITY_THRESHOLD))
         cursor.execute(*query)
-        return [(x[0], int(round(x[1] * 100))) for x in cursor.fetchall()]
 
-    @cached_property
+        records = cursor.fetchall()
+        parties = Party.browse([x[0] for x in records])
+        similars = []
+        for party in parties:
+            percent = compare_party(party.name, text)
+            similars.append((party, percent))
+        return dict((x[0], x[1]) for x in sorted(similars, key=lambda x: x[1],
+            reverse=True))
+
+    @functools.cache
     def similar_parties(self):
         """
         This function returns a dictionary with the possible parties ID on
@@ -1046,13 +1085,10 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         parties = {}
 
-        parties = dict(self.similar_parties_query(information))
-        for party, similarity in self.similar_parties_query(debtor_creditor):
-            parties[party] = max(parties.get(party, 0), similarity)
+        parties = self.similar_parties_query(information)
+        for party, value in self.similar_parties_query(debtor_creditor).items():
+            parties[party] = max(parties.get(party, 0), value)
 
-        # Sort dictionary based on value
-        parties = dict(sorted(parties.items(), key=lambda item: item[1],
-            reverse=True))
         if parties:
             # Discard all entries that have a similiarity below ~25% of the
             # maximum similarity. For cases where the maximum similarity is
@@ -1069,11 +1105,11 @@ class Origin(Workflow, metaclass=PoolMeta):
             # If we discarded the company name in the query, then the second best
             # party would be picked which may be very different from the company name
             # The previous logic is to avoid that
-            parties.pop(self.company.party.id, None)
+            parties.pop(self.company.party, None)
 
         return parties
 
-    @cached_property
+    @functools.cache
     def similar_origins(self):
         pool = Pool()
         Statement = pool.get('account.statement')
@@ -1096,7 +1132,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             where=((similarity_column >= self.similarity_threshold/100)
                 & (statement_table.company == self.company.id)
                 & (origin_table.state == 'posted')
-                & (line_table.related_to == None)),
+                & (line_table.related_to == None))
+                & (origin_table.create_date >= self.date - relativedelta(months=12)),
             order_by=[similarity_column.desc]
             )
         cursor.execute(*query)
@@ -1145,9 +1182,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 else -payment.amount)
             to_save.append(line)
 
-        SuggestedLine.save(to_save)
-        suggestion = SuggestedLine.pack(to_save)
-        return [suggestion]
+        return [SuggestedLine.pack(to_save)]
 
     def get_suggestion_from_move_line(self, line):
         pool = Pool()
@@ -1187,9 +1222,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggested_line.type = type_
             to_save.append(suggested_line)
 
-        SuggestedLine.save(to_save)
-        suggestion = SuggestedLine.pack(to_save)
-        return suggestion
+        return SuggestedLine.pack(to_save)
 
     def _suggest_clearing_payment_group(self):
         pool = Pool()
@@ -1361,7 +1394,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             return suggested_lines
 
         last_similarity = 0
-        for origin, similarity in self.similar_origins:
+        for origin, similarity in self.similar_origins():
             if similarity == last_similarity:
                 continue
             last_similarity = similarity
@@ -1386,18 +1419,30 @@ class Origin(Workflow, metaclass=PoolMeta):
             if len(suggestions) == 1:
                 suggestions[0].amount = amount
 
-            SuggestedLine.save(suggestions)
             SuggestedLine.pack(suggestions)
 
     def _suggest_combination(self, domain, type_, based_on=None, sorting='oldest'):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
         MAX_LENGTH = 20
-        max_tolerance = self.statement.journal.max_amount_tolerance
+
+        # TODO: Make DECIMALS depend on the currency
+        DECIMALS = 2
+        POWER = 10 ** DECIMALS
+
+        # Converting all Decimal to int to improve performance
+        # In several tests reduced the time by 30%
+        def to_int(value):
+            return int(value * POWER)
+
+        max_tolerance = to_int(self.statement.journal.max_amount_tolerance)
 
         # TODO: Add support for second_currency
-        amount = self.pending_amount
+        amount = to_int(self.pending_amount)
         if not amount:
+            return
+
+        if self.escape():
             return
 
         from timer import Timer
@@ -1413,12 +1458,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not lines:
             return
 
-        to_save = []
-        lines = tuple((x, x.debit - x.credit) for x in lines)
+        found = 0
+        lines = tuple((x, to_int(x.debit - x.credit)) for x in lines)
         for length in range(1, min(MAX_LENGTH, len(lines)) + 1):
             if length > len(lines):
-                break
-            if self.escape():
                 break
             if length == 1:
                 candidates = lines
@@ -1431,21 +1474,25 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if abs(total_amount - amount) <= max_tolerance:
                     self.get_suggestion_from_move_lines(
                         [x[0] for x in combination], type_, based_on=based_on)
-                    print('Combination found', t, 'length', length,
-                        'size', len(to_save))
-                # If we already found some lines we want to quit. The
-                # larger the number of combinations, the sooner we want to
-                # quit because the probability of finding a good
-                # combination is lower and the computational cost not worth
-                # it
-                #if len(to_save) >= (MAX_LENGTH - length) / 5:
-                    #SuggestedLine.save(to_save)
-                    #return
+                    print('Combination found', t, 'length', length)
+
+                    found += 1
+                    if type_ == 'combination-party':
+                        break
+                    if self.escape():
+                        return
+            # If we already found some lines we want to quit. The
+            # larger the number of combinations, the sooner we want to
+            # quit because the probability of finding a good
+            # combination is lower and the computational cost not worth
+            # it
+            #if len(to_save) >= (MAX_LENGTH - length) / 5:
+                #return
 
     def _suggest_similar_parties(self):
         Party = Pool().get('party.party')
 
-        similar_parties = set((x,) for x in list(self.similar_parties.keys())[:5])
+        similar_parties = set((x,) for x in list(self.similar_parties().keys())[:5])
         for similar_origin, _ in self.similar_origins[:5]:
             similar_parties.add(tuple(sorted(set(x.party for x in
                             similar_origin.lines if x.party))))
@@ -1455,35 +1502,35 @@ class Origin(Workflow, metaclass=PoolMeta):
             print('Searching for parties:', ' | '.join(f'{x.rec_name} ({x.id})' for x in parties))
             domain = self._search_move_line_reconciliation_domain()
             domain.append(('party', 'in', parties))
-            self._suggest_combination(domain, 'combination-party',
-                sorting='oldest')
+            # Execute closest first because it can rank better
             self._suggest_combination(domain, 'combination-party',
                 sorting='closest')
+            self._suggest_combination(domain, 'combination-party',
+                sorting='oldest')
 
     def _suggest_combination_all(self):
         print('Searching on all parties')
         domain = self._search_move_line_reconciliation_domain()
-        self._suggest_combination(domain, 'combination-all', sorting='oldest')
+        # Execute closest first because it can rank better
         self._suggest_combination(domain, 'combination-all', sorting='closest')
+        self._suggest_combination(domain, 'combination-all', sorting='oldest')
 
     def _suggest_balance(self):
         pool = Pool()
-        Party = pool.get('party.party')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
-        if not self.similar_parties:
+        if not self.similar_parties():
             return
 
-        party_id = list(self.similar_parties.keys())[0]
-        party_similarity = self.similar_parties[party_id]
+        party = list(self.similar_parties().keys())[0]
+        party_similarity = self.similar_parties()[party]
         if party_similarity <= 90:
             return
 
-        party = Party(party_id)
         suggested_line = SuggestedLine()
         suggested_line.origin = self
         suggested_line.type = 'balance'
-        suggested_line.party = party_id
+        suggested_line.party = party
         suggested_line.amount = self.pending_amount
         if self.pending_amount > 0:
             suggested_line.account = party.account_receivable_used
@@ -1494,15 +1541,14 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     def _suggest_balance_old_invoices(self):
         pool = Pool()
-        Party = pool.get('party.party')
         Invoice = pool.get('account.invoice')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
-        if not self.similar_parties:
+        if not self.similar_parties():
             return
 
-        party = Party(list(self.similar_parties.keys())[0])
-        party_similarity = self.similar_parties[party.id]
+        party = list(self.similar_parties().keys())[0]
+        party_similarity = self.similar_parties()[party]
         if party_similarity <= 90:
             return
 
@@ -1551,7 +1597,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggestion.date = self.date
             suggestions.append(suggestion)
 
-        SuggestedLine.save(suggestions)
         SuggestedLine.pack(suggestions)
 
     def merge_suggestions(self):
@@ -1568,10 +1613,11 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ], order=[('weight', 'DESC')])
         if not lines:
             return False
-        if lines[0].weight > 130:
+        print('Best line weight:', lines[0].weight)
+        if lines[0].weight > 150:
             return True
         for line in lines:
-            if line.type.startswith('combination') and line.weight >= 110:
+            if line.type.startswith('combination') and line.weight >= 130:
                 return True
         return False
 
@@ -1830,8 +1876,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     'Account Statement Origin Suggested Line'
     __name__ = 'account.statement.origin.suggested.line'
 
-    # TODO: Keep Name field? Convert it into a fields.Function()?
-    name = fields.Char('Name')
     type = fields.Selection([
             (None, ''),
             ('combination-party', 'Combine Parties'),
@@ -1845,6 +1889,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             'required': ~Bool(Eval('parent')),
             'invisible': Bool(Eval('parent')),
             })
+    type_string = type.translated('type')
     parent = fields.Many2One('account.statement.origin.suggested.line',
         "Parent")
     childs = fields.One2Many('account.statement.origin.suggested.line',
@@ -1979,6 +2024,11 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     def default_amount():
         return ZERO
 
+    def get_rec_name(self, name):
+        if self.related_to:
+            return self.related_to.rec_name
+        return self.type_string
+
     @fields.depends('origin', '_parent_origin.company')
     def on_change_with_company(self, name=None):
         return self.origin.company if self.origin else None
@@ -2089,16 +2139,16 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             dw = set()
             for date in dates:
                 days = abs(self.date - date).days
-                dw.add(normal(days, 0, 10))
-            self.weight += int(DATE_WEIGHT * max(dw))
+                dw.add(gaussian_score(days, 0, 10))
+            self.weight += int(round(DATE_WEIGHT * max(dw)))
 
         # Update weight based on party
         if origin and self.party:
             PARTY_WEIGHT = 20
             # Scale the similarity down to a value between 0 and 20
-            similar_parties = origin.similar_parties
-            self.weight += int(PARTY_WEIGHT * (similar_parties.get(
-                self.party.id, 0) / 100))
+            similar_parties = origin.similar_parties()
+            self.weight += int(round(PARTY_WEIGHT * (similar_parties.get(
+                self.party.id, 0) / 100)))
 
         # Update weight based on invoice number
         invoice = None
@@ -2125,14 +2175,15 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 # strings do not affect to much on the weight
                 length = longest_common_substring(origin.remittance_information,
                     number)
-                self.weight += int(20 * normal(length, mean=len(number),
-                    stddev=len(number) / 2))
+                self.weight += int(round(20 * gaussian_score(length, mean=len(number),
+                    stddev=len(number) / 4)))
 
         if self.based_on:
             length = longest_common_substring(origin.remittance_information,
                 self.based_on.remittance_information)
             rl = len(self.origin.remittance_information)
-            self.weight += int(10 * normal(length, mean=rl, stddev=rl / 2))
+            self.weight += int(round(10 * gaussian_score(length, mean=rl,
+                    stddev=rl / 4)))
 
     @classmethod
     def pack(cls, suggestions):
@@ -2140,27 +2191,29 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         if not suggestions:
             return
         if len(suggestions) == 1:
+            cls.save(suggestions)
             return suggestions[0]
 
         parent = cls()
         parent.origin = suggestions[0].origin
         parent.type = suggestions[0].type
-        parent.amount = ZERO
-        parent.save()
+        parent.date = None
 
         amount = ZERO
         for suggestion in suggestions:
             suggestion.type = None
             suggestion.parent = parent
+            for field in ('date', 'related_to', 'party', 'account',
+                    'second_currency', 'amount_second_currency', 'based_on'):
+                if not hasattr(suggestion, field):
+                    setattr(suggestion, field, None)
+            suggestion.childs = []
+            suggestion.update_weight()
             amount += suggestion.amount
 
-        cls.save(suggestions)
+        parent.childs = suggestions
         parent.amount = amount
         parent.save()
-        if parent.weight > 180:
-            parent.update_weight()
-            for child in parent.childs:
-                child.update_weight()
         return parent
 
     @classmethod
