@@ -386,7 +386,8 @@ class Journal(metaclass=PoolMeta):
             # Use __queue__ to ensure the Bank lines download and origin
             # creation are done and saved before start to create there
             # suggestions.
-            StatementOrigin.__queue__._search_reconciliation(statement.origins)
+            for origin in statement.origins:
+                StatementOrigin.__queue__._search_reconciliation([origin])
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])
