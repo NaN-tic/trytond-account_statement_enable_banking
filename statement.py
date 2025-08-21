@@ -2593,7 +2593,7 @@ class RetrieveEnableBankingSession(Wizard):
     def transition_check_session_before_start(self):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
-        EBSession = pool.get('enable.banking.session')
+        EBSession = pool.get('enable_banking.session')
         base_headers = get_base_header()
 
         active_id = Transaction().context.get('active_id', None)
