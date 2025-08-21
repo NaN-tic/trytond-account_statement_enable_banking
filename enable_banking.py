@@ -215,6 +215,7 @@ class EnableBankingSession(ModelSQL, ModelView):
             return False
         return True
 
+
 class EnableBankingSessionOK(Report):
     "Enable Banking Session OK"
     __name__ = 'enable_banking.session_ok'
