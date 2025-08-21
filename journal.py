@@ -406,6 +406,25 @@ class Journal(metaclass=PoolMeta):
                 ]):
             journal._synchronize_statements_enable_banking()
 
+    @classmethod
+    def set_ebsession(cls, eb_session):
+        journals = cls.search([
+                ('bank_account', '!=', None),
+                ('aspsp_name', '!=', None),
+                ('aspsp_country', '!=', None),
+                ('enable_banking_session', '=', None),
+                ])
+        to_save = []
+        for journal in journals:
+            if not eb_session.encrypted_session:
+                continue
+            if journal.bank_account in eb_session.allowed_bank_accounts:
+                journal.enable_banking_session = eb_session
+                to_save = [journal]
+                break
+        if to_save:
+            Journal.save(to_save)
+
 
 class Cron(metaclass=PoolMeta):
     __name__ = 'ir.cron'
