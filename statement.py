@@ -1493,7 +1493,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         Party = Pool().get('party.party')
 
         similar_parties = set((x,) for x in list(self.similar_parties().keys())[:5])
-        for similar_origin, _ in self.similar_origins[:5]:
+        for similar_origin, _ in self.similar_origins()[:5]:
             similar_parties.add(tuple(sorted(set(x.party for x in
                             similar_origin.lines if x.party))))
 
