@@ -102,6 +102,11 @@ class Similarity(Function):
     _function = 'SIMILARITY'
 
 
+class Unaccent(Function):
+    __slots__ = ()
+    _function = 'UNACCENT'
+
+
 class JsonbExtractPathText(Function):
     __slots__ = ()
     _function = 'JSONB_EXTRACT_PATH_TEXT'
@@ -824,7 +829,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         else:
             remittance_information_column = origin_table.information
         query = origin_table.select(origin_table.id,
-            where=(remittance_information_column.ilike(value)))
+            where=(Unaccent(remittance_information_column).ilike(
+                    Unaccent(value))))
         cursor.execute(*query)
         return [('id', operator, [x[0] for x in cursor.fetchall()])]
 
@@ -1048,10 +1054,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not text:
             return {}
 
-        similarity = Similarity(party_table.name, text)
+        similarity = Similarity(Unaccent(party_table.name), Unaccent(text))
         if hasattr(Party, 'trade_name'):
-            similarity = Greatest(similarity, Similarity(party_table.trade_name,
-                text))
+            similarity = Greatest(similarity,
+                Similarity(Unaccent(party_table.trade_name), Unaccent(text)))
         query = party_table.select(party_table.id, similarity,
             where=(similarity >= PARTY_SIMILARITY_THRESHOLD))
         cursor.execute(*query)
@@ -1121,9 +1127,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         line_table = Line.__table__()
         cursor = Transaction().connection.cursor()
 
-        similarity_column = Similarity(JsonbExtractPathText(
-                origin_table.information, 'remittance_information'),
-            self.remittance_information)
+        similarity_column = Similarity(Unaccent(JsonbExtractPathText(
+                origin_table.information, 'remittance_information')),
+            Unaccent(self.remittance_information))
         query = origin_table.join(line_table,
             condition=origin_table.id == line_table.origin).join(
                 statement_table,
