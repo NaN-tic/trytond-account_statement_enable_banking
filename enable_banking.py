@@ -112,22 +112,13 @@ class EnableBankingSession(ModelSQL, ModelView):
 
             table.drop_column('session')
 
-    @classmethod
-    def get_session(cls, eb_sessions, name=None):
-        psessions = []
-        for eb_session in eb_sessions:
-            session = eb_session._get_session(name)
-            if not session:
-                continue
-            psessions.append(session)
+    def get_session(self, name):
+        session = self._get_session(name)
 
-        if not psessions:
-            return {x.id:None for x in eb_sessions}
+        if not session:
+            return None
 
-        return {
-            eb_session.id: psession if psession else None
-            for (eb_session, psession) in zip(eb_sessions, psessions)
-            }
+        return session
 
     def _get_session(self, name=None):
         if not self.encrypted_session:
