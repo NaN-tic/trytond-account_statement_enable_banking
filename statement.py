@@ -67,7 +67,7 @@ def candidate_size(k, max_n=10000):
 def clean_string(s):
     s = unidecode(s.lower())
     # remove punctuation, keep letters/digits/space
-    s = s.replace('/', ' ').replace('.', ' ').replace('-', ' ')
+    s = s.replace('/', ' ').replace('.', ' ').replace('-', ' ').replace(',', ' ')
     s = re.sub(r"[^\w\s]", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
