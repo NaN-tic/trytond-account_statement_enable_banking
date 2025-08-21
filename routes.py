@@ -15,6 +15,7 @@ from .common import get_base_header, URL
 @with_pool
 @with_transaction(readonly=False)
 def redirect(request, pool):
+    Journal = pool.get('account.statement.journal')
     EBSession = pool.get('enable_banking.session')
     EBSessionReportOK = pool.get('enable_banking.session_ok', type='report')
     EBSessionReportKO = pool.get('enable_banking.session_ko', type='report')
@@ -41,6 +42,7 @@ def redirect(request, pool):
             session['access']['valid_until'], '%Y-%m-%dT%H:%M:%S.%f%z')
         eb_session.session = json.dumps(session)
         EBSession.save([eb_session])
+        Journal.set_ebsession(eb_session)
         ext, content, _, _ = EBSessionReportOK.execute([], data)
     else:
         ext, content, _, _ = EBSessionReportKO.execute([], data)

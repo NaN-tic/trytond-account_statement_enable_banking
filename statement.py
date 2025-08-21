@@ -2391,6 +2391,7 @@ class RetrieveEnableBankingSession(Wizard):
     def transition_check_session_before_start(self):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
+        EBSession = pool.get('enable.banking.session')
         base_headers = get_base_header()
 
         active_id = Transaction().context.get('active_id', None)
@@ -2412,6 +2413,8 @@ class RetrieveEnableBankingSession(Wizard):
                     session = r.json()
                     if session['status'] == 'AUTHORIZED':
                         return 'end'
+            if eb_session:
+                EBSession.delete(eb_session)
         return 'start'
 
     def default_start(self, fields):
@@ -2501,46 +2504,47 @@ class RetrieveEnableBankingSession(Wizard):
         if not journal or not journal.bank_account:
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
-        bank_name = journal.bank_account.bank.party.name.lower()
-        bic = (journal.bank_account.bank.bic or '').lower()
-        if journal.bank_account.bank.party.addresses:
-            country = journal.bank_account.bank.party.addresses[0].country.code
-        else:
-            raise AccessError(gettext('account_statement_enable_banking.'
-                    'msg_no_country'))
-
         enable_banking_session_valid_days = (
             self.start.enable_banking_session_valid_days)
-
-        if (enable_banking_session_valid_days < timedelta(days=1)
-                or enable_banking_session_valid_days > timedelta(
-                    days=180)):
-            raise AccessError(
-                gettext('account_statement_enable_banking.'
-                    'msg_valid_days_out_of_range'))
-
-        # We fill the aspsp name and country using the bank account
         base_headers = get_base_header()
-        r = requests.get(f"{URL}/aspsps", headers=base_headers)
-        response = r.json()
-        aspsp_found = False
-        for aspsp in response.get("aspsps", []):
-            if aspsp["country"] != country:
-                continue
-            if (aspsp["name"].lower() == bank_name
-                    or aspsp.get("bic", " ").lower() == bic):
-                journal.aspsp_name = aspsp["name"]
-                journal.aspsp_country = aspsp["country"]
-                aspsp_found = True
-                break
+        if not journal.aspsp_name or not journal.aspsp_country:
+            bank_name = journal.bank_account.bank.party.name.lower()
+            bic = (journal.bank_account.bank.bic or '').lower()
+            if journal.bank_account.bank.party.addresses:
+                country = (
+                    journal.bank_account.bank.party.addresses[0].country.code)
+            else:
+                raise AccessError(gettext('account_statement_enable_banking.'
+                        'msg_no_country'))
 
-        if not aspsp_found:
-            message = response.get('message', '')
-            raise AccessError(
-                gettext('account_statement_enable_banking.msg_aspsp_not_found',
-                    bank=journal.aspsp_name,
-                    country_code=journal.aspsp_country,
-                    message=message))
+            if (enable_banking_session_valid_days < timedelta(days=1)
+                    or enable_banking_session_valid_days > timedelta(
+                        days=180)):
+                raise AccessError(
+                    gettext('account_statement_enable_banking.'
+                        'msg_valid_days_out_of_range'))
+
+            # We fill the aspsp name and country using the bank account
+            r = requests.get(f"{URL}/aspsps", headers=base_headers)
+            response = r.json()
+            aspsp_found = False
+            for aspsp in response.get("aspsps", []):
+                if aspsp["country"] != country:
+                    continue
+                if (aspsp["name"].lower() == bank_name
+                        or aspsp.get("bic", " ").lower() == bic):
+                    journal.aspsp_name = aspsp["name"]
+                    journal.aspsp_country = aspsp["country"]
+                    aspsp_found = True
+                    break
+
+            if not aspsp_found:
+                message = response.get('message', '')
+                raise AccessError(
+                    gettext('account_statement_enable_banking.msg_aspsp_not_found',
+                        bank=journal.aspsp_name,
+                        country_code=journal.aspsp_country,
+                        message=message))
 
         eb_session = EBSession()
         eb_session.aspsp_name = journal.aspsp_name
@@ -2550,7 +2554,6 @@ class RetrieveEnableBankingSession(Wizard):
         eb_session.valid_until = (
             datetime.now() + enable_banking_session_valid_days)
         EBSession.save([eb_session])
-        base_headers = get_base_header()
         body = {
             'access': {
                 'valid_until': (datetime.now(UTC)
@@ -2574,7 +2577,7 @@ class RetrieveEnableBankingSession(Wizard):
                     'msg_error_create_session',
                     error_code=r.status_code,
                     error_message=r.text))
-        journal.enable_banking_session = eb_session
+        journal.enable_banking_session = None
         journal.save()
         return action, {}
 
