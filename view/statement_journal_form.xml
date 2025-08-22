@@ -29,6 +29,8 @@ this repository contains the full copyright notices and license terms. -->
         <field name="account_statement_origin_sequence"/>
         <label name="enable_banking_session"/>
         <field name="enable_banking_session"/>
+        <label name="offset_days_to"/>
+        <field name="offset_days_to"/>
 
         <group colspan="4" id="EB Session">
             <button name="retrieve_enable_banking_session" colspan="2"/>
