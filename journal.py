@@ -424,7 +424,7 @@ class Journal(metaclass=PoolMeta):
                 to_save = [journal]
                 break
         if to_save:
-            Journal.save(to_save)
+            cls.save(to_save)
 
 
 class Cron(metaclass=PoolMeta):
