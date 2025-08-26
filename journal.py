@@ -240,6 +240,7 @@ class Journal(metaclass=PoolMeta):
 
         date_from = (date_from - timedelta(
             days=ebconfig.offset is not None and ebconfig.offset or 2))
+        # date_from parameter cannot be in the future
         if date_from > today:
             date_from = today
         date_to = ((today - timedelta(days=self.offset_days_to or 0)))
