@@ -189,10 +189,10 @@ class Journal(metaclass=PoolMeta):
         EBConfiguration = pool.get('enable_banking.configuration')
         Statement = pool.get('account.statement')
         StatementOrigin = pool.get('account.statement.origin')
-        Date = Pool().get('ir.date')
+        Date = pool.get('ir.date')
 
         ebconfig = EBConfiguration(1)
-        today = datetime.now()
+        today = Date.today()
 
         if not self.enable_banking_session:
             raise AccessError(
@@ -221,7 +221,7 @@ class Journal(metaclass=PoolMeta):
                     bank=self.enable_banking_session.bank.party.name))
 
         # Prepare request
-        date = today
+        date_from = today
         base_headers = get_base_header()
         statements = Statement.search([
                 ('journal', '=', self.id),
@@ -236,12 +236,13 @@ class Journal(metaclass=PoolMeta):
             # of the same journal and get it's end_date to sych from there,
             # to ensure not lost any thing in the same minute add a delta
             # of -1 hour.
-            if last_statement.end_date.date() < today.date():
-                date = last_statement.end_date
+            date_from = last_statement.end_date.date()
 
-        date_from = (date - timedelta(days=ebconfig.offset or 2)).date()
-        date_to = ((today - timedelta(
-                    days=self.offset_days_to or 0)).date())
+        date_from = (date_from - timedelta(
+            days=ebconfig.offset is not None and ebconfig.offset or 2))
+        if date_from > today:
+            date_from = today
+        date_to = ((today - timedelta(days=self.offset_days_to or 0)))
         if date_from > date_to:
             return
 
@@ -254,7 +255,7 @@ class Journal(metaclass=PoolMeta):
         statement = Statement()
         statement.company = self.company
         statement.name = self.name
-        statement.date = Date.today()
+        statement.date = today
         statement.journal = self
         statement.on_change_journal()
         statement.end_balance = Decimal(0)
