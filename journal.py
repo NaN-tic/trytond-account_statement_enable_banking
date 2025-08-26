@@ -198,9 +198,11 @@ class Journal(metaclass=PoolMeta):
             raise AccessError(
                 gettext('account_statement_enable_banking.msg_no_session'))
 
-        if (not self.enable_banking_session.encrypted_session
-                or (self.enable_banking_session.valid_until
-                    and self.enable_banking_session.valid_until.date() < today)):
+        if (
+            not self.enable_banking_session.encrypted_session
+            or (
+                self.enable_banking_session.valid_until
+                and self.enable_banking_session.valid_until.date() < today)):
             return
 
         # Search the account from the journal
