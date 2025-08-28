@@ -8,7 +8,6 @@ from . import journal
 from . import statement
 from . import statement_aeb43
 from . import statement_analytic
-from . import invoice
 from . import account_bank
 from . import move
 from . import routes
@@ -36,7 +35,6 @@ def register():
         statement.RetrieveEnableBankingSessionSelect,
         statement.OriginSynchronizeStatementEnableBankingAsk,
         statement.LinkInvoiceStart,
-        invoice.Invoice,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
         statement.AddMultipleInvoices,
