@@ -102,11 +102,6 @@ class Similarity(Function):
     _function = 'SIMILARITY'
 
 
-class Unaccent(Function):
-    __slots__ = ()
-    _function = 'UNACCENT'
-
-
 class JsonbExtractPathText(Function):
     __slots__ = ()
     _function = 'JSONB_EXTRACT_PATH_TEXT'
@@ -818,6 +813,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         StatementOrigin = pool.get('account.statement.origin')
 
+        database = Transaction().database
+
         origin_table = StatementOrigin.__table__()
         cursor = Transaction().connection.cursor()
         _, operator, value = clause
@@ -829,8 +826,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         else:
             remittance_information_column = origin_table.information
         query = origin_table.select(origin_table.id,
-            where=(Unaccent(remittance_information_column).ilike(
-                    Unaccent(value))))
+            where=(database.unaccent(remittance_information_column).ilike(
+                    database.unaccent(value))))
         cursor.execute(*query)
         return [('id', operator, [x[0] for x in cursor.fetchall()])]
 
@@ -1054,10 +1051,14 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not text:
             return {}
 
-        similarity = Similarity(Unaccent(party_table.name), Unaccent(text))
+        database = Transaction().database
+
+        similarity = Similarity(database.unaccent(party_table.name),
+            database.unaccent(text))
         if hasattr(Party, 'trade_name'):
             similarity = Greatest(similarity,
-                Similarity(Unaccent(party_table.trade_name), Unaccent(text)))
+                Similarity(database.unaccent(party_table.trade_name),
+                    database.unaccent(text)))
         query = party_table.select(party_table.id, similarity,
             where=(similarity >= PARTY_SIMILARITY_THRESHOLD))
         cursor.execute(*query)
@@ -1126,10 +1127,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         origin_table = Origin.__table__()
         line_table = Line.__table__()
         cursor = Transaction().connection.cursor()
+        database = Transaction().database
 
-        similarity_column = Similarity(Unaccent(JsonbExtractPathText(
+        similarity_column = Similarity(database.unaccent(JsonbExtractPathText(
                 origin_table.information, 'remittance_information')),
-            Unaccent(self.remittance_information))
+            database.unaccent(self.remittance_information))
         query = origin_table.join(line_table,
             condition=origin_table.id == line_table.origin).join(
                 statement_table,
