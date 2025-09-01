@@ -23,15 +23,15 @@ class Journal(metaclass=PoolMeta):
         required=True,
         domain=[
             ('similarity_threshold', '>', 0),
-            ('similarity_threshold', '<=', 10),
+            ('similarity_threshold', '<=', 100),
             ],
-        help='The thershold used for similarity function in origin lines '
+        help='The threshold used for similarity function in origin lines '
         'search')
     acceptable_similarity = fields.Integer(
         'Acceptable Similarity', required=True,
         domain=[
             ('acceptable_similarity', '>', 0),
-            ('acceptable_similarity', '<=', 10),
+            ('acceptable_similarity', '<=', 100),
             ],
         help='The minimum similarity allowed to set the statement line '
         'direclty from suggested lines.')
@@ -389,7 +389,8 @@ class Journal(metaclass=PoolMeta):
             # Use __queue__ to ensure the Bank lines download and origin
             # creation are done and saved before start to create there
             # suggestions.
-            StatementOrigin.__queue__._search_reconciliation(statement.origins)
+            for origin in statement.origins:
+                StatementOrigin.__queue__._search_reconciliation([origin])
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])
