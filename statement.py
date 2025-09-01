@@ -526,13 +526,13 @@ class Line(metaclass=PoolMeta):
         if to_unreconcile:
             to_unreconcile = Reconciliation.browse(to_unreconcile)
             Reconciliation.delete(to_unreconcile)
-        if to_unpay:
-            to_unpay = Line.browse(to_unpay)
-            Invoice.remove_payment_lines(to_unpay)
         if moves:
             moves = list(moves)
             Move.draft(moves)
             Move.delete(moves)
+        if to_unpay:
+            to_unpay = Line.browse(to_unpay)
+            Invoice.remove_payment_lines(to_unpay)
 
     @classmethod
     def reconcile(cls, move_lines):
