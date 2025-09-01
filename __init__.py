@@ -66,3 +66,7 @@ def register():
         move.Move,
         depends=['account_es'],
         module='account_statement_enable_banking', type_='model')
+    Pool.register(
+        account.Payment,
+        depends=['account_payment'],
+        module='account_statement_enable_banking', type_='model')
