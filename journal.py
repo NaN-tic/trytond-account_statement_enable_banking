@@ -4,7 +4,7 @@ import json
 import requests
 from decimal import Decimal
 from datetime import datetime, timedelta
-
+from trytond.config import config
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
 from trytond.pyson import Eval, Id, If
@@ -12,6 +12,8 @@ from trytond.i18n import gettext
 from trytond.transaction import Transaction
 from trytond.model.exceptions import AccessError
 from .common import get_base_header, URL
+
+QUEUE_NAME = config.get('enable_banking', 'queue_name', default='default')
 
 
 class Journal(metaclass=PoolMeta):
@@ -181,8 +183,9 @@ class Journal(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def synchronize_statement_enable_banking(cls, journals):
-        for journal in journals:
-            journal._synchronize_statements_enable_banking()
+        with Transaction().set_context(queue_name=QUEUE_NAME):
+            for journal in journals:
+                cls.__queue__._synchronize_statements_enable_banking(journal)
 
     def _synchronize_statements_enable_banking(self):
         pool = Pool()
@@ -400,11 +403,13 @@ class Journal(metaclass=PoolMeta):
         company_id = Transaction().context.get('company')
         if not company_id:
             return
-        for journal in Journal.search([
-                ('synchronize_journal', '=', True),
-                ('company.id', '=', company_id),
-                ]):
-            journal._synchronize_statements_enable_banking()
+
+        with Transaction().set_context(queue_name=QUEUE_NAME):
+            for journal in Journal.search([
+                    ('synchronize_journal', '=', True),
+                    ('company.id', '=', company_id),
+                    ]):
+                cls.__queue__._synchronize_statements_enable_banking(journal)
 
     @classmethod
     def set_ebsession(cls, eb_session):
