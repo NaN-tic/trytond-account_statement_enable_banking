@@ -279,6 +279,8 @@ class Journal(metaclass=PoolMeta):
         continuation_key = None
         to_save = []
         total_amount = 0
+        last_transaction_date = None
+        continuation_key_error = False
         while True:
             if continuation_key:
                 query["continuation_key"] = continuation_key
@@ -364,16 +366,29 @@ class Journal(metaclass=PoolMeta):
                         statement.start_balance + total_amount)
                     statement.save()
                     break
-                elif (last_transaction_date
-                        and last_transaction_date != query.get("date_from")):
+            if ((r.status_code == 400 or continuation_key_error)
+                    and continuation_key):
+                continuation_key_error = True
+                continuation_key = None
+                if (last_transaction_date
+                        and last_transaction_date != query["date_from"]):
                     # TODO: Remove when some Spanish Bnaks solve the recursive
                     # calls problem. (eg: Bankinter)
                     # If the problem with the continuation_key is not solved
                     # and in one day you have more than 30 transactions, this
-                    # patch will not solve the problem.
-                    continuation_key = None
+                    # patch will not solve the problem correctly.
                     query["date_from"] = last_transaction_date.isoformat()
-            else:
+                else:
+                    date_obj = datetime.strptime(query["date_from"],
+                        "%Y-%m-%d")
+                    next_day = date_obj + timedelta(days=1)
+                    query["date_from"] = next_day.strftime("%Y-%m-%d")
+                if query["date_from"] > query["date_to"]:
+                    statement.end_balance = (
+                        statement.start_balance + total_amount)
+                    statement.save()
+                    break
+            elif r.status_code != 200:
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_error_get_statements',
@@ -388,9 +403,11 @@ class Journal(metaclass=PoolMeta):
             # Get the suggested lines for each origin created
             # Use __queue__ to ensure the Bank lines download and origin
             # creation are done and saved before start to create there
-            # suggestions.
-            for origin in statement.origins:
-                StatementOrigin.__queue__._search_reconciliation([origin])
+            # suggestions. And use a worker for each origin to ensure that
+            # all origin try to search even one fails.
+            with Transaction().set_context(queue_name=QUEUE_NAME):
+                for origin in statement.origins:
+                    StatementOrigin.__queue__.search_suggestions([origin])
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])

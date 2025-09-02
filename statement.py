@@ -1452,9 +1452,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         if self.escape():
             return
 
-        from timer import Timer
-        t = Timer()
-
         lines = MoveLine.search(domain)
         if sorting == 'oldest':
             lines = sorted(lines, key=lambda x: x.maturity_date or x.date)
@@ -1475,13 +1472,11 @@ class Origin(Workflow, metaclass=PoolMeta):
             else:
                 l = candidate_size(length)
                 candidates = lines[:l]
-            print('Candidates', t, 'length', length, 'size', len(candidates))
             for combination in combinations(candidates, length):
                 total_amount = sum(x[1] for x in combination)
                 if abs(total_amount - amount) <= max_tolerance:
                     self.get_suggestion_from_move_lines(
                         [x[0] for x in combination], type_, based_on=based_on)
-                    print('Combination found', t, 'length', length)
 
                     found += 1
                     if type_ == 'combination-party':
@@ -1506,7 +1501,6 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         for parties in similar_parties:
             parties = Party.browse(parties)
-            print('Searching for parties:', ' | '.join(f'{x.rec_name} ({x.id})' for x in parties))
             domain = self._search_move_line_reconciliation_domain()
             domain.append(('party', 'in', parties))
             # Execute closest first because it can rank better
@@ -1516,7 +1510,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                 sorting='oldest')
 
     def _suggest_combination_all(self):
-        print('Searching on all parties')
         domain = self._search_move_line_reconciliation_domain()
         # Execute closest first because it can rank better
         self._suggest_combination(domain, 'combination-all', sorting='closest')
@@ -1620,7 +1613,6 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ], order=[('weight', 'DESC')])
         if not lines:
             return False
-        print('Best line weight:', lines[0].weight)
         if lines[0].weight > 150:
             return True
         for line in lines:
@@ -1661,16 +1653,12 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         SuggestedLine.delete(suggestions)
 
-        from timer import Timer
-
-        t = Timer()
         count = 0
         to_use = []
         for origin in origins:
             count += 1
             if origin.pending_amount == ZERO:
                 continue
-            print(f'Analyzing Origin {origin.id} ({count}/{len(origins)})', t)
 
             if Clearing:
                 origin._suggest_clearing_payment_group()
@@ -2254,7 +2242,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             to_delete += list(lines)[1:]
             removing += 1
         cls.delete(to_delete)
-        print(f'Merged {len(suggestions)} into {removing} suggestions')
 
     @classmethod
     @ModelView.button
