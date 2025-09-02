@@ -6,7 +6,6 @@ import json
 import math
 import requests
 import functools
-from dateutils import relativedelta
 from unidecode import unidecode
 from datetime import datetime, UTC, timedelta
 from decimal import Decimal
@@ -1141,7 +1140,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 & (statement_table.company == self.company.id)
                 & (origin_table.state == 'posted')
                 & (line_table.related_to == None))
-                & (origin_table.create_date >= self.date - relativedelta(months=12)),
+                & (origin_table.create_date >= self.date - timedelta(days=365)),
             order_by=[similarity_column.desc]
             )
         cursor.execute(*query)
