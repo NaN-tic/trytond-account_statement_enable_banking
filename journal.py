@@ -47,7 +47,7 @@ class JournalWeight(ModelSQL, ModelView):
             ('combination-escape-threshold', 'Combination Escape Threshold'),
             ('date-match', 'Date Match'),
             ('escape-threshold', 'Escape Threshold'),
-            ('move-line-max-count', 'Move Line Max Length'),
+            ('move-line-max-count', 'Move Line Max Count'),
             ('number-match', 'Number Match'),
             ('origin-similarity', 'Origin Similarity'),
             ('origin-similarity-threshold', 'Origin Similarity Threshold'),
