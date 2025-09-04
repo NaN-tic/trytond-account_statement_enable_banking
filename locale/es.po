@@ -1006,8 +1006,8 @@ msgid "Escape Threshold"
 msgstr "Umbral de escape"
 
 msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Move Line Max Length"
-msgstr "Longitud Máxima en Apuntes"
+msgid "Move Line Max Count"
+msgstr "Número máximo de apuntes"
 
 msgctxt "selection:account.statement.journal.weight,type:"
 msgid "Number Match"
