@@ -773,12 +773,6 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     @property
     @fields.depends('statement', '_parent_statement.journal')
-    def similarity_threshold(self):
-        return (self.statement.journal.similarity_threshold
-            if self.statement and self.statement.journal else None)
-
-    @property
-    @fields.depends('statement', '_parent_statement.journal')
     def acceptable_similarity(self):
         return (self.statement.journal.acceptable_similarity
             if self.statement and self.statement.journal else None)
@@ -1128,6 +1122,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         cursor = Transaction().connection.cursor()
         database = Transaction().database
 
+        ORIGIN_SIMILARITY_THRESHOLD = self.statement.journal.get_weight(
+            'origin-similarity-threshold')
+
         similarity_column = Similarity(database.unaccent(JsonbExtractPathText(
                 origin_table.information, 'remittance_information')),
             database.unaccent(self.remittance_information))
@@ -1136,7 +1133,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 statement_table,
                 condition=origin_table.statement == statement_table.id).select(
             origin_table.id, similarity_column,
-            where=((similarity_column >= self.similarity_threshold/100)
+            where=((similarity_column >= ORIGIN_SIMILARITY_THRESHOLD / 100)
                 & (statement_table.company == self.company.id)
                 & (origin_table.state == 'posted')
                 & (line_table.related_to == None))
@@ -1428,10 +1425,11 @@ class Origin(Workflow, metaclass=PoolMeta):
 
             SuggestedLine.pack(suggestions)
 
-    def _suggest_combination(self, domain, type_, based_on=None, sorting='oldest'):
+    def _suggest_combination(self, domain, type_, based_on=None,
+            sorting='oldest'):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
-        MAX_LENGTH = 20
+        MAX_LENGTH = self.statement.journal.get_weight('move-line-max-count')
 
         # TODO: Make DECIMALS depend on the currency
         DECIMALS = 2
@@ -1613,10 +1611,14 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ], order=[('weight', 'DESC')])
         if not lines:
             return False
-        if lines[0].weight > 150:
+        ESCAPE = self.statement.journal.get_weight('escape-threshold')
+        if lines[0].weight > ESCAPE:
             return True
+        COMBINATION_ESCAPE = self.statement.journal.get_weight(
+            'combination-escape-threshold')
         for line in lines:
-            if line.type.startswith('combination') and line.weight >= 130:
+            if (line.type.startswith('combination')
+                    and line.weight >= COMBINATION_ESCAPE):
                 return True
         return False
 
@@ -1670,11 +1672,14 @@ class Origin(Workflow, metaclass=PoolMeta):
             origin._suggest_similar_parties()
             origin._suggest_combination_all()
 
+            ORIGIN_SIMILARITY = origin.statement.journal.get_weight(
+                'origin-similarity')
+
             origin.merge_suggestions()
             best = SuggestedLine.search([
                     ('origin', '=', origin),
                     ('parent', '=', None),
-                    ('weight', '>=', origin.acceptable_similarity)
+                    ('weight', '>=', ORIGIN_SIMILARITY)
                     ], order=[('weight', 'DESC')], limit=2)
             if not best:
                 continue
@@ -2092,16 +2097,18 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
         self.weight = 0
 
+        journal = self.origin.statement.journal
         if not self.parent:
             TYPE_WEIGHTS = {
                 None: 0,
-                'combination-party': 105,
-                'combination-all': 100,
-                'payment-group': 130,
-                'payment': 120,
-                'origin': 100,
-                'balance': 90,
-                'balance-invoice': 90,
+                'combination-party': journal.get_weight(
+                    'type-combination-party'),
+                'combination-all': journal.get_weight('type-combination-all'),
+                'payment-group': journal.get_weight('type-payment-group'),
+                'payment': journal.get_weight('type-payment'),
+                'origin': journal.get_weight('type-origin'),
+                'balance': journal.get_weight('type-balance'),
+                'balance-invoice': journal.get_weight('type-balance-invoice'),
                 }
             self.weight += TYPE_WEIGHTS[self.type]
 
@@ -2119,7 +2126,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
         # Update weight based on dates
         if origin and self.date:
-            DATE_WEIGHT = 60
+            DATE_WEIGHT = journal.get_weight('date-match')
             dates = set([origin.date])
             value_date = origin.information and origin.information.get('value_date')
             if value_date:
@@ -2139,7 +2146,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
         # Update weight based on party
         if origin and self.party:
-            PARTY_WEIGHT = 20
+            PARTY_WEIGHT = journal.get_weight('party-match')
             # Scale the similarity down to a value between 0 and 20
             similar_parties = origin.similar_parties()
             self.weight += int(round(PARTY_WEIGHT * (similar_parties.get(
@@ -2162,23 +2169,25 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             else:
                 number = invoice.reference
             if number:
+                NUMBER_WEIGHT = journal.get_weight('number-match')
                 # Scale the similarity down to a value between 0 and 20
-                # Given that it relatively easy that two or three characters match
-                # we use a normal distribution with a mean of the length of the
-                # number and a standard deviation of half the length of the number
-                # instead of computing a simple percentage so short matching
-                # strings do not affect to much on the weight
+                # Given that it relatively easy that two or three characters
+                # match we use a normal distribution with a mean of the length
+                # of the number and a standard deviation of half the length of
+                # the number instead of computing a simple percentage so short
+                # matching strings do not affect to much on the weight
                 length = longest_common_substring(origin.remittance_information,
                     number)
-                self.weight += int(round(20 * gaussian_score(length, mean=len(number),
-                    stddev=len(number) / 4)))
+                self.weight += int(round(NUMBER_WEIGHT * gaussian_score(length,
+                            mean=len(number), stddev=len(number) / 4)))
 
         if self.based_on:
+            BASED_ON_WEIGHT = journal.get_weight('based-on-match')
             length = longest_common_substring(origin.remittance_information,
                 self.based_on.remittance_information)
             rl = len(self.origin.remittance_information)
-            self.weight += int(round(10 * gaussian_score(length, mean=rl,
-                    stddev=rl / 4)))
+            self.weight += int(round(BASED_ON_WEIGHT * gaussian_score(length,
+                    mean=rl, stddev=rl / 4)))
 
     @classmethod
     def pack(cls, suggestions):

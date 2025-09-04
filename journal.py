@@ -1,12 +1,13 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import functools
 import json
 import requests
 from decimal import Decimal
 from datetime import datetime, timedelta
 from trytond.config import config
 from trytond.pool import Pool, PoolMeta
-from trytond.model import ModelView, fields
+from trytond.model import ModelSQL, ModelView, fields, Unique
 from trytond.pyson import Eval, Id, If
 from trytond.i18n import gettext
 from trytond.transaction import Transaction
@@ -15,26 +16,73 @@ from .common import get_base_header, URL
 
 QUEUE_NAME = config.get('enable_banking', 'queue_name', default='default')
 
+DEFAULT_WEIGHTS = {
+    'based-on-match': 10,
+    'combination-escape-threshold': 130,
+    'date-match': 60,
+    'escape-threshold': 150,
+    'move-line-max-count': 20,
+    'number-match': 20,
+    'origin-similarity': 80,
+    'origin-similarity-threshold': 50,
+    'party-match': 20,
+    'type-combination-party': 105,
+    'type-combination-all': 100,
+    'type-payment-group': 130,
+    'type-payment': 120,
+    'type-origin': 100,
+    'type-balance': 90,
+    'type-balance-invoice': 90,
+    }
+
+
+class JournalWeight(ModelSQL, ModelView):
+    'Journal Weight'
+    __name__ = 'account.statement.journal.weight'
+
+    journal = fields.Many2One('account.statement.journal', 'Journal',
+        required=True, ondelete='CASCADE')
+    type = fields.Selection([
+            ('based-on-match', 'Based On Match'),
+            ('combination-escape-threshold', 'Combination Escape Threshold'),
+            ('date-match', 'Date Match'),
+            ('escape-threshold', 'Escape Threshold'),
+            ('move-line-max-count', 'Move Line Max Length'),
+            ('number-match', 'Number Match'),
+            ('origin-similarity', 'Origin Similarity'),
+            ('origin-similarity-threshold', 'Origin Similarity Threshold'),
+            ('party-match', 'Party Match'),
+            ('type-combination-party', 'Type Combination Party'),
+            ('type-combination-all', 'Type Combination All'),
+            ('type-payment-group', 'Type Payment Group'),
+            ('type-payment', 'Type Payment'),
+            ('type-origin', 'Type Origin'),
+            ('type-balance', 'Type Balance'),
+            ('type-balance-invoice', 'Type Balance Invoice'),
+            ], 'Type', required=True)
+    weight = fields.Integer('Weight', required=True, domain=[
+            ('weight', '>=', 0),
+            ])
+
+    @classmethod
+    def __setup__(cls):
+        super().__setup__()
+        t = cls.__table__()
+        cls._sql_constraints += [
+             ('journal_weight_uniq', Unique(t, t.journal, t.type),
+                 'account_statement_enable_banking.msg_journal_weight_unique'),
+        ]
+
+    @fields.depends('type')
+    def on_change_type(self):
+        if not self.type:
+            return
+        self.weight = DEFAULT_WEIGHTS.get(self.type)
+
 
 class Journal(metaclass=PoolMeta):
     __name__ = 'account.statement.journal'
 
-    similarity_threshold = fields.Integer('Similarity Threshold',
-        required=True,
-        domain=[
-            ('similarity_threshold', '>', 0),
-            ('similarity_threshold', '<=', 100),
-            ],
-        help='The threshold used for similarity function in origin lines '
-        'search')
-    acceptable_similarity = fields.Integer(
-        'Acceptable Similarity', required=True,
-        domain=[
-            ('acceptable_similarity', '>', 0),
-            ('acceptable_similarity', '<=', 100),
-            ],
-        help='The minimum similarity allowed to set the statement line '
-        'direclty from suggested lines.')
     aspsp_name = fields.Char("ASPSP Name", readonly=True)
     aspsp_country = fields.Char("ASPSP Country", readonly=True)
     synchronize_journal = fields.Boolean("Synchronize Journal",
@@ -66,21 +114,9 @@ class Journal(metaclass=PoolMeta):
         help="Check if want to create only one move per origin when post it "
         "even it has more than one line. Else it create one move for eaach "
         "line.")
-    min_amount_tolerance = fields.Numeric('Min Amount tolerance',
-        domain=[
-            ('min_amount_tolerance', '>=', 0),
-            ('min_amount_tolerance', '<=', 99999999),
-            ('min_amount_tolerance', '<=', Eval('max_amount_tolerance')),
-            ],
-        help="In some cases, it is possible to have amounts that vary in X. "
-        "This field if set is the minimum of the allowed tolerance. That is, "
-        "if value is set when searching for similarities it will look for "
-        "equal amounts or with -X, value that has been set here.")
     max_amount_tolerance = fields.Numeric('Max Amount tolerance',
         domain=[
             ('max_amount_tolerance', '>=', 0),
-            ('max_amount_tolerance', '<=', 99999999),
-            ('max_amount_tolerance', '>=', Eval('min_amount_tolerance')),
             ],
         help="In some cases, it is possible to have amounts that vary in X. "
         "This field if set is the maximum of the allowed tolerance. That is, "
@@ -95,6 +131,8 @@ class Journal(metaclass=PoolMeta):
         'Allow to not download "to" today, could be set "to" some days before.'
         ' This field could be from 0 to 20. 0 meaning today, other value will '
         'be substracted from today.')
+    weights = fields.One2Many('account.statement.journal.weight', 'journal',
+        'Weights')
 
     @classmethod
     def __setup__(cls):
@@ -115,20 +153,8 @@ class Journal(metaclass=PoolMeta):
         return 'balance'
 
     @staticmethod
-    def default_similarity_threshold():
-        return 5
-
-    @staticmethod
-    def default_acceptable_similarity():
-        return 8
-
-    @staticmethod
     def default_one_move_per_origin():
         return False
-
-    @staticmethod
-    def default_min_amount_tolerance():
-        return 0
 
     @staticmethod
     def default_max_amount_tolerance():
@@ -156,6 +182,14 @@ class Journal(metaclass=PoolMeta):
                 continue
             origin.number = self.account_statement_origin_sequence.get()
         StatementOrigin.save(origins)
+
+    @functools.cache
+    def get_weight(self, type):
+        assert type in DEFAULT_WEIGHTS, "Type '%s' not valid" % type
+        for weight in self.weights:
+            if weight.type == type:
+                return weight.weight
+        return DEFAULT_WEIGHTS.get(type)
 
     def _keys_not_needed(self):
         # Main keys

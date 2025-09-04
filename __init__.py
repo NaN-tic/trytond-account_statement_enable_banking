@@ -23,6 +23,7 @@ def register():
         account.MoveLine,
         enable_banking.EnableBankingConfiguration,
         enable_banking.EnableBankingSession,
+        journal.JournalWeight,
         journal.Journal,
         journal.Cron,
         statement.Statement,

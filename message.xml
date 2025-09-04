@@ -60,5 +60,8 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_not_enough_amount_to_pay">
             <field name="text">The invoice has not enougth amount to pay. It's %(amount_to_pay)s € and the origins selected sum %(origins_amount)s €.</field>
         </record>
+        <record model="ir.message" id="msg_journal_weight_unique">
+            <field name="text">Weight Type must be unique per journal.</field>
+        </record>
     </data>
 </tryton>
