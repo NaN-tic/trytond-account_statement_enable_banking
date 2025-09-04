@@ -5,18 +5,9 @@ this repository contains the full copyright notices and license terms. -->
     <xpath expr="/form/field[@name='validation']" position="after">
         <label name="one_move_per_origin"/>
         <field name="one_move_per_origin"/>
-
-        <separator id="similarity" string="Similarity in Search" colspan="4"/>
-        <label name="similarity_threshold"/>
-        <field name="similarity_threshold"/>
-        <label name="acceptable_similarity"/>
-        <field name="acceptable_similarity"/>
-
-        <separator id="amount_range" string="Amount Tolerance" colspan="4"/>
-        <label name="min_amount_tolerance"/>
-        <field name="min_amount_tolerance"/>
         <label name="max_amount_tolerance"/>
         <field name="max_amount_tolerance"/>
+        <field name="weights" colspan="4"/>
 
         <separator id="enable_banking" string="Enable Banking" colspan="4"/>
         <label name="aspsp_name"/>
