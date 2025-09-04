@@ -1004,7 +1004,7 @@ msgstr "Llindar d'escapament"
 
 msgctxt "selection:account.statement.journal.weight,type:"
 msgid "Move Line Max Length"
-msgstr "Apunt comptable longitud màxima"
+msgstr "Número màxim d'apunts"
 
 msgctxt "selection:account.statement.journal.weight,type:"
 msgid "Number Match"
