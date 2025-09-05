@@ -184,8 +184,6 @@ class Statement(metaclass=PoolMeta):
         pass
 
 
-
-
 class Line(metaclass=PoolMeta):
     __name__ = 'account.statement.line'
 
@@ -1037,6 +1035,7 @@ class Origin(Workflow, metaclass=PoolMeta):
     def similar_parties_query(self, text):
         pool = Pool()
         Party = pool.get('party.party')
+        Rule = pool.get('ir.rule')
 
         party_table = Party.__table__()
         cursor = Transaction().connection.cursor()
@@ -1053,12 +1052,17 @@ class Origin(Workflow, metaclass=PoolMeta):
                 Similarity(database.unaccent(party_table.trade_name),
                     database.unaccent(text)))
         query = party_table.select(party_table.id, similarity,
-            where=(similarity >= PARTY_SIMILARITY_THRESHOLD))
+            where=(similarity >= PARTY_SIMILARITY_THRESHOLD)
+                & (party_table.active))
         cursor.execute(*query)
 
         records = cursor.fetchall()
+
         # Use search in order for ir.rule to be applied
-        parties = Party.search([
+        with Transaction().set_context(_check_access=True):
+            domain = Rule.domain_get(Party.__name__, mode='read')
+
+        parties = Party.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
         similars = []
@@ -1118,6 +1122,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         Statement = pool.get('account.statement')
         Origin = pool.get('account.statement.origin')
         Line = pool.get('account.statement.line')
+        Rule = pool.get('ir.rule')
 
         statement_table = Statement.__table__()
         origin_table = Origin.__table__()
@@ -1146,7 +1151,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         cursor.execute(*query)
         records = cursor.fetchall()
         # Use search in order for ir.rule to be applied
-        origins = Origin.search([
+        with Transaction().set_context(_check_access=True):
+            domain = Rule.domain_get(Origin.__name__, mode='read')
+        origins = Origin.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
         similarities = [x[1] * 100 for x in records]
@@ -1435,6 +1442,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             sorting='oldest'):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
+        Rule = pool.get('ir.rule')
+
         MAX_LENGTH = self.statement.journal.get_weight('move-line-max-count')
 
         # TODO: Make DECIMALS depend on the currency
@@ -1463,7 +1472,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             lines = sorted(lines, key=lambda x: abs(self.date -
                     (x.maturity_date or x.date)))
         # Use search in order for ir.rule to be applied
-        lines = MoveLine.search([
+        with Transaction().set_context(_check_access=True):
+            domain = Rule.domain_get(MoveLine.__name__, mode='read')
+        lines = MoveLine.search(domain + [
                 ('id', 'in', [x.id for x in lines]),
                 ])
         if not lines:
