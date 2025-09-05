@@ -67,6 +67,7 @@ class JournalWeight(ModelSQL, ModelView):
     @classmethod
     def __setup__(cls):
         super().__setup__()
+        cls._order.insert(0, ('type', 'ASC'))
         t = cls.__table__()
         cls._sql_constraints += [
              ('journal_weight_uniq', Unique(t, t.journal, t.type),
