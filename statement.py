@@ -1397,6 +1397,24 @@ class Origin(Workflow, metaclass=PoolMeta):
             domain.append(('second_currency', '=', second_currency))
         return domain
 
+    def _suggest_origin_key(self, line):
+        return (line.account.id if line.account else -1,
+            line.party.id if line.party else -1)
+
+    def get_suggestion_from_origin_key(self, origin, key):
+        pool = Pool()
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
+
+        suggestion = SuggestedLine()
+        suggestion.origin = self
+        suggestion.type = 'origin'
+        suggestion.account = key[0]
+        suggestion.party = key[1] if key[1] >= 0 else None
+        suggestion.amount = ZERO
+        suggestion.amount_second_currency = ZERO
+        suggestion.based_on = origin
+        return suggestion
+
     def _suggest_origin(self):
         """
         Search for old origin lines. Reproducing the same line/s created.
@@ -1417,20 +1435,14 @@ class Origin(Workflow, metaclass=PoolMeta):
             last_similarity = similarity
 
             def get_key(x):
-                # Use str to prevent problems with None
                 return (x.account.id if x.account else -1,
                     x.party.id if x.party else -1)
 
             suggestions = []
-            for key, group in groupby(sorted(origin.lines, key=get_key), key=get_key):
-                suggestion = SuggestedLine()
-                suggestion.origin = self
-                suggestion.type = 'origin'
-                suggestion.account = key[0]
-                suggestion.party = key[1] if key[1] >= 0 else None
-                suggestion.amount = ZERO
-                suggestion.amount_second_currency = ZERO
-                suggestion.based_on = origin
+            for key, group in groupby(sorted(origin.lines,
+                            key=self._suggest_origin_key),
+                        key=self._suggest_origin_key):
+                suggestion = self.get_suggestion_from_origin_key(origin, key)
                 suggestions.append(suggestion)
 
             if len(suggestions) == 1:
@@ -2272,6 +2284,24 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             removing += 1
         cls.delete(to_delete)
 
+    def get_statement_line(self):
+        pool = Pool()
+        StatementLine = pool.get('account.statement.line')
+
+        line = StatementLine()
+        line.origin = self.origin
+        line.statement = self.origin.statement
+        line.suggested_line = self
+        line.related_to = self.related_to
+        line.party = self.party
+        line.account = self.account
+        line.amount = self.amount
+        line.second_currency = self.second_currency
+        line.amount_second_currency = self.amount_second_currency
+        line.date = self.origin.date
+        line.description = self.origin.remittance_information
+        return line
+
     @classmethod
     @ModelView.button
     @Workflow.transition('used')
@@ -2298,18 +2328,8 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 if (isinstance(related_to, MoveLine)
                         and related_to.payment_blocked):
                     to_warn.append(related_to)
-                line = StatementLine()
-                line.origin = child.origin
-                line.statement = child.origin.statement
-                line.suggested_line = child
-                line.related_to = child.related_to
-                line.party = child.party
-                line.account = child.account
-                line.amount = child.amount
-                line.second_currency = child.second_currency
-                line.amount_second_currency = child.amount_second_currency
-                line.date = child.origin.date
-                line.description = child.origin.remittance_information
+
+                line = child.get_statement_line()
                 to_save.append(line)
 
             cls.save(childs)
