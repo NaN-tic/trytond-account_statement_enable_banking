@@ -49,20 +49,49 @@ class Line(AnalyticMixin, metaclass=PoolMeta):
 class Origin(metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
 
-    def _get_suggested_values(self, parent, name, line, amount, related_to,
-            similarity):
+    def apply_analytic_accounts(self, suggestion, record):
         pool = Pool()
         AnalyticAccountEntry = pool.get('analytic.account.entry')
 
-        values = super()._get_suggested_values(parent, name, line, amount,
-            related_to, similarity)
-        if hasattr(line, 'analytic_accounts') and line.analytic_accounts:
-            new_entry = AnalyticAccountEntry.copy(line.analytic_accounts,
-                default={
-                    'origin': None,
-                    })
-            values['analytic_accounts'] = [('add', [e.id for e in new_entry])]
-        return values
+        if not record:
+            return
+        new_entries = []
+        for entry in getattr(record, 'analytic_accounts', []):
+            new_entry = AnalyticAccountEntry()
+            new_entry.root = entry.root
+            new_entry.account = entry.account
+            new_entries.append(new_entry)
+        suggestion.analytic_accounts = new_entries
+
+    def get_suggestion_from_move_line(self, line):
+        suggestion = super().get_suggestion_from_move_line(line)
+        self.apply_analytic_accounts(suggestion, record=line)
+        return suggestion
+
+    def _suggest_origin_key(self, line):
+        key = super()._suggest_origin_key(line)
+        accounts = sorted([x.account and x.account.id or -1 for x in
+                getattr(line, 'analytic_accounts', [])])
+        key += (tuple(accounts),)
+        return key
+
+    def get_suggestion_from_origin_key(self, origin, key):
+        pool = Pool()
+        AnalyticAccount = pool.get('analytic_account.account')
+        AnalyticAccountEntry = pool.get('analytic.account.entry')
+
+        suggestion = super().get_suggestion_from_origin_key(origin, key)
+        # TODO: If other modules inherit _suggest_origin_key, we cannot
+        # assume that the 3rd element is always the analytic accounts
+        accounts = AnalyticAccount.browse([x for x in key[2] if x != -1])
+        new_entries = []
+        for account in accounts:
+            new_entry = AnalyticAccountEntry()
+            new_entry.root = account.root
+            new_entry.account = account
+            new_entries.append(new_entry)
+        suggestion.analytic_accounts = new_entries
+        return suggestion
 
 
 class OriginSuggestedLine(AnalyticMixin, metaclass=PoolMeta):
@@ -78,19 +107,19 @@ class OriginSuggestedLine(AnalyticMixin, metaclass=PoolMeta):
             'readonly': Eval('origin.state') != 'registered',
             }
 
-    @classmethod
-    def get_suggested_values(cls, child, description=None):
+    def get_statement_line(self):
         pool = Pool()
         AnalyticAccountEntry = pool.get('analytic.account.entry')
 
-        values = super().get_suggested_values(child, description)
-        if child.analytic_accounts:
-            new_entry = AnalyticAccountEntry.copy(child.analytic_accounts,
-                default={
-                    'origin': None,
-                    })
-            values['analytic_accounts'] = [('add', [e.id for e in new_entry])]
-        return values
+        line = super().get_statement_line()
+        new_entries = []
+        for entry in getattr(self, 'analytic_accounts', []):
+            new_entry = AnalyticAccountEntry()
+            new_entry.root = entry.root
+            new_entry.account = entry.account
+            new_entries.append(new_entry)
+        line.analytic_accounts = new_entries
+        return line
 
 
 class AnalyticAccountEntry(metaclass=PoolMeta):
