@@ -1072,7 +1072,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         return dict((x[0], x[1]) for x in sorted(similars, key=lambda x: x[1],
             reverse=True))
 
-    @functools.cache
     def similar_parties(self):
         """
         This function returns a dictionary with the possible parties ID on
@@ -1116,7 +1115,6 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         return parties
 
-    @functools.cache
     def similar_origins(self):
         pool = Pool()
         Statement = pool.get('account.statement')
