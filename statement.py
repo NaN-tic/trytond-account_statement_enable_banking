@@ -1130,6 +1130,8 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         ORIGIN_SIMILARITY_THRESHOLD = self.statement.journal.get_weight(
             'origin-similarity-threshold')
+        ORIGIN_DELTA_DAYS = self.statement.journal.get_weight(
+            'origin-delta-days')
 
         similarity_column = Similarity(database.unaccent(JsonbExtractPathText(
                 origin_table.information, 'remittance_information')),
@@ -1143,7 +1145,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 & (statement_table.company == self.company.id)
                 & (origin_table.state == 'posted')
                 & (line_table.related_to == None))
-                & (origin_table.create_date >= self.date - timedelta(days=365)),
+                & (origin_table.create_date >= self.date
+                   - timedelta(days=ORIGIN_DELTA_DAYS)),
             order_by=[similarity_column.desc]
             )
         cursor.execute(*query)
