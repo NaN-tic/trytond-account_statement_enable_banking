@@ -1035,7 +1035,7 @@ msgstr "Tipo factura con saldo"
 
 msgctxt "selection:account.statement.journal.weight,type:"
 msgid "Type Combination All"
-msgstr "Combinación de tipos con todos"
+msgstr "Tipo combinación con todos"
 
 msgctxt "selection:account.statement.journal.weight,type:"
 msgid "Type Combination Party"
