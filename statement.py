@@ -1057,7 +1057,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         cursor.execute(*query)
 
         records = cursor.fetchall()
-        parties = Party.browse([x[0] for x in records])
+        # Use search in order for ir.rule to be applied
+        parties = Party.search([
+                ('id', 'in', [x[0] for x in records]),
+                ])
         similars = []
         for party in parties:
             percent = compare_party(party.name, text)
@@ -1142,7 +1145,10 @@ class Origin(Workflow, metaclass=PoolMeta):
             )
         cursor.execute(*query)
         records = cursor.fetchall()
-        origins = Origin.browse([x[0] for x in records])
+        # Use search in order for ir.rule to be applied
+        origins = Origin.search([
+                ('id', 'in', [x[0] for x in records]),
+                ])
         similarities = [x[1] * 100 for x in records]
         merge = list(zip(origins, similarities))
         if merge:
@@ -1456,7 +1462,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         else: # sorting == 'closest'
             lines = sorted(lines, key=lambda x: abs(self.date -
                     (x.maturity_date or x.date)))
-        lines = MoveLine.browse([x.id for x in lines])
+        # Use search in order for ir.rule to be applied
+        lines = MoveLine.search([
+                ('id', 'in', [x.id for x in lines]),
+                ])
         if not lines:
             return
 
