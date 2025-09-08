@@ -2654,7 +2654,7 @@ class RetrieveEnableBankingSession(Wizard):
                     if session['status'] == 'AUTHORIZED':
                         return 'end'
             if eb_session:
-                EBSession.delete(eb_session)
+                EBSession.delete([eb_session])
         return 'start'
 
     def default_start(self, fields):
