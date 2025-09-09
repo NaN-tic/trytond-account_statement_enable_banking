@@ -24,8 +24,9 @@ this repository contains the full copyright notices and license terms. -->
         <field name="offset_days_to"/>
 
         <group colspan="4" id="EB Session">
-            <button name="retrieve_enable_banking_session" colspan="2"/>
-            <button name="synchronize_statement_enable_banking" colspan="2" string="Synchronize Statements"/>
+            <button name="retrieve_enable_banking_session"/>
+            <button name="synchronize_statement_enable_banking"/>
+            <button name="evaluate_weights"/>
         </group>
     </xpath>
 </data>
