@@ -3,6 +3,7 @@
 import functools
 import json
 import requests
+from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime, timedelta
 from trytond.config import config
@@ -12,6 +13,7 @@ from trytond.pyson import Eval, Id, If
 from trytond.i18n import gettext
 from trytond.transaction import Transaction
 from trytond.model.exceptions import AccessError
+from trytond.exceptions import UserError
 from .common import get_base_header, URL
 
 QUEUE_NAME = config.get('enable_banking', 'queue_name', default='default')
@@ -147,9 +149,10 @@ class Journal(metaclass=PoolMeta):
                 (),
                 ))
         cls._buttons.update({
-            'retrieve_enable_banking_session': {},
-            'synchronize_statement_enable_banking': {},
-        })
+                'retrieve_enable_banking_session': {},
+                'synchronize_statement_enable_banking': {},
+                'evaluate_weights': {},
+                })
 
     @staticmethod
     def default_validation():
@@ -210,6 +213,71 @@ class Journal(metaclass=PoolMeta):
             'clearing_system_member_id',
             ]
         return keys
+
+    @classmethod
+    @ModelView.button
+    def evaluate_weights(cls, journals):
+        pool = Pool()
+        Origin = pool.get('account.statement.origin')
+        Payment = pool.get('account.payment')
+        Invoice = pool.get('account.invoice')
+        MoveLine = pool.get('account.move.line')
+
+        def tuplify(line):
+            x = line.related_to
+            if (isinstance(x, Payment) and x.line
+                    and isinstance(x.line.move_origin, Invoice)):
+                x = x.move_origin
+            elif isinstance(x, MoveLine) and isinstance(x.move_origin, Invoice):
+                x = x.move_origin
+            return (str(line.account), str(line.party), line.amount,
+                str(x))
+
+        reports = []
+        for journal in journals:
+            stats = defaultdict(list)
+            count = 0
+            origins = Origin.search([
+                    ('statement.journal', '=', journal.id),
+                    ('state', '=', 'posted'),
+                    ], order=[
+                    ('date', 'DESC'),
+                    ('id', 'DESC'),
+                    ], limit=100)
+            for origin in origins:
+                count += 1
+
+                target = sorted([tuplify(x) for x in origin.lines])
+                suggestions = []
+                for suggestion in origin.suggested_lines:
+                    suggestion.update_weight()
+                    suggestions.append(suggestion)
+
+                suggestions = sorted(suggestions, key=lambda x: x.weight,
+                    reverse=True)
+                position = -1
+                for suggestion in suggestions:
+                    position += 1
+                    if suggestion.childs:
+                        tuplified = sorted([tuplify(line) for line in
+                                suggestion.childs])
+                    else:
+                        tuplified = [tuplify(suggestion)]
+                    if tuplified != target:
+                        continue
+                    stats[position].append(origin)
+                    break
+                else:
+                    stats[999].append(origin)
+
+            report = f'Journal {journal.name} ({journal.id}) stats on {len(origins)}:\n\n'
+            for position in sorted(stats):
+                ids = ', '.join(str(x.id) for x in stats[position])
+                report += f'  Position {position}: {len(stats[position])}\n'
+                report += f'    Origins: {ids}\n'
+            reports.append(report)
+
+        raise UserError('\n\n'.join(reports))
 
     @classmethod
     @ModelView.button_action('account_statement_enable_banking.'

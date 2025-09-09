@@ -31,5 +31,10 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Syncronize Statements</field>
             <field name="model">account.statement.journal</field>
         </record>
+        <record model="ir.model.button" id="evaluate_weights_button">
+            <field name="name">evaluate_weights</field>
+            <field name="string">Evaluate Weights</field>
+            <field name="model">account.statement.journal</field>
+        </record>
     </data>
 </tryton>
