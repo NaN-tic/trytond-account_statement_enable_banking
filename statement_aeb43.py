@@ -21,7 +21,8 @@ class ImportStatement(metaclass=PoolMeta):
             # Use __queue__ to ensure the Bank lines download and origin
             # creation are done and saved before start to create there
             # suggestions.
-            StatementOrigin.__queue__._search_reconciliation(origins)
+            StatementOrigin.__queue__.search_suggestions(origins)
+
         return action, data
 
     def aeb43_statement(self, account):
