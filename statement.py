@@ -655,6 +655,8 @@ class Line(metaclass=PoolMeta):
 class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
 
+    journal = fields.Function(fields.Many2One('account.statement.journal', 'Journal'),
+            'get_journal', searcher='search_journal')
     entry_reference = fields.Char("Entry Reference", readonly=True)
     suggested_lines = fields.One2Many(
         'account.statement.origin.suggested.line', 'origin',
@@ -774,6 +776,14 @@ class Origin(Workflow, metaclass=PoolMeta):
     def acceptable_similarity(self):
         return (self.statement.journal.acceptable_similarity
             if self.statement and self.statement.journal else None)
+
+    def get_journal(self, name):
+        return self.statement.journal
+
+    @classmethod
+    def search_journal(cls, name, clause):
+        return [('statement.' + clause[0],) + tuple(clause[1:])]
+
 
     def get_suggested_lines_tree(self, name):
         # return only parent lines in origin suggested lines

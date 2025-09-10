@@ -2,6 +2,10 @@
 <!-- This file is part of Tryton.  The COPYRIGHT file at the top level of
 this repository contains the full copyright notices and license terms. -->
 <data>
+    <xpath expr="/tree/field[@name='statement']" position="replace">
+        <field name="statement" optional="1"/>
+        <field name="journal" optional="0" expand="1"/>
+    </xpath>
     <xpath expr="/tree/field[@name='pending_amount']" position="after">
         <field name="balance"/>
     </xpath>
