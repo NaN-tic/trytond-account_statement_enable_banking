@@ -1187,6 +1187,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
+        Invoice = pool.get('account.invoice')
 
         if not payments:
             return []
@@ -1205,7 +1206,13 @@ class Origin(Workflow, metaclass=PoolMeta):
                     line.account = payment.party.receivable_account
             line.party = payment.party
             line.date = payment.date
-            line.related_to = payment
+            if type_ == 'payment-group':
+                if payment.move_origin and isinstance(payment.move_origin, Invoice):
+                    line.related_to = payment.move_origin
+                else:
+                    line.related_to = payment.line
+            else:
+                line.related_to = payment
             line.amount = (payment.amount if payment.kind == 'receivable'
                 else -payment.amount)
             to_save.append(line)
@@ -1314,6 +1321,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Payment = pool.get('account.payment')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
+        Invoice = pool.get('account.invoice')
 
         amount = self.pending_amount
         if not amount:
@@ -1333,6 +1341,11 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('line.account.reconcile', '=', True),
                 ]):
             payment_amount = payment.amount
+            if (payment.move_origin
+                    and isinstance(payment.move_origin, Invoice)):
+                with Transaction().set_context(with_payment=False):
+                    invoice, = Invoice.browse([payment.move_origin.id])
+                    payment_amount = invoice.amount_to_pay
             payment_date = payment.date
             group = payment.group if payment.group else payment
             groups['amount'] += payment_amount
