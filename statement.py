@@ -1345,7 +1345,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     and isinstance(payment.move_origin, Invoice)):
                 with Transaction().set_context(with_payment=False):
                     invoice, = Invoice.browse([payment.move_origin.id])
-                    payment_amount = invoice.amount_to_pay
+                    invoice_payment_amount = invoice.amount_to_pay
+                if payment_amount > invoice_payment_amount:
+                    payment_amount = invoice_payment_amount
             payment_date = payment.date
             group = payment.group if payment.group else payment
             groups['amount'] += payment_amount
