@@ -832,7 +832,7 @@ msgid ""
 "\"%(line_amount)s\" and the amount of the origin \"%(origin_amount)s\" "
 "differ."
 msgstr ""
-"L'orígen no es s'ha pogut conciliar perquè el total de les línies "
+"L'orígen no s'ha pogut conciliar perquè el total de les línies "
 "\"%(line_amount)s\" i el de l'origen \"%(origin_amount)s\" són diferents."
 
 msgctxt "model:ir.message,text:msg_origins_with_lines"
