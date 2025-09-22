@@ -289,7 +289,7 @@ class Journal(metaclass=PoolMeta):
     @ModelView.button
     def synchronize_statement_enable_banking(cls, journals):
         for journal in journals:
-            journal._synchronize_statements_enable_banking(journal)
+            journal._synchronize_statements_enable_banking()
 
     def _synchronize_statements_enable_banking(self):
         pool = Pool()
