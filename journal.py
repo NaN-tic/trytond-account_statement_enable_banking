@@ -288,9 +288,8 @@ class Journal(metaclass=PoolMeta):
     @classmethod
     @ModelView.button
     def synchronize_statement_enable_banking(cls, journals):
-        with Transaction().set_context(queue_name=QUEUE_NAME):
-            for journal in journals:
-                cls.__queue__._synchronize_statements_enable_banking(journal)
+        for journal in journals:
+            journal._synchronize_statements_enable_banking(journal)
 
     def _synchronize_statements_enable_banking(self):
         pool = Pool()
