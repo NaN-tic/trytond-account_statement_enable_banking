@@ -3,6 +3,7 @@
 import re
 import difflib
 import json
+import hashlib
 import math
 import requests
 import functools
@@ -131,7 +132,7 @@ class Statement(metaclass=PoolMeta):
                 ))
         cls._buttons.update({
                 'register': {
-                    'invisible': ~Eval('state').in_(['draft', 'validated']),
+                    'invisible': Eval('state') != 'draft',
                     'depends': ['state'],
                     },
                 })
@@ -502,31 +503,49 @@ class Line(metaclass=PoolMeta):
         Reconciliation = pool.get('account.move.reconciliation')
         Invoice = pool.get('account.invoice')
 
+        if any(line.move for line in lines):
+            wnames = []
+            for line in lines:
+                if line.move:
+                    wnames.append(line)
+                if len(wnames) == 5:
+                    break
+
+            warning_name = 'origin_line_with_move.' + hashlib.md5(
+                ''.join([str(l.id) for l in wnames]).encode('utf-8')).hexdigest()
+            names = ', '.join(l.number or l.description or str(l.id) for l in wnames)
+            if len(wnames) == 5:
+                names += '...'
+
+            if Warning.check(warning_name):
+                raise StatementValidateWarning(warning_name,
+                    gettext('account_statement_enable_banking.'
+                        'msg_origin_lines_with_move',
+                        lines=names))
+
         moves = set()
         to_unreconcile = []
         to_unpay = []
         for line in lines:
-            if line.move:
-                warning_key = Warning.format(
-                    'origin_line_with_move', [line.move.id])
-                if Warning.check(warning_key):
-                    raise StatementValidateWarning(warning_key,
-                        gettext('account_statement_enable_banking.'
-                            'msg_origin_line_with_move',
-                            move=line.move.rec_name))
-                moves.add(line.move)
-                to_unreconcile += [x.reconciliation for x in line.move.lines
-                    if x.reconciliation]
-                # On possible related invoices, need to unlink the payment
-                # lines
-                to_unpay += [x for x in line.move.lines if x.invoice_payment]
+            if not line.move:
+                continue
+
+            moves.add(line.move)
+            to_unreconcile += [x.reconciliation for x in line.move.lines
+                if x.reconciliation]
+            # On possible related invoices, need to unlink the payment
+            # lines
+            to_unpay += [x for x in line.move.lines if x.invoice_payment]
+
         if to_unreconcile:
             to_unreconcile = Reconciliation.browse(to_unreconcile)
             Reconciliation.delete(to_unreconcile)
+
         if moves:
             moves = list(moves)
             Move.draft(moves)
             Move.delete(moves)
+
         if to_unpay:
             to_unpay = Line.browse(to_unpay)
             Invoice.remove_payment_lines(to_unpay)
