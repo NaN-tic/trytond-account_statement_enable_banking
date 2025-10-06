@@ -1071,7 +1071,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
             domain = Rule.domain_get(Party.__name__, mode='read')
-
         parties = Party.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
@@ -1611,6 +1610,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         amount = self.pending_amount
         suggestions = []
         for invoice in Invoice.search([
+                ('company', '=', self.company.id),
                 ('party', '=', party.id),
                 ('state', '=', 'posted'),
                 ], order=[('invoice_date', 'ASC')]):
