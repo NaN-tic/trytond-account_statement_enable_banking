@@ -39,6 +39,9 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_origin_line_with_move">
             <field name="text">The line has move "%(move)s" related to it. Cancel or delete the line will delete that move. Do you want to continue?</field>
         </record>
+        <record model="ir.message" id="msg_origin_lines_with_move">
+            <field name="text">The lines "%(lines)s" has moves related to it. Cancel or delete lines will delete those moves. Do you want to continue?</field>
+        </record>
         <record model="ir.message" id="msg_suggested_line_related_to_statement_line">
             <field name="text">There is some suggested line relate to the statement lines of the origins "%(origins_name)s". Befeore make a new search, remove the statement line.</field>
         </record>
