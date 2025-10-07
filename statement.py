@@ -1243,7 +1243,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         Invoice = pool.get('account.invoice')
 
         move_origin = line.move_origin
-        if isinstance(move_origin, Invoice) and move_origin.state != 'paid':
+        if (isinstance(move_origin, Invoice) and move_origin.state != 'paid'
+                and move_origin.account == line.account):
             related_to = line.move_origin
         else:
             related_to = line
