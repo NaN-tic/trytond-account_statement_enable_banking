@@ -2592,19 +2592,31 @@ class LinkInvoice(Wizard):
     def default_start(self, fields):
         pool = Pool()
         StatementOrigin = pool.get('account.statement.origin')
+        Warning = pool.get('res.user.warning')
 
         origins = StatementOrigin.browse(Transaction().context['active_ids'])
         origins_amount = sum(l.amount for l in origins)
         origin = origins[0]
-        origin_lines = {
-            origin.number: origin.lines
-            for origin in origins
-            if getattr(origin, 'lines', [])
-            }
-        if origin_lines:
-            raise AccessError(gettext(
-                    'account_statement_enable_banking.msg_origins_with_lines',
-                    origins=", ".join(origin_lines.keys())))
+
+        wnames = []
+        for origin in origins:
+            if getattr(origin, 'lines', []):
+                wnames.append(origin)
+            if len(wnames) == 5:
+                break
+
+        warning_name = 'origin_with_lines.' + hashlib.md5(
+            ''.join([str(l.id) for l in wnames]).encode('utf-8')).hexdigest()
+        names = ', '.join(l.number or str(l.id) for l in wnames)
+        if len(wnames) == 5:
+            names += '...'
+
+        if Warning.check(warning_name):
+            raise StatementValidateWarning(warning_name,
+                gettext('account_statement_enable_banking.'
+                    'msg_origins_with_lines',
+                    origins=names))
+
         return {
             'company': origin.company.id,
             'currency': origin.currency.id,
@@ -2629,10 +2641,13 @@ class LinkInvoice(Wizard):
                     origins_amount=origins_amount))
 
         lines = []
+        to_delete = []
         for origin in origins:
+            to_delete += list(origin.lines or [])
             line = StatementOrigin._get_statement_line(origin, invoice)
             line.amount = origin.amount
             lines.append(line)
+        StatementLine.delete(to_delete)
         StatementLine.save(lines)
 
         if self.start.post_origin:
