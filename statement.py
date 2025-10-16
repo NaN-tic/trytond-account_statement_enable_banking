@@ -1080,9 +1080,22 @@ class Origin(Workflow, metaclass=PoolMeta):
             similarity = Greatest(similarity,
                 Similarity(database.unaccent(party_table.trade_name),
                     database.unaccent(text)))
-        query = party_table.select(party_table.id, similarity,
-            where=(similarity >= PARTY_SIMILARITY_THRESHOLD)
-                & (party_table.active))
+
+        where = ((similarity >= PARTY_SIMILARITY_THRESHOLD)
+            & (party_table.active))
+
+        # If party_comapny module is installed, ensure that when try to search
+        # suggestions called by cron, user id 0, not search on parties not
+        # allowed ny the comapny.
+        if hasattr(Party, 'companies'):
+            PartyCompany = pool.get('party.company.rel')
+            party_comapny_table = PartyCompany.__table__()
+            company_query = party_comapny_table.select(
+                party_comapny_table.party,
+                where=party_comapny_table.company == self.company.id)
+            where &= (party_table.id.in_(company_query))
+
+        query = party_table.select(party_table.id, similarity, where=where)
         cursor.execute(*query)
 
         records = cursor.fetchall()
