@@ -362,6 +362,12 @@ class Journal(metaclass=PoolMeta):
             "date_to": date_to.isoformat(),
             }
 
+        # Lock all the account_statement and account_statement_origin tables
+        # before start to avoid the creation of new statements and duplicate,
+        # as it works with cron + workers.
+        Statement.lock()
+        StatementOrigin.lock()
+
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
         statement.company = self.company
