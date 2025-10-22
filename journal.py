@@ -512,9 +512,10 @@ class Journal(metaclass=PoolMeta):
 
             # Get the suggested lines for each origin created
             # Use __queue__ to ensure the Bank lines download and origin
-            # creation are done and saved before start to create there
+            # creation are done and saved before start to create the
             # suggestions. And use a worker for each origin to ensure that
-            # all origin try to search even one fails.
+            # all origin try to search even one fails and can be done in
+            # parallel.
             with Transaction().set_context(queue_name=QUEUE_NAME):
                 for origin in statement.origins:
                     StatementOrigin.__queue__.search_suggestions([origin])

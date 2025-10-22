@@ -1727,6 +1727,13 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not origins:
             return
 
+        #Lock the statement origins before search suggestions, because the
+        #search process is consuming so much time, and the user could try
+        #to post the origin while the suggestion search is not finished.
+        #Without the lock this could be done and after the suggestion save
+        #the lines detected and break the pending_amount == 0.
+        cls.lock(origins)
+
         # Before a new search remove all suggested lines, but control if any
         # of them are related to a statement line.
         suggestions = SuggestedLine.search([
