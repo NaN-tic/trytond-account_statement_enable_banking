@@ -790,12 +790,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             return True
         return False
 
-    @property
-    @fields.depends('statement', '_parent_statement.journal')
-    def acceptable_similarity(self):
-        return (self.statement.journal.acceptable_similarity
-            if self.statement and self.statement.journal else None)
-
     def get_journal(self, name):
         return self.statement.journal
 
