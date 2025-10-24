@@ -2805,6 +2805,7 @@ class RetrieveEnableBankingSession(Wizard):
         journal = Journal(active_id) if active_id else None
         eb_session = self.select_session.found_session
         journal.enable_banking_session = eb_session
+        journal.on_change_enable_banking_session()
         journal.save()
         return 'end'
 
