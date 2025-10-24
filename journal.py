@@ -160,6 +160,7 @@ class Journal(metaclass=PoolMeta):
         table = cls.__table_handler__(module_name)
 
         table.drop_column('acceptable_similarity')
+        table.drop_column('similarity_threshold')
 
     @staticmethod
     def default_validation():
