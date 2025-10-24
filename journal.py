@@ -293,6 +293,7 @@ class Journal(metaclass=PoolMeta):
 
     def _synchronize_statements_enable_banking(self):
         pool = Pool()
+        Journal = pool.get('account.statement.journal')
         EBConfiguration = pool.get('enable_banking.configuration')
         Statement = pool.get('account.statement')
         StatementOrigin = pool.get('account.statement.origin')
@@ -362,11 +363,9 @@ class Journal(metaclass=PoolMeta):
             "date_to": date_to.isoformat(),
             }
 
-        # Lock all the account_statement and account_statement_origin tables
-        # before start to avoid the creation of new statements and duplicate,
+        # Lock the journal to ensure not duplicate statements or origins
         # as it works with cron + workers.
-        Statement.lock()
-        StatementOrigin.lock()
+        Journal.lock(self)
 
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
