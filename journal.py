@@ -180,6 +180,14 @@ class Journal(metaclass=PoolMeta):
         if self.enable_banking_session:
             return self.enable_banking_session.allowed_bank_accounts
 
+    @fields.depends('enable_banking_session', 'aspsp_name', 'aspsp_country')
+    def on_change_enable_banking_session(self):
+        if self.enable_banking_session:
+            if not self.aspsp_name:
+                self.aspsp_name = self.enable_banking_session.aspsp_name
+            if not self.aspsp_country:
+                self.aspsp_country = self.enable_banking_session.aspsp_country
+
     @staticmethod
     def default_offset_days_to():
         return 0
