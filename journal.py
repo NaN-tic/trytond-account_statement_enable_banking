@@ -154,6 +154,13 @@ class Journal(metaclass=PoolMeta):
                 'evaluate_weights': {},
                 })
 
+    @classmethod
+    def __register__(cls, module_name):
+        super().__register__(module_name)
+        table = cls.__table_handler__(module_name)
+
+        table.drop_column('acceptable_similarity')
+
     @staticmethod
     def default_validation():
         return 'balance'
