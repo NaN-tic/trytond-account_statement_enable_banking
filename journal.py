@@ -381,7 +381,7 @@ class Journal(metaclass=PoolMeta):
 
         # Lock the journal to ensure not duplicate statements or origins
         # as it works with cron + workers.
-        Journal.lock(self)
+        Journal.lock([self])
 
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
