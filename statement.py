@@ -113,6 +113,23 @@ class Statement(metaclass=PoolMeta):
     start_date = fields.DateTime("Start Date", readonly=True)
     end_date = fields.DateTime("End Date", readonly=True)
 
+    @fields.depends('journal')
+    def on_change_journal(self):
+        if not self.journal:
+            return
+
+        statements = self.search([
+                ('journal', '=', self.journal.id),
+                ], order=[
+                ('date', 'DESC'),
+                ('id', 'DESC'),
+                ], limit=1)
+        if not statements:
+            return
+
+        statement, = statements
+        self.start_balance = statement.end_balance
+
     @classmethod
     def __setup__(cls):
         super().__setup__()
@@ -796,7 +813,6 @@ class Origin(Workflow, metaclass=PoolMeta):
     @classmethod
     def search_journal(cls, name, clause):
         return [('statement.' + clause[0],) + tuple(clause[1:])]
-
 
     def get_suggested_lines_tree(self, name):
         # return only parent lines in origin suggested lines
