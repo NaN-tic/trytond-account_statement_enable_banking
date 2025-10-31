@@ -66,5 +66,8 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_journal_weight_unique">
             <field name="text">Weight Type must be unique per journal.</field>
         </record>
+        <record model="ir.message" id="msg_statement_line_delete">
+      <field name="text">It is not possible to remove the line "%{line}s", because the related statement "%{statement}s" is validated or posted.</field>
+        </record>
     </data>
 </tryton>
