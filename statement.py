@@ -645,14 +645,11 @@ class Line(metaclass=PoolMeta):
     def delete(cls, lines):
         cls.cancel_lines(lines)
         for line in lines:
-            if line.statement_state not in {
-                    'cancelled', 'registered', 'draft'}:
+            if line.statement_state in {'validated', 'posted'}:
                 raise AccessError(
-                    gettext(
-                        'account_statement.'
-                        'msg_statement_line_delete_cancel_draft',
+                    gettext('account_statement.msg_statement_line_delete',
                         line=line.rec_name,
-                        sale=line.statement.rec_name))
+                        statement=line.statement.rec_name))
         # Use __func__ to directly access ModelSQL's delete method and
         # pass it the right class
         ModelSQL.delete.__func__(cls, lines)
