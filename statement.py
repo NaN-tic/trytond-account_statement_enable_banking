@@ -185,6 +185,23 @@ class Statement(metaclass=PoolMeta):
         return key
 
     @classmethod
+    def check_modification(cls, mode, statements, values=None, external=False):
+        try:
+            super().check_modification(mode, statements, values=values,
+                external=external)
+        except AccessError as e:
+            if 'msg_statement_delete_cancel' in str(e):
+                pass
+
+        if mode == 'delete':
+            for statement in statements:
+                if statements.state in {'validated', 'posted'}:
+                    raise AccessError(gettext(
+                            'account_statement.'
+                            'msg_statement_delete_cancel',
+                            statements=statements.rec_name))
+
+    @classmethod
     def cancel(cls, statements):
         pool = Pool()
         Origin = pool.get('account.statement.origin')
@@ -644,21 +661,30 @@ class Line(metaclass=PoolMeta):
     @classmethod
     def delete(cls, lines):
         cls.cancel_lines(lines)
-        for line in lines:
-            if line.statement_state in {'validated', 'posted'}:
-                raise AccessError(
-                    gettext('account_statement_enable_banking'
-                        '.msg_statement_line_delete',
-                        line=line.rec_name,
-                        statement=line.statement.rec_name))
-        # Use __func__ to directly access ModelSQL's delete method and
-        # pass it the right class
-        ModelSQL.delete.__func__(cls, lines)
+        super().delete(lines)
 
     @classmethod
     def delete_move(cls, lines):
         cls.cancel_lines(lines)
         super().delete_move(lines)
+
+    @classmethod
+    def check_modification(cls, mode, lines, values=None, external=False):
+        try:
+            super().check_modification(mode, lines, values=values,
+                external=external)
+        except AccessError as e:
+            if 'msg_statement_line_delete_cancel_draft' in str(e):
+                pass
+
+        if mode == 'delete':
+            for line in lines:
+                if line.statement_state in {'validated', 'posted'}:
+                    raise AccessError(gettext(
+                            'account_statement.'
+                            'msg_statement_line_delete_cancel_draft',
+                            line=line.rec_name,
+                            sale=line.statement.rec_name))
 
     def get_move_line(self):
         line = super().get_move_line()
@@ -1873,18 +1899,22 @@ class Origin(Workflow, metaclass=PoolMeta):
         return line
 
     @classmethod
-    def delete(cls, origins):
-        for origin in origins:
-            if origin.state not in {'cancelled', 'registered'}:
-                raise AccessError(
-                    gettext(
-                        'account_statement.'
-                        'msg_statement_origin_delete_cancel_draft',
-                        origin=origin.rec_name,
-                        sale=origin.statement.rec_name))
-        # Use __func__ to directly access ModelSQL's delete method and
-        # pass it the right class
-        ModelSQL.delete.__func__(cls, origins)
+    def check_modification(cls, mode, origins, values=None, external=False):
+        try:
+            super().check_modification(mode, origins, values=values,
+                external=external)
+        except AccessError as e:
+            if 'msg_statement_origin_delete_cancel_draft' in str(e):
+                pass
+
+        if mode == 'delete':
+            for origin in origins:
+                if origin.statement_state in {'validated', 'posted'}:
+                    raise AccessError(gettext(
+                            'account_statement.'
+                            'msg_statement_origin_delete_cancel_draft',
+                            origin=origin.rec_name,
+                            sale=origin.statement.rec_name))
 
     @classmethod
     def copy(cls, origins, default=None):
