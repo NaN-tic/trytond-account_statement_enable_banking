@@ -647,7 +647,8 @@ class Line(metaclass=PoolMeta):
         for line in lines:
             if line.statement_state in {'validated', 'posted'}:
                 raise AccessError(
-                    gettext('account_statement.msg_statement_line_delete',
+                    gettext('account_statement_enable_banking'
+                        '.msg_statement_line_delete',
                         line=line.rec_name,
                         statement=line.statement.rec_name))
         # Use __func__ to directly access ModelSQL's delete method and
