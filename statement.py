@@ -207,6 +207,8 @@ class Line(metaclass=PoolMeta):
         states={
             'readonly': Eval('origin_state') != 'registered',
             })
+    account_required = fields.Function(fields.Boolean('Account Required'),
+        'on_change_with_account_required')
 
     @classmethod
     def __setup__(cls):
@@ -259,7 +261,9 @@ class Line(metaclass=PoolMeta):
         cls.party.states['required'] = (Eval('party_required', False)
             & (Eval('statement_state').in_(['draft', 'registered']))
             )
+        cls.account.required = None
         cls.account.states['readonly'] = _readonly
+        cls.account.states['required'] = Eval('account_required', True)
         cls.description.states['readonly'] = _readonly
         cls.related_to.states['readonly'] = _readonly
         cls._buttons.update({
@@ -298,6 +302,13 @@ class Line(metaclass=PoolMeta):
             return None
         if self.origin and self.origin.amount_second_currency:
             return self.origin.amount_second_currency
+
+    @fields.depends(methods=['payment_group'])
+    def on_change_with_account_required(self, name=None):
+        if (self.payment_group
+                and not self.payment_group.journal.clearing_account):
+            return False
+        return True
 
     @property
     @fields.depends('related_to')
@@ -449,6 +460,7 @@ class Line(metaclass=PoolMeta):
             self.description = self.origin.remittance_information
 
         # TODO: Control when the currency is different
+        payment_groups = set()
         payments = set()
         move_lines = set()
         move_lines_second_currency = set()
@@ -457,6 +469,9 @@ class Line(metaclass=PoolMeta):
         if self.invoice and self.invoice.id not in invoice_id2amount_to_pay:
             invoice_id2amount_to_pay[self.invoice.id] = (
                 self.invoice_amount_to_pay)
+        if (self.payment_group
+                and self.payment_group.currency == self.company.currency):
+            payment_groups.add(self.payment_group)
         if self.payment and self.payment.currency == self.company.currency:
             payments.add(self.payment)
         if self.move_line and self.move_line.currency == self.company.currency:
@@ -464,6 +479,9 @@ class Line(metaclass=PoolMeta):
                 move_lines.add(self.move_line)
             else:
                 move_lines_second_currency.add(self.move_line)
+
+        payment_group_id2amount = (dict((x.id, x.payment_amount)
+            for x in payment_groups) if payment_groups else {})
 
         payment_id2amount = (dict((x.id, x.amount) for x in payments)
             if payments else {})
@@ -476,8 +494,9 @@ class Line(metaclass=PoolMeta):
             if move_lines_second_currency else {})
 
         # As a 'core' difference, the value of the line amount must be the
-        # amount of the movement, invoice or payment. Not the line amount
-        # pending. It could induce an incorrect concept and misunderstunding.
+        # amount of the movement, invoice, group or payment. Not the line
+        # amount pending. It could induce an incorrect concept
+        # and misunderstunding.
         amount = None
         if self.invoice and self.invoice.id in invoice_id2amount_to_pay:
             amount = invoice_id2amount_to_pay.get(
@@ -486,10 +505,15 @@ class Line(metaclass=PoolMeta):
             amount = payment_id2amount[self.payment.id]
         if self.move_line and self.move_line.id in move_line_id2amount:
             amount = move_line_id2amount[self.move_line.id]
+        if (self.payment_group
+                and self.payment_group.id in payment_group_id2amount):
+            amount = payment_group_id2amount[self.payment_group.id]
         if amount is None and self.invoice:
             self.invoice = None
         if amount is None and self.payment:
             self.payment = None
+        if amount is None and self.payment_group:
+            self.payment_group = None
         if amount is None and self.move_line:
             self.move_line = None
         self.amount = amount
@@ -562,7 +586,7 @@ class Line(metaclass=PoolMeta):
         invoice_to_save = []
         move_to_reconcile = {}
         statement_lines = []
-        for move_line, statement_line in move_lines:
+        for move_line, statement_line, payment in move_lines:
             if not statement_line:
                 continue
             if (statement_line.invoice and statement_line.show_paid_invoices
@@ -612,6 +636,19 @@ class Line(metaclass=PoolMeta):
                 else:
                     move_to_reconcile[key] = [
                         (move_line, statement_line.move_line)]
+            elif statement_line.payment_group or statement_line.payment:
+                line = (statement_line.payment
+                    if statement_line.payment else payment)
+                moveline = line.line or None
+                if moveline:
+                    key = (line.party, moveline.account, line.amount)
+                    if key in move_to_reconcile:
+                        move_to_reconcile[key].append((move_line, moveline))
+                    else:
+                        move_to_reconcile[key] = [(move_line, moveline)]
+                with Transaction().set_context(
+                        clearing_date=statement_line.date):
+                    Payment.succeed(Payment.browse([line]))
             statement_lines.append(statement_line.id)
         if invoice_to_save:
             Invoice.save(list(set(invoice_to_save)))
@@ -648,6 +685,40 @@ class Line(metaclass=PoolMeta):
         if self.maturity_date:
             line.maturity_date = self.maturity_date
         return line
+
+    def get_payment_group_move_line(self):
+        pool = Pool()
+        MoveLine = pool.get('account.move.line')
+        Currency = Pool().get('currency.currency')
+
+        payment_group_move_lines = []
+        for payment in self.payment_group.payments:
+            if not payment.amount:
+                continue
+            with Transaction().set_context(date=payment.date):
+                amount = Currency.compute(
+                    payment.currency, payment.amount, self.company_currency)
+            amount *= -1 if payment.kind == 'payable' else 1
+            if payment.currency != self.company_currency:
+                second_currency = payment.currency
+                amount_second_currency = -payment.amount
+            else:
+                second_currency = None
+                amount_second_currency = None
+
+            account = payment.line.account if payment.line else payment.account
+            party = payment.party if account.party_required else None
+            payment_group_move_lines.append((MoveLine(
+                    origin=self,
+                    debit=abs(amount) if amount < 0 else 0,
+                    credit=abs(amount) if amount > 0 else 0,
+                    account=account,
+                    party=party,
+                    second_currency=second_currency,
+                    amount_second_currency=amount_second_currency,
+                    ), payment))
+
+        return payment_group_move_lines
 
     @classmethod
     def copy(cls, lines, default=None):
@@ -983,23 +1054,31 @@ class Origin(Workflow, metaclass=PoolMeta):
             amount_second_currency = ZERO
             statement = lines[0].statement if lines else None
             for line in lines:
-                move_line = line.get_move_line()
-                if not move_line:
-                    continue
-                move_line.move = move
-                amount += move_line.debit - move_line.credit
-                if move_line.amount_second_currency:
-                    amount_second_currency += move_line.amount_second_currency
-                move_lines.append((move_line, line))
+                # If statement line related_to is a payment_group or a payment
+                # and the clearing account is not deffined, need to create the
+                # move line from the payment relateds.
+                if (line.payment_group
+                        and not line.payment_group.journal.clearing_account):
+                    movelines = line.get_payment_group_move_line()
+                else:
+                    movelines = [(line.get_move_line(), None)]
+
+                for move_line, payment in movelines:
+                    move_line.move = move
+                    amount += move_line.debit - move_line.credit
+                    if line.amount_second_currency:
+                        amount_second_currency += (
+                            move_line.amount_second_currency)
+                    move_lines.append((move_line, line, payment))
 
             if statement:
                 move_line = statement._get_move_line(
                     amount, amount_second_currency, lines)
                 move_line.move = move
-                move_lines.append((move_line, None))
+                move_lines.append((move_line, None, None))
 
         if move_lines:
-            MoveLine.save([x for x, _ in move_lines])
+            MoveLine.save([x for x, _, _ in move_lines])
 
         # Ensure that any related_to posted lines are not in another registered
         # origin or suggested. Except for the paid invoice process or the
@@ -1202,7 +1281,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             merge = [x for x in merge if x[1] >= minimal]
         return merge
 
-    def get_suggestion_from_payments(self, payments, type_):
+    def get_suggestion_from_payments(self, payments, group_key=(), type_=''):
         """
         Create one or more suggested registers based on the move_lines.
         If there are more than one move_line, it will be grouped under
@@ -1210,35 +1289,40 @@ class Origin(Workflow, metaclass=PoolMeta):
         """
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
-        Invoice = pool.get('account.invoice')
 
         if not payments:
             return []
 
         to_save = []
-        for payment in payments:
+        group = group_key[0] if group_key else None
+        date = group_key[1] if group_key else None
+        if group:
             line = SuggestedLine()
             line.type = type_
             line.origin = self
-            if payment.line:
-                line.account = payment.line.account
-            else:
-                if payment.kind == 'payable':
-                    line.account = payment.party.payable_account
-                else:
-                    line.account = payment.party.receivable_account
-            line.party = payment.party
-            line.date = payment.date
-            if type_ == 'payment-group':
-                if payment.move_origin and isinstance(payment.move_origin, Invoice):
-                    line.related_to = payment.move_origin
-                else:
-                    line.related_to = payment.line
-            else:
-                line.related_to = payment
-            line.amount = (payment.amount if payment.kind == 'receivable'
-                else -payment.amount)
+            line.date = date
+            line.related_to = group
+            line.amount = sum(payment.amount if payment.kind == 'receivable'
+                else -payment.amount for payment in payments)
             to_save.append(line)
+        else:
+            for payment in payments:
+                line = SuggestedLine()
+                line.type = type_
+                line.origin = self
+                if payment.line:
+                    line.account = payment.line.account
+                else:
+                    if payment.kind == 'payable':
+                        line.account = payment.party.payable_account
+                    else:
+                        line.account = payment.party.receivable_account
+                line.party = payment.party
+                line.date = payment.date
+                line.related_to = payment
+                line.amount = (payment.amount if payment.kind == 'receivable'
+                    else -payment.amount)
+                to_save.append(line)
 
         return [SuggestedLine.pack(to_save)]
 
@@ -1336,7 +1420,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('amount', '=', self.pending_amount),
                 ]):
             suggested_line = self.get_suggestion_from_payments([payment],
-                'payment')
+                group_key=(), type_='payment')
             to_save.append(suggested_line)
 
         SuggestedLine.save(to_save)
@@ -1345,7 +1429,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         Payment = pool.get('account.payment')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
-        Invoice = pool.get('account.invoice')
 
         amount = self.pending_amount
         if not amount:
@@ -1356,22 +1439,19 @@ class Origin(Workflow, metaclass=PoolMeta):
             'amount': ZERO,
             'groups': {}
             }
-        for payment in Payment.search([
-                ('currency', '=', self.currency),
-                ('company', '=', self.company.id),
-                ('state', '!=', 'failed'),
-                ('line', '!=', None),
-                ('line.reconciliation', '=', None),
-                ('line.account.reconcile', '=', True),
-                ]):
+        domain = [
+            ('company', '=', self.company.id),
+            ('state', '!=', 'failed'),
+            ('line', '!=', None),
+            ('line.reconciliation', '=', None),
+            ('line.account.reconcile', '=', True),
+            ]
+        if self.second_currency:
+            domain.append(('currency', '=', self.second_currency))
+        else:
+            domain.append(('currency', '=', self.currency))
+        for payment in Payment.search(domain):
             payment_amount = payment.amount
-            if (payment.move_origin
-                    and isinstance(payment.move_origin, Invoice)):
-                with Transaction().set_context(with_payment=False):
-                    invoice, = Invoice.browse([payment.move_origin.id])
-                    invoice_payment_amount = invoice.amount_to_pay
-                if payment_amount > invoice_payment_amount:
-                    payment_amount = invoice_payment_amount
             payment_date = payment.date
             group = payment.group if payment.group else payment
             groups['amount'] += payment_amount
@@ -1421,13 +1501,15 @@ class Origin(Workflow, metaclass=PoolMeta):
                         }
 
         if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
-            payments = [p for v in groups['groups'].values() for p in v['payments']]
-            to_save += self.get_suggestion_from_payments(payments, 'payment-group')
+            payments = [
+                p for v in groups['groups'].values() for p in v['payments']]
+            to_save += self.get_suggestion_from_payments(payments,
+                group_key=(), type_='payment-group')
         elif groups['amount'] != ZERO:
-            for item in groups['groups'].values():
+            for key, item in groups['groups'].items():
                 if item['amount'] == abs(amount):
                     to_save += self.get_suggestion_from_payments(item['payments'],
-                        'payment-group')
+                        group_key=key, type_='payment-group')
 
         SuggestedLine.save(to_save)
 
@@ -1711,10 +1793,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
         StatementLine = pool.get('account.statement.line')
-        try:
-            Clearing = pool.get('account.payment.clearing')
-        except:
-            Clearing = None
 
         if not origins:
             return
@@ -1752,9 +1830,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             if origin.pending_amount == ZERO:
                 continue
 
-            if Clearing:
-                origin._suggest_clearing_payment_group()
-                origin._suggest_clearing_payment()
+            origin._suggest_clearing_payment_group()
+            origin._suggest_clearing_payment()
             origin._suggest_payment()
             origin._suggest_balance()
             origin._suggest_balance_old_invoices()
