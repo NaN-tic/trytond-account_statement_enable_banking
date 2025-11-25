@@ -1967,6 +1967,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         Line = Pool().get('account.statement.line')
 
         related_to = [l.related_to for o in origins for l in o.lines if l.related_to]
+        if len(related_to) != len(set(related_to)):
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_find_same_related_to'))
         lines = Line.search([
             ('related_to', 'in', related_to),
             ('origin', 'not in', origins),
