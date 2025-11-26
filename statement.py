@@ -171,7 +171,7 @@ class Statement(metaclass=PoolMeta):
                     ('number', line.origin and (
                             line.origin.number or line.origin.description)
                         or Unequal()),
-                    ('date', line.origin.date),
+                    ('date', line.origin and line.origin.date or line.date),
                     ('origin', line.origin),
                     )
             elif isinstance(line, StatementOrigin):
@@ -601,7 +601,6 @@ class Line(metaclass=PoolMeta):
                 continue
             if (statement_line.invoice and statement_line.show_paid_invoices
                     and move_line.account == statement_line.invoice.account):
-                additional_moves = [move_line.move]
                 invoice = statement_line.invoice
                 reconcile = [move_line]
                 payment_lines = list(set(chain(
@@ -618,8 +617,6 @@ class Line(metaclass=PoolMeta):
                         with Transaction().set_context(_skip_warnings=True,
                                 from_account_bank_statement_line=True):
                             Reconcile.delete([line.reconciliation])
-                    if line.move not in invoice.additional_moves:
-                        additional_moves.append(line.move)
                     reconcile.append(line)
                 if payments:
                     Payment.fail(payments)
@@ -627,9 +624,6 @@ class Line(metaclass=PoolMeta):
                     MoveLine.reconcile(reconcile)
                 if invoice.payment_lines:
                     invoice.payment_lines = None
-                    invoice_to_save.append(invoice)
-                if additional_moves:
-                    invoice.additional_moves += tuple(additional_moves)
                     invoice_to_save.append(invoice)
             elif statement_line.invoice:
                 key = (statement_line.party, statement_line.invoice)
