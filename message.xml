@@ -67,7 +67,10 @@ this repository contains the full copyright notices and license terms. -->
             <field name="text">Weight Type must be unique per journal.</field>
         </record>
         <record model="ir.message" id="msg_statement_line_delete">
-      <field name="text">It is not possible to remove the line "%{line}s", because the related statement "%{statement}s" is validated or posted.</field>
+            <field name="text">It is not possible to remove the line "%{line}s", because the related statement "%{statement}s" is validated or posted.</field>
+        </record>
+        <record model="ir.message" id="msg_find_same_related_to">
+            <field name="text">You are post for two or more origins that are linked to lines with the same related record. Please post for only one origin.</field>
         </record>
     </data>
 </tryton>

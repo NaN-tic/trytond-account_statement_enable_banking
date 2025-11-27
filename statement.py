@@ -2036,6 +2036,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
 
+        cls.find_same_related_origin(origins)
         cls.validate_origin(origins)
         cls.create_moves(origins)
 
@@ -2077,6 +2078,21 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         lines = [x for origin in origins for x in origin.lines]
         StatementLine.cancel_lines(lines)
+
+    @classmethod
+    def find_same_related_origin(cls, origins):
+        Line = Pool().get('account.statement.line')
+
+        related_to = [l.related_to for o in origins for l in o.lines if l.related_to]
+        if len(related_to) != len(set(related_to)):
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_find_same_related_to'))
+        lines = Line.search([
+            ('related_to', 'in', related_to),
+            ('origin', 'not in', origins),
+            ('statement.state', '=', 'draft'),
+            ])
+        Line.write(lines, {'related_to': None})
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
