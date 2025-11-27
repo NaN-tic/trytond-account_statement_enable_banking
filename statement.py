@@ -586,7 +586,14 @@ class Line(metaclass=PoolMeta):
         invoice_to_save = []
         move_to_reconcile = {}
         statement_lines = []
-        for move_line, statement_line, payment in move_lines:
+        for values in move_lines:
+            if len(values) == 3:
+                move_line, statement_line, payment = values
+            elif len(values) == 2:
+                move_line, statement_line = values
+                payment = None
+            else:
+                continue
             if not statement_line:
                 continue
             if (statement_line.invoice and statement_line.show_paid_invoices
