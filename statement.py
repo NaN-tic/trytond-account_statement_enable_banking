@@ -1382,7 +1382,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('journal.currency', '=', self.currency),
                 ('journal.clearing_account', '!=', None),
                 ('company', '=', self.company.id),
-                ('total_amount', '=', abs(self.pending_amount)),
+                ('payment_amount', '=', abs(self.pending_amount)),
                 ('kind', '=', kind),
                 ]):
             for payment in group.payments:
