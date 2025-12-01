@@ -1424,9 +1424,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('journal.currency', '=', self.currency),
                 ('journal.clearing_account', '!=', None),
                 ('company', '=', self.company.id),
-                ('payment_amount', '=', abs(self.pending_amount)),
                 ('kind', '=', kind),
                 ]):
+            if group.payment_amount != abs(self.pending_amount):
+                continue
             for payment in group.payments:
                 if (payment.state == 'failed' or (payment.state != 'failed'
                             and payment.line and payment.line.reconciliation)):
