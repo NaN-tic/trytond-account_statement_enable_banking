@@ -699,6 +699,7 @@ class Line(metaclass=PoolMeta):
     @classmethod
     def delete(cls, lines):
         cls.cancel_lines(lines)
+        cls.suggested_to_proposed(lines)
         super().delete(lines)
 
     @classmethod
@@ -782,6 +783,13 @@ class Line(metaclass=PoolMeta):
         if isinstance(line.origin, Origin):
             line.amount += line.origin.pending_amount
             line.save()
+
+    @classmethod
+    def suggested_to_proposed(cls, lines):
+        OriginSuggestedLine = Pool().get('account.statement.origin.suggested.line')
+        suggested_lines = [line.suggested_line for line in lines
+            if line.suggested_line]
+        OriginSuggestedLine.propose(suggested_lines)
 
 
 class Origin(Workflow, metaclass=PoolMeta):
