@@ -745,7 +745,7 @@ class Line(metaclass=PoolMeta):
     def suggested_to_proposed(cls, lines):
         OriginSuggestedLine = Pool().get('account.statement.origin.suggested.line')
         suggested_lines = [line.suggested_line for line in lines
-            if line.suggested_line]
+            if line.suggested_line and line.suggested_line.state != 'proposed']
         OriginSuggestedLine.propose(suggested_lines)
 
 
@@ -2051,18 +2051,23 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     @classmethod
     def find_same_related_origin(cls, origins):
-        Line = Pool().get('account.statement.line')
+        StatementLine = Pool().get('account.statement.line')
+        SuggestedLine = Pool().get('account.statement.origin.suggested.line')
 
-        related_to = [l.related_to for o in origins for l in o.lines if l.related_to]
+        related_to = [l.related_to
+            for o in origins for l in o.lines if l.related_to]
         if len(related_to) != len(set(related_to)):
-            raise AccessError(gettext(
-                    'account_statement_enable_banking.msg_find_same_related_to'))
-        lines = Line.search([
+            raise AccessError(gettext('account_statement_enable_banking.'
+                    'msg_find_same_related_to'))
+        lines = StatementLine.search([
             ('related_to', 'in', related_to),
             ('origin', 'not in', origins),
             ('statement.state', '=', 'draft'),
             ])
-        Line.write(lines, {'related_to': None})
+        suggested_lines = [line.suggested_line
+            for line in lines if line.suggested_line]
+        StatementLine.delete(lines)
+        SuggestedLine.delete(suggested_lines)
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
@@ -2141,7 +2146,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 If(Bool(Eval('account')),
                     ('account', '=', Eval('account')),
                     ()),
-                ('state', '=', 'posted'),
                 ],
             'account.payment': [
                 ('company', '=', Eval('company', -1)),
@@ -2164,8 +2168,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     ()),
                 ('account.reconcile', '=', True),
                 ('state', '=', 'valid'),
-                ('reconciliation', '=', None),
-                ('invoice_payment', '=', None),
                 ],
             })
     weight = fields.Integer('Weight', required=True)
@@ -2742,6 +2744,7 @@ class LinkInvoice(Wizard):
     def transition_apply(self):
         pool = Pool()
         StatementOrigin = pool.get('account.statement.origin')
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
         StatementLine = pool.get('account.statement.line')
 
         origins = StatementOrigin.browse(Transaction().context['active_ids'])
@@ -2756,13 +2759,16 @@ class LinkInvoice(Wizard):
                     origins_amount=origins_amount))
 
         lines = []
-        to_delete = []
+        suggestions_to_delete = []
+        lines_to_delete = []
         for origin in origins:
-            to_delete += list(origin.lines or [])
+            suggestions_to_delete += list(origin.suggested_lines or [])
+            lines_to_delete += list(origin.lines or [])
             line = StatementOrigin._get_statement_line(origin, invoice)
             line.amount = origin.amount
             lines.append(line)
-        StatementLine.delete(to_delete)
+        StatementLine.delete(lines_to_delete)
+        SuggestedLine.delete(suggestions_to_delete)
         StatementLine.save(lines)
 
         if self.start.post_origin:
