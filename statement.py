@@ -2054,20 +2054,53 @@ class Origin(Workflow, metaclass=PoolMeta):
         StatementLine = Pool().get('account.statement.line')
         SuggestedLine = Pool().get('account.statement.origin.suggested.line')
 
-        related_to = [l.related_to
-            for o in origins for l in o.lines if l.related_to]
-        if len(related_to) != len(set(related_to)):
-            raise AccessError(gettext('account_statement_enable_banking.'
-                    'msg_find_same_related_to'))
+        relateds_to = {}
+        for origin in origins:
+            for line in origin.lines:
+                if not line.related_to:
+                    continue
+                if line.related_to not in relateds_to:
+                    if line.invoice:
+                        amount = line.invoice_amount_to_pay
+                    elif line.payment:
+                        amount = line.payment.amount
+                    elif line.move_line:
+                        amount = line.move.debit - line.move.credit
+                    elif line.payment_group:
+                        amount = line.payment_group.payment_amount
+                    else:
+                        amount = Decimal(0)
+                    diff = amount - line.amount
+                    relateds_to[line.related_to] = {
+                        'amount': amount,
+                        'diff': diff,
+                        }
+                else:
+                    relateds_to[line.related_to]['diff'] -= line.amount
+        for related_to, values in relateds_to.items():
+            if ((values['amount'] >= 0 and values['diff'] < 0)
+                    or (values['amount'] < 0 and values['diff'] > 0)):
+                raise AccessError(gettext('account_statement_enable_banking.'
+                        'msg_find_same_related_to',
+                        related_to=related_to.rec_name))
+
         lines = StatementLine.search([
-            ('related_to', 'in', related_to),
+            ('related_to', 'in', relateds_to),
             ('origin', 'not in', origins),
             ('statement.state', '=', 'draft'),
             ])
-        suggested_lines = [line.suggested_line
-            for line in lines if line.suggested_line]
+        suggested_lines_to_delete = []
+        lines_to_delete = []
+        for line in lines:
+            values = relateds_to[line.related_to]
+            if ((values['amount'] >= 0 and values['diff'] - line.amount < 0)
+                    or (values['amount'] < 0
+                        and values['diff'] - line.amount > 0)):
+                lines_to_delete.append(line)
+                suggested_lines_to_delete.extend([line.suggested_line
+                        for line in lines if line.suggested_line])
         StatementLine.delete(lines)
-        SuggestedLine.delete(suggested_lines)
+        SuggestedLine.delete(suggested_lines_to_delete)
 
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
