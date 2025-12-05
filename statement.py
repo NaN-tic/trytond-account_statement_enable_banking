@@ -2111,7 +2111,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                     elif line.payment:
                         amount = line.payment.amount
                     elif line.move_line:
-                        amount = line.move.debit - line.move.credit
+                        amount = line.move_line.debit - line.move_line.credit
                     elif line.payment_group:
                         amount = line.payment_group.payment_amount
                     else:
