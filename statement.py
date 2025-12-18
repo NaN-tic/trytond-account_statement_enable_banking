@@ -879,16 +879,20 @@ class Origin(Workflow, metaclass=PoolMeta):
     def get_suggested_lines_tree(self, name):
         # return only parent lines in origin suggested lines
         # Not children.
+        Line = Pool().get('account.statement.origin.suggested.line')
         suggested_lines = []
 
         def _get_children(line):
             if line.parent is None:
                 suggested_lines.append(line)
 
-        for line in self.suggested_lines:
+        lines = Line.search([
+            ('origin', '=', self),
+            ('parent', '=', None),
+            ])
+        for line in lines:
             _get_children(line)
 
-        #return [x.id for x in suggested_lines if x.state == 'proposed']
         return suggested_lines
 
     def get_remittance_information(self, name):
@@ -1641,7 +1645,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             return
 
         found = 0
-        lines = tuple((x, to_int(x.debit - x.credit)) for x in lines)
+        lines = sorted(((x, to_int(x.debit - x.credit)) for x in lines), key=lambda x: x[1])
+
         for length in range(1, min(MAX_LENGTH, len(lines)) + 1):
             if length > len(lines):
                 break
@@ -1650,6 +1655,19 @@ class Origin(Workflow, metaclass=PoolMeta):
             else:
                 l = candidate_size(length)
                 candidates = lines[:l]
+
+            # If neither the minimum nor maximum possible sum can produce a valid result, skip unnecessary iterations
+            min_possible = sum(c[1] for c in candidates[:length])
+            max_possible = sum(c[1] for c in candidates[-length:])
+
+            # We cannot reach the target even with the largest candidate values
+            if max_possible < amount - max_tolerance:
+                continue
+
+            # Since the list is sorted, any larger length would only make the situation worse
+            if min_possible > amount + max_tolerance:
+                break
+
             for combination in combinations(candidates, length):
                 total_amount = sum(x[1] for x in combination)
                 if abs(total_amount - amount) <= max_tolerance:
@@ -1876,7 +1894,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         if to_use:
             SuggestedLine.use(to_use)
 
-        return
         # Trim remaining suggestions to a max of the best 10
         origins_to_save = []
         for origin in origins:
