@@ -806,7 +806,10 @@ class Origin(Workflow, metaclass=PoolMeta):
             if line.parent is None:
                 suggested_lines.append(line)
 
-        lines = Line.search([('origin', '=', self)])
+        lines = Line.search([
+            ('origin', '=', self),
+            ('parent', '=', None),
+            ])
         for line in lines:
             _get_children(line)
 
