@@ -11,6 +11,7 @@ from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
 from trytond.i18n import gettext
 from trytond.exceptions import UserError
 from trytond.config import config
+from trytond.pyson import Eval
 from trytond.transaction import Transaction
 from .common import get_base_header, URL
 from trytond.report import Report
@@ -158,21 +159,33 @@ class EnableBankingSession(ModelSQL, ModelView):
     def _get_bank_accounts(cls, enable_banking_session):
         pool = Pool()
         BankNumber = pool.get('bank.account.number')
+        BankAccount = pool.get('bank.account')
 
         if not enable_banking_session.session:
             return []
         session = json.loads(enable_banking_session.session)
         accounts = session.get('accounts') if session else {}
         iban_numbers = [x.get('account_id', {}).get('iban') for x in accounts]
-        numbers = BankNumber.search([
-                ('type', '=', 'iban'),
-                ['OR',
-                    ('number', 'in', iban_numbers),
-                    ('number_compact', 'in', iban_numbers),
-                    ],
-                ])
-        return [x.account.id for x in numbers
-            if x.account is not None and x.account.active]
+        domain = [
+            ('type', '=', 'iban'),
+            ('number_compact', 'in', iban_numbers),
+            ]
+        numbers = BankNumber.search(domain)
+        if hasattr(BankAccount, 'companies'):
+            company_id = Transaction().context.get('company', -1)
+            result = []
+            for num in numbers:
+                if num.account is None or not num.account.active:
+                    continue
+                if ((company_id in [c.id for c in num.account.companies])
+                        and (company_id in [c.id
+                            for owner in num.account.owners
+                            for c in owner.companies])):
+                    result.append(num.account.id)
+            return result
+        else:
+            return [x.account.id for x in numbers
+                if x.account is not None and x.account.active]
 
     def get_allowed_bank_accounts(self, name=None):
         pool = Pool()
