@@ -2134,7 +2134,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     or (values['amount'] < 0 and values['diff'] > 0)):
                 raise AccessError(gettext('account_statement_enable_banking.'
                         'msg_find_same_related_to',
-                        related_to=related_to.rec_name))
+                        related_to=(related_to.rec_name
+                            if not isinstance(related_to, 'str')
+                            else related_to)))
 
         lines = StatementLine.search([
             ('related_to', 'in', relateds_to),

@@ -11,7 +11,6 @@ from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
 from trytond.i18n import gettext
 from trytond.exceptions import UserError
 from trytond.config import config
-from trytond.pyson import Eval
 from trytond.transaction import Transaction
 from .common import get_base_header, URL
 from trytond.report import Report
