@@ -1158,15 +1158,15 @@ class Origin(Workflow, metaclass=PoolMeta):
         where = ((similarity >= PARTY_SIMILARITY_THRESHOLD)
             & (party_table.active))
 
-        # If party_comapny module is installed, ensure that when try to search
+        # If party_company module is installed, ensure that when try to search
         # suggestions called by cron, user id 0, not search on parties not
-        # allowed ny the comapny.
+        # allowed in the company.
         if hasattr(Party, 'companies'):
             PartyCompany = pool.get('party.company.rel')
-            party_comapny_table = PartyCompany.__table__()
-            company_query = party_comapny_table.select(
-                party_comapny_table.party,
-                where=party_comapny_table.company == self.company.id)
+            party_company_table = PartyCompany.__table__()
+            company_query = party_company_table.select(
+                party_company_table.party,
+                where=party_company_table.company == self.company.id)
             where &= (party_table.id.in_(company_query))
 
         query = party_table.select(party_table.id, similarity, where=where)
