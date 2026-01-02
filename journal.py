@@ -29,6 +29,11 @@ DEFAULT_WEIGHTS = {
     'origin-similarity': 80,
     'origin-similarity-threshold': 50,
     'party-match': 20,
+    # 100.000 combinations takes between 0.02 and 0.1 seconds in a laptop
+    # 1.000.000 combinations takes between 0.2 and 1 seconds in a laptop
+    # Note that it will be computed up to 20 times, so multiply by 20 to get
+    # the total time
+    'target-combinations': 100_000,
     'type-combination-party': 105,
     'type-combination-all': 100,
     'type-payment-group': 130,
@@ -56,6 +61,7 @@ class JournalWeight(ModelSQL, ModelView):
             ('origin-similarity', 'Origin Similarity'),
             ('origin-similarity-threshold', 'Origin Similarity Threshold'),
             ('party-match', 'Party Match'),
+            ('target-combinations', 'Target Combinations'),
             ('type-combination-party', 'Type Combination Party'),
             ('type-combination-all', 'Type Combination All'),
             ('type-payment-group', 'Type Payment Group'),
