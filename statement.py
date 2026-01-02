@@ -206,6 +206,11 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def __setup__(cls):
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
         super().__setup__()
 
         new_domain = []
@@ -244,6 +249,10 @@ class Line(metaclass=PoolMeta):
             ('reconciliation', '=', None),
             ('invoice_payment', '=', None),
             ]
+        if Sale:
+            cls.related_to.domain['sale.sale'] = [
+                ('company', '=', Eval('company', -1)),
+                ]
         _readonly = ~Eval('statement_state', '').in_(['draft', 'registered'])
         cls.statement.states['readonly'] = _readonly
         cls.number.states['readonly'] = _readonly
@@ -269,7 +278,16 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def _get_relations(cls):
-        return super()._get_relations() + ['account.move.line']
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
+
+        res = super()._get_relations() + ['account.move.line']
+        if Sale:
+            res += ['sale.sale']
+        return res
 
     @classmethod
     def get_origin_states(cls):
@@ -1317,9 +1335,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     line.account = payment.line.account
                 else:
                     if payment.kind == 'payable':
-                        line.account = payment.party.payable_account
+                        line.account = payment.party.account_payable_used
                     else:
-                        line.account = payment.party.receivable_account
+                        line.account = payment.party.account_receivable_used
                 line.party = payment.party
                 line.date = payment.date
                 line.related_to = payment
@@ -1778,6 +1796,39 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         SuggestedLine.pack(suggestions)
 
+    def _suggest_sale(self):
+        try:
+            Sale = Pool().get('sale.sale')
+        except KeyError:
+            return
+        sales = Sale.search([
+                ('company', '=', self.company.id),
+                ('party', 'in', list(self.similar_parties().keys())[:5]),
+                ('state', 'in', ('quotation', 'confirmed', 'processing')),
+                ], order=[('sale_date', 'ASC')])
+        for sale in sales:
+            if sale.number in self.remittance_information:
+                # Ensure sale.number is not part of a larger numeric string
+                index = self.remittance_information.index(sale.number)
+                if (index > 0
+                        and self.remittance_information[index - 1].isdigit()):
+                    continue
+                index += len(sale.number)
+                if (index < len(self.remittance_information)
+                        and self.remittance_information[index].isdigit()):
+                    continue
+
+                suggested_line = Pool().get(
+                    'account.statement.origin.suggested.line')()
+                suggested_line.origin = self
+                suggested_line.type = 'sale'
+                suggested_line.related_to = sale
+                suggested_line.party = sale.party
+                suggested_line.account = sale.party.account_receivable_used
+                suggested_line.amount = min(self.pending_amount, sale.total_amount)
+                suggested_line.date = self.date
+                suggested_line.save()
+
     def merge_suggestions(self):
         SuggestedLine = Pool().get('account.statement.origin.suggested.line')
         SuggestedLine.merge_suggestions(self.suggested_lines_tree)
@@ -1854,6 +1905,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             origin._suggest_origin()
             origin._suggest_similar_parties()
             origin._suggest_combination_all()
+            origin._suggest_sale()
 
             ORIGIN_SIMILARITY = origin.statement.journal.get_weight(
                 'origin-similarity')
@@ -2057,13 +2109,20 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     @classmethod
     def find_same_related_origin(cls, origins):
-        StatementLine = Pool().get('account.statement.line')
-        SuggestedLine = Pool().get('account.statement.origin.suggested.line')
+        pool = Pool()
+        StatementLine = pool.get('account.statement.line')
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
 
         relateds_to = {}
         for origin in origins:
             for line in origin.lines:
                 if not line.related_to:
+                    continue
+                if Sale and isinstance(line.related_to, Sale):
                     continue
                 if line.related_to not in relateds_to:
                     if line.invoice:
@@ -2117,13 +2176,14 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
     type = fields.Selection([
             (None, ''),
+            ('balance', 'Balance'),
+            ('balance-invoice', 'Balance Invoices'),
             ('combination-party', 'Combine Parties'),
             ('combination-all', 'Combine All'),
             ('payment-group', 'Payment Group'),
             ('payment', 'Payment'),
             ('origin', 'Origin'),
-            ('balance', 'Balance'),
-            ('balance-invoice', 'Balance Invoices'),
+            ('sale', 'Sale'),
             ], 'Type', readonly=True, states={
             'required': ~Bool(Eval('parent')),
             'invisible': Bool(Eval('parent')),
@@ -2220,6 +2280,12 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
     @classmethod
     def __setup__(cls):
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
+
         super().__setup__()
         cls._order.insert(0, ('weight', 'DESC'))
         cls._order.insert(1, ('date', 'ASC'))
@@ -2239,6 +2305,12 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     'depends': ['state'],
                     },
                 })
+        if Sale:
+            cls.related_to.domain.setdefault('sale.sale', [])
+            cls.related_to.domain['sale.sale'] += [
+                ('company', '=', Eval('company', -1)),
+                ('currency', '=', Eval('currency', -1)),
+                ]
 
     @classmethod
     def __register__(cls, module_name):
@@ -2280,12 +2352,20 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
     @classmethod
     def _get_relations(cls):
-        "Return a list of Model names for related_to Reference"
-        return [
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
+        res = [
             'account.invoice',
             'account.payment',
             'account.payment.group',
-            'account.move.line']
+            'account.move.line',
+            ]
+        if Sale:
+            res.append('sale.sale')
+        return res
 
     @classmethod
     def get_relations(cls):
@@ -2345,6 +2425,7 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 'origin': journal.get_weight('type-origin'),
                 'balance': journal.get_weight('type-balance'),
                 'balance-invoice': journal.get_weight('type-balance-invoice'),
+                'sale': journal.get_weight('type-sale'),
                 }
             self.weight += TYPE_WEIGHTS[self.type]
 
