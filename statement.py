@@ -1256,7 +1256,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             # Discard all entries that have a similiarity below ~25% of the
             # maximum similarity. For cases where the maximum similarity is
             # small, allow a larger margin.
-            maximum = next(iter(parties.values()))
+            maximum = max(parties.values())
             minimal = maximum - max(maximum / 4, 10)
             # Discard all entries that have a similarity below minimal
             parties = {k: v for k, v in parties.items() if v >= minimal}
