@@ -1684,6 +1684,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 sorting='oldest')
 
     def _suggest_combination_all(self):
+        # This suggestion could be very time-consuming, so only execute it if
+        # the weight is non-zero
+        if not self.journal.get_weight('type-combination-all'):
+            return
         domain = self._search_move_line_reconciliation_domain()
         # Execute closest first because it can rank better
         self._suggest_combination(domain, 'combination-all', sorting='closest')
