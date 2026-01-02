@@ -1332,7 +1332,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             merge = [x for x in merge if x[1] >= minimal]
         return merge
 
-    def get_suggestion_from_payments(self, payments, group_key=(), type_=''):
+    def get_suggestions_from_payments(self, payments, group_key=(), type_=''):
         """
         Create one or more suggested registers based on the move_lines.
         If there are more than one move_line, it will be grouped under
@@ -1472,10 +1472,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('clearing_move', '!=', None),
                 ('amount', '=', self.pending_amount),
                 ]):
-            suggested_line = self.get_suggestion_from_payments([payment],
+            suggested_lines = self.get_suggestions_from_payments([payment],
                 group_key=(), type_='payment')
-            if suggested_line:
-                to_save.append(suggested_line)
+            if suggested_lines:
+                to_save += suggested_lines
 
         SuggestedLine.save(to_save)
 
@@ -1557,17 +1557,17 @@ class Origin(Workflow, metaclass=PoolMeta):
         if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
             payments = [
                 p for v in groups['groups'].values() for p in v['payments']]
-            suggested_line = self.get_suggestion_from_payments(payments,
+            suggested_lines = self.get_suggestions_from_payments(payments,
                 group_key=(), type_='payment-group')
-            if suggested_line:
-                to_save += suggested_line
+            if suggested_lines:
+                to_save += suggested_lines
         elif groups['amount'] != ZERO:
             for key, item in groups['groups'].items():
                 if item['amount'] == abs(amount):
-                    suggested_line = self.get_suggestion_from_payments(item['payments'],
+                    suggested_lines = self.get_suggestions_from_payments(item['payments'],
                         group_key=key, type_='payment-group')
-                    if suggested_line:
-                        to_save += suggested_line
+                    if suggested_lines:
+                        to_save += suggested_lines
 
         SuggestedLine.save(to_save)
 
