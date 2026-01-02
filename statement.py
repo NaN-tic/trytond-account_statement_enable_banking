@@ -2095,6 +2095,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         lines = StatementLine.search([
             ('related_to', 'in', relateds_to),
             ('origin', 'not in', origins),
+            ('origin.state', '!=', 'posted'),
             ('statement.state', '=', 'draft'),
             ])
         suggested_lines_to_delete = []
