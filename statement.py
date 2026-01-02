@@ -37,12 +37,6 @@ ZERO = Decimal(0)
 PRODUCTION = config.get('database', 'production', default=False)
 PARTY_SIMILARITY_THRESHOLD = config.get('enable_banking',
     'party_similarity_threshold', default=0.13)
-TARGET_COMBINATIONS = config.get('enable_banking', 'target_combinations',
-    default=1_000_000)
-# 1_000_000 combinations takes around 0.2 seconds in a laptop
-# 10_000_000 combinations takes around 1.5 seconds in a laptop
-# Note that it will be computed up to 20 times, so multiply by 20 to get the
-# total time
 
 @functools.cache
 def gaussian_score(x, mean, stddev):
@@ -52,12 +46,12 @@ def gaussian_score(x, mean, stddev):
     return math.exp(-((x - mean) ** 2) / (2.0 * (stddev ** 2)))
 
 @functools.cache
-def candidate_size(k, max_n=10000):
+def candidate_size(k, target_combinations, max_n=10000):
     low = k
     high = 1000000
     while low < high:
         mid = (low + high) // 2
-        if math.comb(mid, k) < TARGET_COMBINATIONS:
+        if math.comb(mid, k) < target_combinations:
             low = mid + 1
         else:
             high = mid
@@ -1640,6 +1634,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not lines:
             return
 
+        target_combinations = self.journal.get_weight('target-combinations')
+
         found = 0
         lines = tuple((x, to_int(x.debit - x.credit)) for x in lines)
         for length in range(1, min(MAX_LENGTH, len(lines)) + 1):
@@ -1648,7 +1644,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             if length == 1:
                 candidates = lines
             else:
-                l = candidate_size(length)
+                l = candidate_size(length, target_combinations)
                 candidates = lines[:l]
             for combination in combinations(candidates, length):
                 total_amount = sum(x[1] for x in combination)
