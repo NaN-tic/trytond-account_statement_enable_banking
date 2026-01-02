@@ -41,6 +41,7 @@ DEFAULT_WEIGHTS = {
     'type-origin': 100,
     'type-balance': 90,
     'type-balance-invoice': 90,
+    'type-sale': 102,
     }
 
 
@@ -69,6 +70,7 @@ class JournalWeight(ModelSQL, ModelView):
             ('type-origin', 'Type Origin'),
             ('type-balance', 'Type Balance'),
             ('type-balance-invoice', 'Type Balance Invoice'),
+            ('type-sale', 'Type Sale'),
             ], 'Type', required=True)
     weight = fields.Integer('Weight', required=True, domain=[
             ('weight', '>=', 0),
