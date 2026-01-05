@@ -2496,6 +2496,8 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 }
             self.weight += TYPE_WEIGHTS[self.type]
 
+        party_uniformity = journal.get_weight('party-uniformity')
+
         if self.childs:
             # TODO: If a suggestion has children, the larger the combination, the
             # lower the weight of the suggestion
@@ -2507,14 +2509,16 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
             # Add some weight if there are less than 3 different parties
             parties = {x.party for x in self.childs if x.party}
-            self.weight += max(3 - len(parties), 0)
+            if len(parties) <= 1:
+                self.weight += party_uniformity
+            elif len(parties) == 2:
+                self.weight += party_uniformity // 2
             return
 
         if not self.parent:
             # If there is no parent and no children, add some weight because the
             # number of parties is 1
-            self.weight += 2
-
+            self.weight += party_uniformity
 
         origin = self.origin
 
