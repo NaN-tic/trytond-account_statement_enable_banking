@@ -1346,6 +1346,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 to_save.append(line)
 
         suggested_line = SuggestedLine.pack(to_save)
+        suggested_line.save()
         return [suggested_line] if suggested_line else []
 
     def get_suggestion_from_move_line(self, line):
@@ -1386,7 +1387,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggested_line.based_on = based_on
             suggested_line.type = type_
             to_save.append(suggested_line)
-
         return SuggestedLine.pack(to_save)
 
     def _suggest_clearing_payment_group(self):
@@ -1589,6 +1589,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             return suggested_lines
 
         last_similarity = 0
+        to_save = []
         for origin, similarity in self.similar_origins():
             if similarity == last_similarity:
                 continue
@@ -1608,13 +1609,16 @@ class Origin(Workflow, metaclass=PoolMeta):
             if len(suggestions) == 1:
                 suggestions[0].amount = amount
 
-            SuggestedLine.pack(suggestions)
+            to_save.append(SuggestedLine.pack(suggestions))
+
+        SuggestedLine.save(to_save)
 
     def _suggest_combination(self, domain, type_, based_on=None,
             sorting='oldest'):
         pool = Pool()
         MoveLine = pool.get('account.move.line')
         Rule = pool.get('ir.rule')
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
         MAX_LENGTH = self.statement.journal.get_weight('move-line-max-count')
 
@@ -1654,7 +1658,7 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         target_combinations = self.journal.get_weight('target-combinations')
 
-        found = 0
+        suggestions = []
         lines = tuple((x, to_int(x.debit - x.credit)) for x in lines)
         for length in range(1, min(MAX_LENGTH, len(lines)) + 1):
             if length > len(lines):
@@ -1667,10 +1671,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             for combination in combinations(candidates, length):
                 total_amount = sum(x[1] for x in combination)
                 if abs(total_amount - amount) <= max_tolerance:
-                    self.get_suggestion_from_move_lines(
-                        [x[0] for x in combination], type_, based_on=based_on)
+                    suggestions.append(self.get_suggestion_from_move_lines(
+                        [x[0] for x in combination], type_, based_on=based_on))
 
-                    found += 1
                     if type_ == 'combination-party':
                         break
                     if self.escape():
@@ -1682,6 +1685,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             # it
             #if len(to_save) >= (MAX_LENGTH - length) / 5:
                 #return
+
+        SuggestedLine.save(suggestions)
 
     def _suggest_similar_parties(self):
         Party = Pool().get('party.party')
@@ -1794,7 +1799,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggestion.date = self.date
             suggestions.append(suggestion)
 
-        SuggestedLine.pack(suggestions)
+        suggestion = SuggestedLine.pack(suggestions)
+        suggestion.save()
 
     def _suggest_sale(self):
         try:
@@ -2523,7 +2529,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         if not suggestions:
             return
         if len(suggestions) == 1:
-            cls.save(suggestions)
             return suggestions[0]
 
         parent = cls()
@@ -2545,7 +2550,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
         parent.childs = suggestions
         parent.amount = amount
-        parent.save()
         return parent
 
     @classmethod
