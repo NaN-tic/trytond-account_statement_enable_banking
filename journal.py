@@ -29,6 +29,7 @@ DEFAULT_WEIGHTS = {
     'origin-similarity': 80,
     'origin-similarity-threshold': 50,
     'party-match': 20,
+    'max-suggestion-count': 10,
     # 100.000 combinations takes between 0.02 and 0.1 seconds in a laptop
     # 1.000.000 combinations takes between 0.2 and 1 seconds in a laptop
     # Note that it will be computed up to 20 times, so multiply by 20 to get
@@ -56,6 +57,7 @@ class JournalWeight(ModelSQL, ModelView):
             ('combination-escape-threshold', 'Combination Escape Threshold'),
             ('date-match', 'Date Match'),
             ('escape-threshold', 'Escape Threshold'),
+            ('max-suggestion-count', 'Max Suggestion Count'),
             ('move-line-max-count', 'Move Line Max Count'),
             ('number-match', 'Number Match'),
             ('origin-delta-days', 'Origin Delta Days'),
