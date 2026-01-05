@@ -2434,8 +2434,9 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     @classmethod
     def create(cls, vlist):
         suggestions = super().create(vlist)
-        for suggestion in suggestions:
-            suggestion.update_weight()
+        for suggestion, values in zip(suggestions, vlist):
+            if 'weight' not in values.keys():
+                suggestion.update_weight()
         cls.save(suggestions)
         return suggestions
 
