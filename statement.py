@@ -1667,6 +1667,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         # TODO: Make DECIMALS depend on the currency
         DECIMALS = 2
         POWER = 10 ** DECIMALS
+        MAX_SUGGESTIONS = 100
 
         # Converting all Decimal to int to improve performance
         # In several tests reduced the time by 30%
@@ -1719,6 +1720,11 @@ class Origin(Workflow, metaclass=PoolMeta):
                     if type_ == 'combination-party':
                         break
                     if self.escape():
+                        return
+                    if len(suggestions) >= MAX_SUGGESTIONS:
+                        # Even if we want to find all suggestions
+                        # so later they will be sorted by weight, we cannot
+                        # spend too much time and need to set a limit
                         return
             # If we already found some lines we want to quit. The
             # larger the number of combinations, the sooner we want to
