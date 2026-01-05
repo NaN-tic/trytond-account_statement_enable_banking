@@ -1685,11 +1685,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             return
 
         lines = MoveLine.search(domain)
-        if sorting == 'oldest':
-            lines = sorted(lines, key=lambda x: x.maturity_date or x.date)
-        else: # sorting == 'closest'
-            lines = sorted(lines, key=lambda x: abs(self.date -
-                    (x.maturity_date or x.date)))
+        if not lines:
+            return
+
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
             domain = Rule.domain_get(MoveLine.__name__, mode='read')
@@ -1698,6 +1696,12 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ])
         if not lines:
             return
+
+        if sorting == 'oldest':
+            lines = sorted(lines, key=lambda x: x.maturity_date or x.date)
+        else: # sorting == 'closest'
+            lines = sorted(lines, key=lambda x: abs(self.date -
+                    (x.maturity_date or x.date)))
 
         target_combinations = self.journal.get_weight('target-combinations')
 
