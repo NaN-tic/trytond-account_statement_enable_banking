@@ -1661,6 +1661,9 @@ class Origin(Workflow, metaclass=PoolMeta):
             lines = sorted(lines, key=lambda x: abs(self.date -
                     (x.maturity_date or x.date)))
 
+        # Rebrowse to prevent cache trashing
+        lines = MoveLine.browse([x.id for x in lines])
+
         target_combinations = self.journal.get_weight('target-combinations')
 
         suggestions = []
