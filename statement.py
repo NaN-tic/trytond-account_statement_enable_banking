@@ -1947,10 +1947,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         if to_use:
             SuggestedLine.use(to_use)
 
-        # Trim remaining suggestions to a max of the best 10
+        max_suggestions = origin.journal.get_weight('max-suggestion-count')
+        # Trim remaining suggestions to a max of the best <max_suggestions>
         origins_to_save = []
         for origin in origins:
-            if len(origin.suggested_lines_tree) <= 10:
+            if len(origin.suggested_lines_tree) <= max_suggestions:
                 continue
             parent_suggestions = SuggestedLine.search([
                     ('origin', '=', origin),
