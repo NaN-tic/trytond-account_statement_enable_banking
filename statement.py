@@ -1928,7 +1928,6 @@ class Origin(Workflow, metaclass=PoolMeta):
         if to_use:
             SuggestedLine.use(to_use)
 
-        return
         # Trim remaining suggestions to a max of the best 10
         origins_to_save = []
         for origin in origins:
