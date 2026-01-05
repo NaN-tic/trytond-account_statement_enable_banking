@@ -2436,9 +2436,19 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             # Also, if there are several children with different parties, the lower
             # the weight of the suggestion
 
-            # If the suggestion has childs, the weight is the sum of the childs
+            # If the suggestion has childs, the weight is the mean of the childs's weight
             self.weight += sum(child.weight for child in self.childs) / len(self.childs)
+
+            # Add some weight if there are less than 3 different parties
+            parties = {x.party for x in self.childs if x.party}
+            self.weight += max(3 - len(parties), 0)
             return
+
+        if not self.parent:
+            # If there is no parent and no children, add some weight because the
+            # number of parties is 1
+            self.weight += 2
+
 
         origin = self.origin
 
