@@ -12,8 +12,9 @@ from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
 from itertools import chain, combinations, groupby
-from sql.conditionals import Greatest
-from sql.functions import Function
+from sql import Literal
+from sql.conditionals import Coalesce, Greatest
+from sql.functions import Abs, Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Eval, Bool, If, PYSON, PYSONEncoder
@@ -1616,8 +1617,8 @@ class Origin(Workflow, metaclass=PoolMeta):
     def _suggest_combination(self, domain, type_, based_on=None,
             sorting='oldest'):
         pool = Pool()
+        Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
-        Rule = pool.get('ir.rule')
         SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
         MAX_LENGTH = self.statement.journal.get_weight('move-line-max-count')
@@ -1642,32 +1643,34 @@ class Origin(Workflow, metaclass=PoolMeta):
         if self.escape():
             return
 
-        lines = MoveLine.search(domain)
-        if not lines:
-            return
-
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
-            domain = Rule.domain_get(MoveLine.__name__, mode='read')
-        lines = MoveLine.search(domain + [
-                ('id', 'in', [x.id for x in lines]),
-                ])
-        if not lines:
-            return
+            subquery = MoveLine.search(domain, query=True)
+
+        move_line = MoveLine.__table__()
+        move = Move.__table__()
+        query = move_line.join(move,
+            condition=move_line.move == move.id)
+        query = query.select(
+            move_line.id,
+            move_line.debit - move_line.credit,
+            where=move_line.id.in_(subquery))
 
         if sorting == 'oldest':
-            lines = sorted(lines, key=lambda x: x.maturity_date or x.date)
+            query.order_by = [Coalesce(move_line.maturity_date, move.date).asc]
         else: # sorting == 'closest'
-            lines = sorted(lines, key=lambda x: abs(self.date -
-                    (x.maturity_date or x.date)))
+            query.order_by = [Abs(Literal(self.date) - Coalesce(move_line.maturity_date, move.date)).asc]
 
-        # Rebrowse to prevent cache trashing
-        lines = MoveLine.browse([x.id for x in lines])
+        cursor = Transaction().connection.cursor()
+        cursor.execute(*query)
+        lines = cursor.fetchall()
+        if not lines:
+            return
 
         target_combinations = self.journal.get_weight('target-combinations')
 
         suggestions = []
-        lines = tuple((x, to_int(x.debit - x.credit)) for x in lines)
+        lines = tuple((x[0], to_int(x[1])) for x in lines)
         for length in range(1, min(MAX_LENGTH, len(lines)) + 1):
             if length > len(lines):
                 break
@@ -1680,7 +1683,8 @@ class Origin(Workflow, metaclass=PoolMeta):
                 total_amount = sum(x[1] for x in combination)
                 if abs(total_amount - amount) <= max_tolerance:
                     suggestions.append(self.get_suggestion_from_move_lines(
-                        [x[0] for x in combination], type_, based_on=based_on))
+                        MoveLine.browse([x[0] for x in combination]), type_,
+                        based_on=based_on))
 
                     if type_ == 'combination-party':
                         break
