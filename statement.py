@@ -1083,7 +1083,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                         and not line.payment_group.journal.clearing_account):
                     movelines = line.get_payment_group_move_line()
                 else:
-                    movelines = [(line.get_move_line(), None)]
+                    move_line = line.get_move_line()
+                    if not move_line:
+                        continue
+                    movelines = [(move_line, None)]
 
                 for move_line, payment in movelines:
                     move_line.move = move
