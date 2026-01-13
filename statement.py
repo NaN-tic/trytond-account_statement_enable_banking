@@ -91,15 +91,42 @@ def compare_party(party_name, text):
         percent = max(length / len(name), percent)
     return int(round(percent * 100))
 
+def create_similarity():
+    conn = Transaction().connection
+    if backend.name == 'sqlite':
+        def trigram_similarity(a, b):
+            if a is None or b is None:
+                return None
+            a = str(a)
+            b = str(b)
+            if len(a) < 3 or len(b) < 3:
+                return 1.0 if a == b else 0.0
+
+            def trigrams(s):
+                return {s[i:i+3] for i in range(len(s) - 2)}
+
+            ta = trigrams(a)
+            tb = trigrams(b)
+            union = ta | tb
+            if not union:
+                return 0.0
+            return len(ta & tb) / len(union)
+        conn.create_function('similarity', 2, trigram_similarity)
+
 
 class Similarity(Function):
     __slots__ = ()
     _function = 'SIMILARITY'
 
 
-class JsonbExtractPathText(Function):
-    __slots__ = ()
-    _function = 'JSONB_EXTRACT_PATH_TEXT'
+if backend.name == 'postgresql':
+    class JsonExtract(Function):
+        __slots__ = ()
+        _function = 'JSONB_EXTRACT_PATH_TEXT'
+else:
+    class JsonExtract(Function):
+        __slots__ = ()
+        _function = 'JSON_EXTRACT'
 
 
 class Statement(metaclass=PoolMeta):
@@ -926,7 +953,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         operator = 'in' if value else 'not in'
 
         if backend.name == 'postgresql':
-            remittance_information_column = JsonbExtractPathText(
+            remittance_information_column = JsonExtract(
                     origin_table.information, 'remittance_information')
         else:
             remittance_information_column = origin_table.information
@@ -1170,6 +1197,7 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         database = Transaction().database
 
+        create_similarity()
         similarity = Similarity(database.unaccent(party_table.name),
             database.unaccent(text))
         if hasattr(Party, 'trade_name'):
@@ -1270,7 +1298,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         ORIGIN_DELTA_DAYS = self.statement.journal.get_weight(
             'origin-delta-days')
 
-        similarity_column = Similarity(database.unaccent(JsonbExtractPathText(
+        create_similarity()
+        similarity_column = Similarity(database.unaccent(JsonExtract(
                 origin_table.information, 'remittance_information')),
             database.unaccent(self.remittance_information))
         query = origin_table.join(line_table,
@@ -1833,27 +1862,30 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('state', 'in', ('quotation', 'confirmed', 'processing')),
                 ], order=[('sale_date', 'ASC')])
         for sale in sales:
-            if sale.number in self.remittance_information:
-                # Ensure sale.number is not part of a larger numeric string
-                index = self.remittance_information.index(sale.number)
-                if (index > 0
-                        and self.remittance_information[index - 1].isdigit()):
-                    continue
-                index += len(sale.number)
-                if (index < len(self.remittance_information)
-                        and self.remittance_information[index].isdigit()):
-                    continue
+            if sale.total_amount != self.pending_amount:
+                continue
+            if not sale.number in self.remittance_information:
+                continue
+            # Ensure sale.number is not part of a larger numeric string
+            index = self.remittance_information.index(sale.number)
+            if (index > 0
+                    and self.remittance_information[index - 1].isdigit()):
+                continue
+            index += len(sale.number)
+            if (index < len(self.remittance_information)
+                    and self.remittance_information[index].isdigit()):
+                continue
 
-                suggested_line = Pool().get(
-                    'account.statement.origin.suggested.line')()
-                suggested_line.origin = self
-                suggested_line.type = 'sale'
-                suggested_line.related_to = sale
-                suggested_line.party = sale.party
-                suggested_line.account = sale.party.account_receivable_used
-                suggested_line.amount = min(self.pending_amount, sale.total_amount)
-                suggested_line.date = self.date
-                suggested_line.save()
+            suggested_line = Pool().get(
+                'account.statement.origin.suggested.line')()
+            suggested_line.origin = self
+            suggested_line.type = 'sale'
+            suggested_line.related_to = sale
+            suggested_line.party = sale.party
+            suggested_line.account = sale.party.account_receivable_used
+            suggested_line.amount = min(self.pending_amount, sale.total_amount)
+            suggested_line.date = self.date
+            suggested_line.save()
 
     def merge_suggestions(self):
         SuggestedLine = Pool().get('account.statement.origin.suggested.line')
@@ -2438,6 +2470,10 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         Invoice = pool.get('account.invoice')
         MoveLine = pool.get('account.move.line')
         Payment = pool.get('account.payment')
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
 
         self.weight = 0
 
@@ -2539,6 +2575,19 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     number)
                 self.weight += int(round(NUMBER_WEIGHT * gaussian_score(length,
                             mean=len(number), stddev=len(number) / 4)))
+
+        # Update weight based on sale number
+        sale = None
+        if Sale and isinstance(self.related_to, Sale):
+            sale = self.related_to
+
+        if sale and sale.number:
+            SALE_NUMBER_WEIGHT = journal.get_weight('number-match')
+            length = longest_common_substring(origin.remittance_information,
+                sale.number)
+            self.weight += int(round(SALE_NUMBER_WEIGHT * gaussian_score(
+                length, mean=len(sale.number),
+                stddev=len(sale.number) / 4)))
 
         if self.based_on:
             BASED_ON_WEIGHT = journal.get_weight('based-on-match')
