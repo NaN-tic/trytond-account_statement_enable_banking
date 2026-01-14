@@ -35,6 +35,12 @@ class TestEnableBankingScenario(unittest.TestCase):
 
         _ = create_chart(company)
         accounts = get_accounts(company)
+        # add cash account by name (default account_code_digits 8; code 1.1.1000)
+        Account = Model.get('account.account')
+        account_cash, = Account.find([
+            ('name', '=', 'Cash and Cash Equivalents'),
+            ], limit=1)
+        accounts['cash'] = account_cash
 
         SequenceType = Model.get('ir.sequence.type')
         seq_type, = SequenceType.find([
