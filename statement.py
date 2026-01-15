@@ -1891,7 +1891,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             cls.save(origins_to_save)
 
     @classmethod
-    def _get_statement_line(cls, origin, related):
+    def _get_statement_line(cls, origin, related=None, party=None,
+            account=None, amount=None, description=None):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         Invoice = pool.get('account.invoice')
@@ -1899,48 +1900,53 @@ class Origin(Workflow, metaclass=PoolMeta):
         Currency = pool.get('currency.currency')
 
         maturity_date = None
-        if isinstance(related, Invoice):
-            with Transaction().set_context(with_payment=False):
-                invoice, = Invoice.browse([related])
-            sign = -1 if invoice.type == 'in' else 1
-            amount = sign * invoice.amount_to_pay
-            second_currency = invoice.currency
-            if origin.second_currency:
-                second_currency_date = invoice.currency_date or Date.today()
-                with Transaction().set_context(date=second_currency_date):
-                    amount_to_pay = Currency.compute(second_currency,
-                        invoice.amount_to_pay, origin.company.currency,
-                        round=True)
-                amount_second_currency = sign * amount_to_pay
-            else:
-                amount_second_currency = sign * invoice.amount_to_pay
-            lines_to_pay = [l for l in related.lines_to_pay
-                if l.maturity_date and l.reconciliation is None]
-            oldest_line = (min(lines_to_pay,
-                    key=lambda line: line.maturity_date)
-                if lines_to_pay else None)
-            if oldest_line:
-                maturity_date = oldest_line.maturity_date
-        else:
-            amount=related.amount
-            second_currency = related.second_currency
-            amount_second_currency = related.amount_second_currency
-            maturity_date = related.maturity_date
+        second_currency = None
+        amount_second_currency = None
+        if related:
+            party = related.party
+            account = related.account
+            if isinstance(related, Invoice):
+                with Transaction().set_context(with_payment=False):
+                    invoice, = Invoice.browse([related])
+                sign = -1 if invoice.type == 'in' else 1
+                amount = sign * invoice.amount_to_pay
+                second_currency = invoice.currency
+                if origin.second_currency:
+                    second_currency_date = invoice.currency_date or Date.today()
+                    with Transaction().set_context(date=second_currency_date):
+                        amount_to_pay = Currency.compute(second_currency,
+                            invoice.amount_to_pay, origin.company.currency,
+                            round=True)
+                    amount_second_currency = sign * amount_to_pay
+                else:
+                    amount_second_currency = sign * invoice.amount_to_pay
+                lines_to_pay = [l for l in related.lines_to_pay
+                    if l.maturity_date and l.reconciliation is None]
+                oldest_line = (min(lines_to_pay,
+                        key=lambda line: line.maturity_date)
+                    if lines_to_pay else None)
+                if oldest_line:
+                    maturity_date = oldest_line.maturity_date
+            if hasattr(related, 'maturity_date'):
+                maturity_date = related.maturity_date
+            if hasattr(related, 'second_currency'):
+                second_currency = related.second_currency
+                amount_second_currency = related.amount_second_currency
 
         line = StatementLine()
         line.origin = origin
         line.statement = origin.statement
         line.suggested_line = None
         line.related_to = related
-        line.party = related.party
-        line.account = related.account
+        line.party = party
+        line.account = account
         line.amount = amount
         if origin.second_currency:
-            line.second_currency = second_currency
-            line.amount_second_currency = amount_second_currency
+            line.second_currency = second_currency or origin.second_currency
+            line.amount_second_currency = amount_second_currency or origin.amount_second_currency
         line.date = origin.date
         line.maturity_date = maturity_date
-        line.description = origin.remittance_information
+        line.description = description or origin.remittance_information
         return line
 
     @classmethod
@@ -2571,7 +2577,9 @@ class AddMultipleInvoices(Wizard):
 
         lines = []
         for invoice in self.start.invoices:
-            line = StatementOrigin._get_statement_line(self.record, invoice)
+            line = StatementOrigin._get_statement_line(self.record,
+                    related=invoice,
+                    )
             lines.append(line)
         if lines:
             StatementLine.save(lines)
@@ -2625,7 +2633,9 @@ class AddMultipleMoveLines(Wizard):
 
         lines = []
         for move_line in self.start.move_lines:
-            line = StatementOrigin._get_statement_line(self.record, move_line)
+            line = StatementOrigin._get_statement_line(self.record,
+                    related=move_line,
+                    )
             lines.append(line)
         if lines:
             StatementLine.save(lines)
@@ -2797,7 +2807,9 @@ class LinkInvoice(Wizard):
         for origin in origins:
             suggestions_to_delete += list(origin.suggested_lines or [])
             lines_to_delete += list(origin.lines or [])
-            line = StatementOrigin._get_statement_line(origin, invoice)
+            line = StatementOrigin._get_statement_line(origin,
+                    related=invoice,
+                    )
             line.amount = origin.amount
             lines.append(line)
         StatementLine.delete(lines_to_delete)
@@ -3105,3 +3117,86 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
             ('id', 'in', journal_ids),
             ])
         return action, {}
+
+
+class OriginCreateStamentLineStart(ModelView):
+    'Create Statement Lines from origins Start View'
+    __name__ = 'account.statement.origin.create_line.start'
+
+    company = fields.Many2One('company.company', 'Company')
+    account = fields.Many2One('account.account', 'Account', required=True)
+    # analytic_accounts = fields.One2Many('analytic.account.entry', None, 'Analytic Accounts')
+    description = fields.Text('Description')
+    party = fields.Many2One('party.party', 'Party',
+        states={
+            'required': Eval('party_required', False),
+            'invisible': ~Eval('party_required', False),
+            })
+    party_required = fields.Function(
+        fields.Boolean("Party Required"), 'on_change_with_party_required')
+    post_origin = fields.Boolean("Post Origins")
+
+    @classmethod
+    def __setup__(cls):
+        StatementLine = Pool().get('account.statement.line')
+        super().__setup__()
+        cls.account.domain = StatementLine.account.domain
+
+    @fields.depends('account')
+    def on_change_with_party_required(self, name=None):
+        if self.account:
+            return self.account.party_required
+        return False
+
+
+class OriginCreateStamentLine(Wizard):
+    'Create Statement Lines from origins'
+    __name__ = 'account.statement.origin.create_line'
+
+    start = StateView(
+        'account.statement.origin.create_line.start',
+        'account_statement_enable_banking.create_line_start_view_form', [
+            Button('Cancel', 'end', 'tryton-cancel'),
+            Button('OK', 'create_lines', 'tryton-ok', True),
+            ])
+
+    create_lines = StateTransition()
+
+    def default_start(self, fields):
+        return {
+            'company': self.record.company.id,
+            }
+
+    def transition_create_lines(self):
+        pool = Pool()
+        StatementOrigin = pool.get('account.statement.origin')
+        StatementLine = pool.get('account.statement.line')
+
+        lines = []
+        for origin in self.records:
+            if origin.state != 'registered':
+                continue
+
+            line = StatementOrigin._get_statement_line(self.record,
+                    party=self.start.party or None,
+                    account=self.start.account,
+                    amount=origin.amount,
+                    description=self.start.description,
+                    )
+            # support analytic accounts
+            if hasattr(self.start, 'analytic_accounts'):
+                line.analytic_accounts = [
+                    {
+                        'account': acc.account,
+                        'root': acc.root,
+                    }
+                    for acc in self.start.analytic_accounts
+                    ]
+            lines.append(line)
+
+        StatementLine.save(lines)
+
+        if self.start.post_origin:
+            StatementOrigin.post(self.records)
+
+        return 'end'
