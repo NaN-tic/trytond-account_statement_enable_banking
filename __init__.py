@@ -36,6 +36,7 @@ def register():
         statement.RetrieveEnableBankingSessionSelect,
         statement.OriginSynchronizeStatementEnableBankingAsk,
         statement.LinkInvoiceStart,
+        statement.OriginCreateStamentLineStart,
         module='account_statement_enable_banking', type_='model')
     Pool.register(
         statement.AddMultipleInvoices,
@@ -43,6 +44,7 @@ def register():
         statement.RetrieveEnableBankingSession,
         statement.OriginSynchronizeStatementEnableBanking,
         statement.LinkInvoice,
+        statement.OriginCreateStamentLine,
         module='account_statement_enable_banking', type_='wizard')
     Pool.register(
         enable_banking.EnableBankingSessionOK,
@@ -61,6 +63,7 @@ def register():
         statement_analytic.Origin,
         statement_analytic.OriginSuggestedLine,
         statement_analytic.AnalyticAccountEntry,
+        statement_analytic.AnalyticAccountOriginCreateStamentLineStart,
         depends=['analytic_account'],
         module='account_statement_enable_banking', type_='model')
     Pool.register(

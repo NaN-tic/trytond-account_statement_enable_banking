@@ -153,3 +153,10 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
             (('origin.company',) + tuple(clause[1:]) +
                 ('account.statement.origin.suggested.line',)),
             ]
+
+
+class AnalyticAccountOriginCreateStamentLineStart(metaclass=PoolMeta):
+    __name__ = 'account.statement.origin.create_line.start'
+
+    analytic_accounts = fields.One2Many(
+        'analytic.account.entry', None, 'Analytic Accounts')
