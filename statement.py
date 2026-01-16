@@ -1226,7 +1226,7 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
-            domain = Rule.domain_get(Party.__name__, mode='read')
+            domain = list(Rule.domain_get(Party.__name__, mode='read') or [])
         parties = Party.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
@@ -1319,7 +1319,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         records = cursor.fetchall()
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
-            domain = Rule.domain_get(Origin.__name__, mode='read')
+            domain = list(Rule.domain_get(Origin.__name__, mode='read') or [])
         origins = Origin.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
