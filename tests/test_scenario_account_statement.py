@@ -176,14 +176,12 @@ class Test(unittest.TestCase):
         with self.assertRaises(StatementValidateError):
             statement.click('validate_statement')
 
-
         statement_line = StatementLine()
         statement.lines.append(statement_line)
         statement_line.description = 'description2'
         statement_line.date = today
         statement_line.amount = Decimal('30')
         statement_line.party = customer
-
 
         # Cancel statement
         statement.click('cancel')
