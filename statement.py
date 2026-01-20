@@ -281,7 +281,7 @@ class Line(metaclass=PoolMeta):
     def get_origin_states(cls):
         pool = Pool()
         Origin = pool.get('account.statement.origin')
-        return Origin.fields_get(['state'])['state']['selection']
+        return [(None, '')] + Origin.fields_get(['state'])['state']['selection']
 
     @fields.depends('origin', '_parent_origin.state')
     def on_change_with_origin_state(self, name=None):
