@@ -3177,7 +3177,7 @@ class OriginCreateStamentLine(Wizard):
             if origin.state != 'registered':
                 continue
 
-            line = StatementOrigin._get_statement_line(self.record,
+            line = StatementOrigin._get_statement_line(origin,
                     party=self.start.party or None,
                     account=self.start.account,
                     amount=origin.amount,
