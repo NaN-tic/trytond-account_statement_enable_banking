@@ -169,7 +169,7 @@ class Journal(metaclass=PoolMeta):
         'be substracted from today.')
     weights = fields.One2Many('account.statement.journal.weight', 'journal',
         'Weights')
-    _get_weight_cache = Cache('account_statement_journal.get_weight')
+    _get_weight_cache = Cache('account.statement.journal.get_weight')
 
     @classmethod
     def __setup__(cls):
