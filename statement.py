@@ -240,7 +240,6 @@ class Line(metaclass=PoolMeta):
         except KeyError:
             Sale = None
         super().__setup__()
-
         new_domain = []
         for domain in cls.related_to.domain['account.invoice']:
             if isinstance(domain, PYSON):
@@ -287,7 +286,9 @@ class Line(metaclass=PoolMeta):
         cls.date.states['readonly'] = _readonly | Bool(Eval('origin', 0))
         cls.amount.states['readonly'] = _readonly
         cls.amount_second_currency.states['readonly'] = _readonly
+        cls.amount_second_currency.states['required'] = False
         cls.second_currency.states['readonly'] = _readonly
+        cls.second_currency.states['required'] = False
         cls.party.states['readonly'] = _readonly
         cls.party.states['required'] = (Eval('party_required', False)
             & (Eval('statement_state').in_(['draft', 'registered']))
@@ -334,14 +335,6 @@ class Line(metaclass=PoolMeta):
             return None
         if self.origin and self.origin.second_currency:
             return self.origin.second_currency
-
-    @fields.depends('origin', 'related_to',
-        '_parent_origin.amount_second_currency')
-    def on_change_with_amount_second_currency(self, name=None):
-        if not self.related_to:
-            return None
-        if self.origin and self.origin.amount_second_currency:
-            return self.origin.amount_second_currency
 
     @fields.depends(methods=['payment_group'])
     def on_change_with_account_required(self, name=None):
@@ -398,21 +391,12 @@ class Line(metaclass=PoolMeta):
                 amount_to_pay = sign * (invoice.total_amount
                     if self.show_paid_invoices and invoice.state == 'paid'
                     else invoice.amount_to_pay)
+            elif hasattr(invoice, 'company_amount_to_pay'):
+                amount_to_pay = sign * (invoice.company_total_amount
+                    if self.show_paid_invoices and invoice.state == 'paid'
+                    else invoice.company_amount_to_pay)
             else:
-                amount = ZERO
-                if invoice.state == 'posted':
-                    for line in (invoice.lines_to_pay
-                            + invoice.payment_lines):
-                        if line.reconciliation:
-                            continue
-                        amount += line.debit - line.credit
-                else:
-                    # If we are in the case that need control a refund invoice,
-                    # need to get the total amount of the invoice.
-                    amount = (sign * invoice.total_amount
-                        if self.show_paid_invoices and invoice.state == 'paid'
-                        else ZERO)
-                amount_to_pay = amount
+                amount_to_pay = ZERO
         if self.show_paid_invoices and amount_to_pay:
             amount_to_pay = -1 * amount_to_pay
         return amount_to_pay
@@ -484,7 +468,9 @@ class Line(metaclass=PoolMeta):
                     or self.move_line.move_description_used)
             self.account = self.move_line.account
             self.maturity_date = self.move_line.maturity_date
+            self.amount_second_currency = self.move_line.amount_second_currency
         if self.invoice:
+            sign = -1 if self.invoice.type == 'in' else 1
             lines_to_pay = [l for l in self.invoice.lines_to_pay
                 if l.maturity_date and l.reconciliation is None]
             oldest_line = (min(lines_to_pay,
@@ -492,6 +478,7 @@ class Line(metaclass=PoolMeta):
                 if lines_to_pay else None)
             if oldest_line:
                 self.maturity_date = oldest_line.maturity_date
+            self.amount_second_currency = sign * self.invoice.amount_to_pay
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
@@ -833,7 +820,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.date.states['readonly'] = _sync_readonly
         cls.amount.states['readonly'] = _sync_readonly
         cls.amount_second_currency.states['readonly'] = _state_readonly
+        cls.amount_second_currency.states['required'] = False
         cls.second_currency.states['readonly'] = _state_readonly
+        cls.second_currency.states['required'] = False
         cls.party.states['readonly'] = _state_readonly
         cls.account.states['readonly'] = _state_readonly
         cls.description.states['readonly'] = _state_readonly
