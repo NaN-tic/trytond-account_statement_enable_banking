@@ -12,10 +12,9 @@
     <field name="amount"/>
     <label name="pending_amount"/>
     <field name="pending_amount"/>
-    <label name="amount_second_currency"/>
-    <field name="amount_second_currency"/>
     <label name="second_currency"/>
     <field name="second_currency"/>
+    <newline/>
 
     <label name="description"/>
     <field name="description" colspan="4"/>
