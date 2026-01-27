@@ -2000,10 +2000,17 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         Invoice = pool.get('account.invoice')
+        MoveLine = pool.get('account.move.line')
         Date = pool.get('ir.date')
         Currency = pool.get('currency.currency')
 
-        maturity_date = None
+        if not origin or not related:
+            return None
+
+        amount = related.amount
+        second_currency = related.second_currency
+        amount_second_currency = related.amount_second_currency
+        maturity_date = related.maturity_date
         if isinstance(related, Invoice):
             with Transaction().set_context(with_payment=False):
                 invoice, = Invoice.browse([related])
@@ -2026,8 +2033,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 if lines_to_pay else None)
             if oldest_line:
                 maturity_date = oldest_line.maturity_date
-        else:
-            amount=related.amount
+        elif isinstance(related, MoveLine):
+            if (related.second_currency
+                    and related.second_currency != related.currency):
+                amount = related.debit - related.credit
             second_currency = related.second_currency
             amount_second_currency = related.amount_second_currency
             maturity_date = related.maturity_date
