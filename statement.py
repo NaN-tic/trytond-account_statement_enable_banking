@@ -2049,10 +2049,13 @@ class Origin(Workflow, metaclass=PoolMeta):
         if not origin or not related:
             return None
 
-        amount = related.amount
-        second_currency = related.second_currency
-        amount_second_currency = related.amount_second_currency
-        maturity_date = related.maturity_date
+        amount = related.amount if hasattr(related, 'amount') else Decimal(0)
+        second_currency = (related.second_currency
+            if hasattr(related, 'second_currency') else None)
+        amount_second_currency = (related.amount_second_currency
+            if hasattr(related, 'amount_second_currency') else Decimal(0))
+        maturity_date = (related.maturity_date
+            if hasattr(related, 'maturity_date') else None)
         if isinstance(related, Invoice):
             with Transaction().set_context(with_payment=False):
                 invoice, = Invoice.browse([related])
