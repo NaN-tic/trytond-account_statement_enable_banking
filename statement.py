@@ -2018,16 +2018,20 @@ class Origin(Workflow, metaclass=PoolMeta):
             with Transaction().set_context(with_payment=False):
                 invoice, = Invoice.browse([related])
             sign = -1 if invoice.type == 'in' else 1
-            amount = sign * invoice.amount_to_pay
             second_currency = invoice.currency
             if origin.second_currency:
-                second_currency_date = invoice.currency_date or Date.today()
-                with Transaction().set_context(date=second_currency_date):
-                    amount_to_pay = Currency.compute(second_currency,
-                        invoice.amount_to_pay, origin.company.currency,
-                        round=True)
-                amount_second_currency = sign * amount_to_pay
+                if hasattr(invoice, 'company_amount_to_pay'):
+                    amount_to_pay = invoice.company_amount_to_pay
+                else:
+                    second_currency_date = invoice.currency_date or Date.today()
+                    with Transaction().set_context(date=second_currency_date):
+                        amount_to_pay = Currency.compute(second_currency,
+                            invoice.amount_to_pay, origin.company.currency,
+                            round=True)
+                amount_second_currency = sign * invoice.amount_to_pay
+                amount = sign * amount_to_pay
             else:
+                amount = sign * invoice.amount_to_pay
                 amount_second_currency = sign * invoice.amount_to_pay
             lines_to_pay = [l for l in related.lines_to_pay
                 if l.maturity_date and l.reconciliation is None]
