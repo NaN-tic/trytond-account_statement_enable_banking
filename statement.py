@@ -1107,7 +1107,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 for move_line, payment in movelines:
                     move_line.move = move
                     amount += move_line.debit - move_line.credit
-                    if line.amount_second_currency:
+                    if move_line.amount_second_currency:
                         amount_second_currency += (
                             move_line.amount_second_currency)
                     move_lines.append((move_line, line, payment))
