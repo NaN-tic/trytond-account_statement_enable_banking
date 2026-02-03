@@ -217,7 +217,7 @@ class Statement(metaclass=PoolMeta):
 
         if mode == 'delete':
             for statement in statements:
-                if statements.state in {'validated', 'posted'}:
+                if statement.state in {'validated', 'posted'}:
                     raise AccessError(gettext(
                             'account_statement.'
                             'msg_statement_delete_cancel',
