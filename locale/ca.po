@@ -581,6 +581,12 @@ msgctxt ""
 msgid "Reference Number"
 msgstr "Número de referència"
 
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_reference_number_schema"
+msgid "Reference Number Schema"
+msgstr "Esquema de números de referència"
+
 msgctxt ""
 "model:account.statement.origin.information,string:eb_remittance_information"
 msgid "Remittance Information"
