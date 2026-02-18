@@ -1,17 +1,6 @@
 #
-# SPDX-FileCopyrightText: 2026 albert
 msgid ""
-msgstr ""
-"Content-Type: text/plain; charset=UTF-8\n"
-"Last-Translator: albert\n"
-"PO-Revision-Date: 2026-01-05 18:55+0100\n"
-"Project-Id-Version: \n"
-"Language-Team: Catalan <>\n"
-"Language: ca_ES\n"
-"Content-Transfer-Encoding: 8bit\n"
-"MIME-Version: 1.0\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Lokalize 25.04.0\n"
+msgstr "Content-Type: text/plain; charset=utf-8\n"
 
 msgctxt "field:account.invoice,paid_directly:"
 msgid "Has Payed directly"
@@ -601,6 +590,11 @@ msgstr "Nota"
 msgctxt "model:account.statement.origin.information,string:eb_reference_number"
 msgid "Reference Number"
 msgstr "Número de referencia"
+
+msgctxt ""
+"model:account.statement.origin.information,string:eb_reference_number_schema"
+msgid "Reference Number Schema"
+msgstr "Esquema de número de referencia"
 
 msgctxt ""
 "model:account.statement.origin.information,string:eb_remittance_information"
