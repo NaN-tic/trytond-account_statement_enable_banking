@@ -3180,7 +3180,7 @@ class OriginCreateStamentLine(Wizard):
             line = StatementOrigin._get_statement_line(origin,
                     party=self.start.party or None,
                     account=self.start.account,
-                    amount=origin.amount,
+                    amount=origin.pending_amount,
                     description=self.start.description,
                     )
             # support analytic accounts
