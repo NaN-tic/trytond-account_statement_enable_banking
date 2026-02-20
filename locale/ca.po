@@ -147,6 +147,34 @@ msgctxt "field:account.statement.origin,synchronized:"
 msgid "Synchronized"
 msgstr "Sincronitzat"
 
+msgctxt "field:account.statement.origin.create_line.start,account:"
+msgid "Account"
+msgstr "Compte"
+
+msgctxt "field:account.statement.origin.create_line.start,analytic_accounts:"
+msgid "Analytic Accounts"
+msgstr "Comptes analítics"
+
+msgctxt "field:account.statement.origin.create_line.start,company:"
+msgid "Company"
+msgstr "Companyia"
+
+msgctxt "field:account.statement.origin.create_line.start,description:"
+msgid "Description"
+msgstr "Descripció"
+
+msgctxt "field:account.statement.origin.create_line.start,party:"
+msgid "Party"
+msgstr "Tercer"
+
+msgctxt "field:account.statement.origin.create_line.start,party_required:"
+msgid "Party Required"
+msgstr "Tercer requerit"
+
+msgctxt "field:account.statement.origin.create_line.start,post_origin:"
+msgid "Post Origins"
+msgstr "Comptabilitza orígens"
+
 msgctxt "field:account.statement.origin.multiple.invoices.start,amount:"
 msgid "Amount"
 msgstr "Import"
@@ -441,6 +469,10 @@ msgctxt "model:account.statement.journal.weight,name:"
 msgid "Journal Weight"
 msgstr "Pes Diari"
 
+msgctxt "model:account.statement.origin.create_line.start,name:"
+msgid "Create Statement Lines from origins Start View"
+msgstr "Inici Crear Línies d'Origen"
+
 msgctxt ""
 "model:account.statement.origin.information,string:eb_balance_after_transaction"
 msgid "Balance After Transaction"
@@ -678,6 +710,10 @@ msgstr "Orígens de l'extracte"
 msgctxt "model:ir.action,name:act_statement_origin_form"
 msgid "Statement Origins"
 msgstr "Origens d'extracte"
+
+msgctxt "model:ir.action,name:create_line"
+msgid "Create Lines"
+msgstr "Crea línies"
 
 msgctxt "model:ir.action,name:report_session_ko"
 msgid "Enable Banking Session KO"
@@ -1227,6 +1263,15 @@ msgstr "Banc"
 msgctxt "view:enable_banking.session:"
 msgid "Session"
 msgstr "Sessió"
+
+msgctxt ""
+"wizard_button:account.statement.origin.create_line,start,create_lines:"
+msgid "OK"
+msgstr "D'acord"
+
+msgctxt "wizard_button:account.statement.origin.create_line,start,end:"
+msgid "Cancel"
+msgstr "Cancel·lar"
 
 msgctxt ""
 "wizard_button:account.statement.origin.multiple.invoices,start,create_lines:"
