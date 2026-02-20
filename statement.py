@@ -1870,11 +1870,11 @@ class Origin(Workflow, metaclass=PoolMeta):
         if to_use:
             SuggestedLine.use(to_use)
 
-        return
-        # Trim remaining suggestions to a max of the best 10
+        max_suggestions = origin.journal.get_weight('max-suggestion-count')
+        # Trim remaining suggestions to a max of the best <max_suggestions>
         origins_to_save = []
         for origin in origins:
-            if len(origin.suggested_lines_tree) <= 10:
+            if len(origin.suggested_lines_tree) <= max_suggestions:
                 continue
             parent_suggestions = SuggestedLine.search([
                     ('origin', '=', origin),
@@ -1896,29 +1896,46 @@ class Origin(Workflow, metaclass=PoolMeta):
         pool = Pool()
         StatementLine = pool.get('account.statement.line')
         Invoice = pool.get('account.invoice')
+        MoveLine = pool.get('account.move.line')
         Date = pool.get('ir.date')
         Currency = pool.get('currency.currency')
+
+        if not origin:
+            return None
+
+        related_party = related.party if related else None
+        related_account = related.account if related else None
 
         maturity_date = None
         second_currency = None
         amount_second_currency = None
         if related:
-            party = related.party
-            account = related.account
+            amount = (related.amount if hasattr(related, 'amount')
+                else Decimal(0))
+            second_currency = (related.second_currency
+                if hasattr(related, 'second_currency') else None)
+            amount_second_currency = (related.amount_second_currency
+                if hasattr(related, 'amount_second_currency') else Decimal(0))
+            maturity_date = (related.maturity_date
+                if hasattr(related, 'maturity_date') else None)
             if isinstance(related, Invoice):
                 with Transaction().set_context(with_payment=False):
                     invoice, = Invoice.browse([related])
                 sign = -1 if invoice.type == 'in' else 1
-                amount = sign * invoice.amount_to_pay
                 second_currency = invoice.currency
                 if origin.second_currency:
-                    second_currency_date = invoice.currency_date or Date.today()
-                    with Transaction().set_context(date=second_currency_date):
-                        amount_to_pay = Currency.compute(second_currency,
-                            invoice.amount_to_pay, origin.company.currency,
-                            round=True)
-                    amount_second_currency = sign * amount_to_pay
+                    if hasattr(invoice, 'company_amount_to_pay'):
+                        amount_to_pay = invoice.company_amount_to_pay
+                    else:
+                        second_currency_date = invoice.currency_date or Date.today()
+                        with Transaction().set_context(date=second_currency_date):
+                            amount_to_pay = Currency.compute(second_currency,
+                                invoice.amount_to_pay, origin.company.currency,
+                                round=True)
+                    amount_second_currency = sign * invoice.amount_to_pay
+                    amount = sign * amount_to_pay
                 else:
+                    amount = sign * invoice.amount_to_pay
                     amount_second_currency = sign * invoice.amount_to_pay
                 lines_to_pay = [l for l in related.lines_to_pay
                     if l.maturity_date and l.reconciliation is None]
@@ -1927,11 +1944,22 @@ class Origin(Workflow, metaclass=PoolMeta):
                     if lines_to_pay else None)
                 if oldest_line:
                     maturity_date = oldest_line.maturity_date
-            if hasattr(related, 'maturity_date'):
-                maturity_date = related.maturity_date
-            if hasattr(related, 'second_currency'):
+            elif isinstance(related, MoveLine):
+                if (related.second_currency
+                        and related.second_currency != related.currency):
+                    amount = related.debit - related.credit
                 second_currency = related.second_currency
                 amount_second_currency = related.amount_second_currency
+                maturity_date = related.maturity_date
+
+        if not related and origin.second_currency:
+            second_currency = origin.second_currency
+            amount_second_currency = origin.amount_second_currency
+
+        if party is None:
+            party = related_party
+        if account is None:
+            account = related_account
 
         line = StatementLine()
         line.origin = origin
@@ -1942,8 +1970,14 @@ class Origin(Workflow, metaclass=PoolMeta):
         line.account = account
         line.amount = amount
         if origin.second_currency:
-            line.second_currency = second_currency or origin.second_currency
-            line.amount_second_currency = amount_second_currency or origin.amount_second_currency
+            if related:
+                line.second_currency = second_currency
+                line.amount_second_currency = amount_second_currency
+            else:
+                line.second_currency = second_currency or origin.second_currency
+                line.amount_second_currency = (
+                    amount_second_currency if amount_second_currency is not None
+                    else origin.amount_second_currency)
         line.date = origin.date
         line.maturity_date = maturity_date
         line.description = description or origin.remittance_information
