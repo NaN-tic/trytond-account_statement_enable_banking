@@ -1,11 +1,11 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
-import functools
 import json
 import requests
 from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime, timedelta
+from trytond.cache import Cache
 from trytond.config import config
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelSQL, ModelView, fields, Unique
@@ -29,6 +29,13 @@ DEFAULT_WEIGHTS = {
     'origin-similarity': 80,
     'origin-similarity-threshold': 50,
     'party-match': 20,
+    'party-uniformity': 10,
+    'max-suggestion-count': 10,
+    # 100.000 combinations takes between 0.02 and 0.1 seconds in a laptop
+    # 1.000.000 combinations takes between 0.2 and 1 seconds in a laptop
+    # Note that it will be computed up to 20 times, so multiply by 20 to get
+    # the total time
+    'target-combinations': 100_000,
     'type-combination-party': 105,
     'type-combination-all': 100,
     'type-payment-group': 130,
@@ -36,6 +43,7 @@ DEFAULT_WEIGHTS = {
     'type-origin': 100,
     'type-balance': 90,
     'type-balance-invoice': 90,
+    'type-sale': 102,
     }
 
 
@@ -50,12 +58,15 @@ class JournalWeight(ModelSQL, ModelView):
             ('combination-escape-threshold', 'Combination Escape Threshold'),
             ('date-match', 'Date Match'),
             ('escape-threshold', 'Escape Threshold'),
+            ('max-suggestion-count', 'Max Suggestion Count'),
             ('move-line-max-count', 'Move Line Max Count'),
             ('number-match', 'Number Match'),
             ('origin-delta-days', 'Origin Delta Days'),
             ('origin-similarity', 'Origin Similarity'),
             ('origin-similarity-threshold', 'Origin Similarity Threshold'),
             ('party-match', 'Party Match'),
+            ('party-uniformity', 'Party Uniformity'),
+            ('target-combinations', 'Target Combinations'),
             ('type-combination-party', 'Type Combination Party'),
             ('type-combination-all', 'Type Combination All'),
             ('type-payment-group', 'Type Payment Group'),
@@ -63,6 +74,7 @@ class JournalWeight(ModelSQL, ModelView):
             ('type-origin', 'Type Origin'),
             ('type-balance', 'Type Balance'),
             ('type-balance-invoice', 'Type Balance Invoice'),
+            ('type-sale', 'Type Sale'),
             ], 'Type', required=True)
     weight = fields.Integer('Weight', required=True, domain=[
             ('weight', '>=', 0),
@@ -83,6 +95,25 @@ class JournalWeight(ModelSQL, ModelView):
         if not self.type:
             return
         self.weight = DEFAULT_WEIGHTS.get(self.type)
+
+
+    @classmethod
+    def create(cls, vlist):
+        Journal = Pool().get('account.statement.journal')
+        Journal._get_weight_cache.clear()
+        return super().create(vlist)
+
+    @classmethod
+    def write(cls, *args):
+        Journal = Pool().get('account.statement.journal')
+        Journal._get_weight_cache.clear()
+        super().write(*args)
+
+    @classmethod
+    def delete(cls, records):
+        Journal = Pool().get('account.statement.journal')
+        Journal._get_weight_cache.clear()
+        return super().delete(records)
 
 
 class Journal(metaclass=PoolMeta):
@@ -138,6 +169,7 @@ class Journal(metaclass=PoolMeta):
         'be substracted from today.')
     weights = fields.One2Many('account.statement.journal.weight', 'journal',
         'Weights')
+    _get_weight_cache = Cache('account.statement.journal.get_weight')
 
     @classmethod
     def __setup__(cls):
@@ -205,13 +237,21 @@ class Journal(metaclass=PoolMeta):
             origin.number = self.account_statement_origin_sequence.get()
         StatementOrigin.save(origins)
 
-    @functools.cache
     def get_weight(self, type):
+        key = (self.id, type)
+        weight = self._get_weight_cache.get(key)
+        if weight is not None:
+            return weight
         assert type in DEFAULT_WEIGHTS, "Type '%s' not valid" % type
+        value = None
         for weight in self.weights:
             if weight.type == type:
-                return weight.weight
-        return DEFAULT_WEIGHTS.get(type)
+                value = weight.weight
+                break
+        else:
+            value = DEFAULT_WEIGHTS.get(type)
+        self._get_weight_cache.set(key, value)
+        return value
 
     def _keys_not_needed(self):
         # Main keys

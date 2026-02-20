@@ -1,8 +1,9 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import cryptography
-import requests
 import json
+import requests
+from requests.exceptions import ConnectionError
 from datetime import datetime
 from cryptography.fernet import Fernet
 
@@ -53,8 +54,15 @@ class EnableBankingConfiguration(ModelSingleton, ModelSQL, ModelView):
     @ModelView.button
     def test_connection(cls, aspsps):
         base_headers = get_base_header()
-        r = requests.get(f"{URL}/application",
-            headers=base_headers)
+
+        try:
+            r = requests.get(f"{URL}/application",
+                headers=base_headers)
+        except ConnectionError as e:
+            raise UserError(gettext(
+                'account_statement_enable_banking.msg_connection_test_error',
+                error_message=str(e)))
+
         if r.status_code == 200:
             raise UserError(gettext(
                 'account_statement_enable_banking.msg_connection_test_ok'))
@@ -158,21 +166,33 @@ class EnableBankingSession(ModelSQL, ModelView):
     def _get_bank_accounts(cls, enable_banking_session):
         pool = Pool()
         BankNumber = pool.get('bank.account.number')
+        BankAccount = pool.get('bank.account')
 
         if not enable_banking_session.session:
             return []
         session = json.loads(enable_banking_session.session)
         accounts = session.get('accounts') if session else {}
         iban_numbers = [x.get('account_id', {}).get('iban') for x in accounts]
-        numbers = BankNumber.search([
-                ('type', '=', 'iban'),
-                ['OR',
-                    ('number', 'in', iban_numbers),
-                    ('number_compact', 'in', iban_numbers),
-                    ],
-                ])
-        return [x.account.id for x in numbers
-            if x.account is not None and x.account.active]
+        domain = [
+            ('type', '=', 'iban'),
+            ('number_compact', 'in', iban_numbers),
+            ]
+        numbers = BankNumber.search(domain)
+        if hasattr(BankAccount, 'companies'):
+            company_id = Transaction().context.get('company', -1)
+            result = []
+            for num in numbers:
+                if num.account is None or not num.account.active:
+                    continue
+                if ((company_id in [c.id for c in num.account.companies])
+                        and (company_id in [c.id
+                            for owner in num.account.owners
+                            for c in owner.companies])):
+                    result.append(num.account.id)
+            return result
+        else:
+            return [x.account.id for x in numbers
+                if x.account is not None and x.account.active]
 
     def get_allowed_bank_accounts(self, name=None):
         pool = Pool()

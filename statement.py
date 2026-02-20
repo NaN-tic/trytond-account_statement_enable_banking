@@ -12,8 +12,9 @@ from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
 from itertools import chain, combinations, groupby
-from sql.conditionals import Greatest
-from sql.functions import Function
+from sql import Literal
+from sql.conditionals import Coalesce, Greatest
+from sql.functions import Abs, Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Eval, Bool, If, PYSON, PYSONEncoder
@@ -37,12 +38,6 @@ ZERO = Decimal(0)
 PRODUCTION = config.get('database', 'production', default=False)
 PARTY_SIMILARITY_THRESHOLD = config.get('enable_banking',
     'party_similarity_threshold', default=0.13)
-TARGET_COMBINATIONS = config.get('enable_banking', 'target_combinations',
-    default=1_000_000)
-# 1_000_000 combinations takes around 0.2 seconds in a laptop
-# 10_000_000 combinations takes around 1.5 seconds in a laptop
-# Note that it will be computed up to 20 times, so multiply by 20 to get the
-# total time
 
 @functools.cache
 def gaussian_score(x, mean, stddev):
@@ -52,12 +47,12 @@ def gaussian_score(x, mean, stddev):
     return math.exp(-((x - mean) ** 2) / (2.0 * (stddev ** 2)))
 
 @functools.cache
-def candidate_size(k, max_n=10000):
+def candidate_size(k, target_combinations, max_n=10000):
     low = k
     high = 1000000
     while low < high:
         mid = (low + high) // 2
-        if math.comb(mid, k) < TARGET_COMBINATIONS:
+        if math.comb(mid, k) < target_combinations:
             low = mid + 1
         else:
             high = mid
@@ -96,15 +91,42 @@ def compare_party(party_name, text):
         percent = max(length / len(name), percent)
     return int(round(percent * 100))
 
+def create_similarity():
+    conn = Transaction().connection
+    if backend.name == 'sqlite':
+        def trigram_similarity(a, b):
+            if a is None or b is None:
+                return None
+            a = str(a)
+            b = str(b)
+            if len(a) < 3 or len(b) < 3:
+                return 1.0 if a == b else 0.0
+
+            def trigrams(s):
+                return {s[i:i+3] for i in range(len(s) - 2)}
+
+            ta = trigrams(a)
+            tb = trigrams(b)
+            union = ta | tb
+            if not union:
+                return 0.0
+            return len(ta & tb) / len(union)
+        conn.create_function('similarity', 2, trigram_similarity)
+
 
 class Similarity(Function):
     __slots__ = ()
     _function = 'SIMILARITY'
 
 
-class JsonbExtractPathText(Function):
-    __slots__ = ()
-    _function = 'JSONB_EXTRACT_PATH_TEXT'
+if backend.name == 'postgresql':
+    class JsonExtract(Function):
+        __slots__ = ()
+        _function = 'JSONB_EXTRACT_PATH_TEXT'
+else:
+    class JsonExtract(Function):
+        __slots__ = ()
+        _function = 'JSON_EXTRACT'
 
 
 class Statement(metaclass=PoolMeta):
@@ -212,8 +234,12 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def __setup__(cls):
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
         super().__setup__()
-
         new_domain = []
         for domain in cls.related_to.domain['account.invoice']:
             if isinstance(domain, PYSON):
@@ -250,13 +276,19 @@ class Line(metaclass=PoolMeta):
             ('reconciliation', '=', None),
             ('invoice_payment', '=', None),
             ]
+        if Sale:
+            cls.related_to.domain['sale.sale'] = [
+                ('company', '=', Eval('company', -1)),
+                ]
         _readonly = ~Eval('statement_state', '').in_(['draft', 'registered'])
         cls.statement.states['readonly'] = _readonly
         cls.number.states['readonly'] = _readonly
         cls.date.states['readonly'] = _readonly | Bool(Eval('origin', 0))
         cls.amount.states['readonly'] = _readonly
         cls.amount_second_currency.states['readonly'] = _readonly
+        cls.amount_second_currency.states['required'] = False
         cls.second_currency.states['readonly'] = _readonly
+        cls.second_currency.states['required'] = False
         cls.party.states['readonly'] = _readonly
         cls.party.states['required'] = (Eval('party_required', False)
             & (Eval('statement_state').in_(['draft', 'registered']))
@@ -275,7 +307,16 @@ class Line(metaclass=PoolMeta):
 
     @classmethod
     def _get_relations(cls):
-        return super()._get_relations() + ['account.move.line']
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
+
+        res = super()._get_relations() + ['account.move.line']
+        if Sale:
+            res += ['sale.sale']
+        return res
 
     @classmethod
     def get_origin_states(cls):
@@ -294,14 +335,6 @@ class Line(metaclass=PoolMeta):
             return None
         if self.origin and self.origin.second_currency:
             return self.origin.second_currency
-
-    @fields.depends('origin', 'related_to',
-        '_parent_origin.amount_second_currency')
-    def on_change_with_amount_second_currency(self, name=None):
-        if not self.related_to:
-            return None
-        if self.origin and self.origin.amount_second_currency:
-            return self.origin.amount_second_currency
 
     @fields.depends(methods=['payment_group'])
     def on_change_with_account_required(self, name=None):
@@ -358,21 +391,12 @@ class Line(metaclass=PoolMeta):
                 amount_to_pay = sign * (invoice.total_amount
                     if self.show_paid_invoices and invoice.state == 'paid'
                     else invoice.amount_to_pay)
+            elif hasattr(invoice, 'company_amount_to_pay'):
+                amount_to_pay = sign * (invoice.company_total_amount
+                    if self.show_paid_invoices and invoice.state == 'paid'
+                    else invoice.company_amount_to_pay)
             else:
-                amount = ZERO
-                if invoice.state == 'posted':
-                    for line in (invoice.lines_to_pay
-                            + invoice.payment_lines):
-                        if line.reconciliation:
-                            continue
-                        amount += line.debit - line.credit
-                else:
-                    # If we are in the case that need control a refund invoice,
-                    # need to get the total amount of the invoice.
-                    amount = (sign * invoice.total_amount
-                        if self.show_paid_invoices and invoice.state == 'paid'
-                        else ZERO)
-                amount_to_pay = amount
+                amount_to_pay = ZERO
         if self.show_paid_invoices and amount_to_pay:
             amount_to_pay = -1 * amount_to_pay
         return amount_to_pay
@@ -444,7 +468,9 @@ class Line(metaclass=PoolMeta):
                     or self.move_line.move_description_used)
             self.account = self.move_line.account
             self.maturity_date = self.move_line.maturity_date
+            self.amount_second_currency = self.move_line.amount_second_currency
         if self.invoice:
+            sign = -1 if self.invoice.type == 'in' else 1
             lines_to_pay = [l for l in self.invoice.lines_to_pay
                 if l.maturity_date and l.reconciliation is None]
             oldest_line = (min(lines_to_pay,
@@ -452,6 +478,7 @@ class Line(metaclass=PoolMeta):
                 if lines_to_pay else None)
             if oldest_line:
                 self.maturity_date = oldest_line.maturity_date
+            self.amount_second_currency = sign * self.invoice.amount_to_pay
         related_to = getattr(self, 'related_to', None)
         if self.show_paid_invoices and not isinstance(related_to, Invoice):
             self.show_paid_invoices = False
@@ -793,7 +820,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         cls.date.states['readonly'] = _sync_readonly
         cls.amount.states['readonly'] = _sync_readonly
         cls.amount_second_currency.states['readonly'] = _state_readonly
+        cls.amount_second_currency.states['required'] = False
         cls.second_currency.states['readonly'] = _state_readonly
+        cls.second_currency.states['required'] = False
         cls.party.states['readonly'] = _state_readonly
         cls.account.states['readonly'] = _state_readonly
         cls.description.states['readonly'] = _state_readonly
@@ -913,7 +942,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         operator = 'in' if value else 'not in'
 
         if backend.name == 'postgresql':
-            remittance_information_column = JsonbExtractPathText(
+            remittance_information_column = JsonExtract(
                     origin_table.information, 'remittance_information')
         else:
             remittance_information_column = origin_table.information
@@ -1070,12 +1099,15 @@ class Origin(Workflow, metaclass=PoolMeta):
                         and not line.payment_group.journal.clearing_account):
                     movelines = line.get_payment_group_move_line()
                 else:
-                    movelines = [(line.get_move_line(), None)]
+                    move_line = line.get_move_line()
+                    if not move_line:
+                        continue
+                    movelines = [(move_line, None)]
 
                 for move_line, payment in movelines:
                     move_line.move = move
                     amount += move_line.debit - move_line.credit
-                    if line.amount_second_currency:
+                    if move_line.amount_second_currency:
                         amount_second_currency += (
                             move_line.amount_second_currency)
                     move_lines.append((move_line, line, payment))
@@ -1154,6 +1186,7 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         database = Transaction().database
 
+        create_similarity()
         similarity = Similarity(database.unaccent(party_table.name),
             database.unaccent(text))
         if hasattr(Party, 'trade_name'):
@@ -1164,15 +1197,15 @@ class Origin(Workflow, metaclass=PoolMeta):
         where = ((similarity >= PARTY_SIMILARITY_THRESHOLD)
             & (party_table.active))
 
-        # If party_comapny module is installed, ensure that when try to search
+        # If party_company module is installed, ensure that when try to search
         # suggestions called by cron, user id 0, not search on parties not
-        # allowed ny the comapny.
+        # allowed in the company.
         if hasattr(Party, 'companies'):
             PartyCompany = pool.get('party.company.rel')
-            party_comapny_table = PartyCompany.__table__()
-            company_query = party_comapny_table.select(
-                party_comapny_table.party,
-                where=party_comapny_table.company == self.company.id)
+            party_company_table = PartyCompany.__table__()
+            company_query = party_company_table.select(
+                party_company_table.party,
+                where=party_company_table.company == self.company.id)
             where &= (party_table.id.in_(company_query))
 
         query = party_table.select(party_table.id, similarity, where=where)
@@ -1182,7 +1215,7 @@ class Origin(Workflow, metaclass=PoolMeta):
 
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
-            domain = Rule.domain_get(Party.__name__, mode='read')
+            domain = list(Rule.domain_get(Party.__name__, mode='read') or [])
         parties = Party.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
@@ -1220,7 +1253,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             # Discard all entries that have a similiarity below ~25% of the
             # maximum similarity. For cases where the maximum similarity is
             # small, allow a larger margin.
-            maximum = next(iter(parties.values()))
+            maximum = max(parties.values())
             minimal = maximum - max(maximum / 4, 10)
             # Discard all entries that have a similarity below minimal
             parties = {k: v for k, v in parties.items() if v >= minimal}
@@ -1254,7 +1287,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         ORIGIN_DELTA_DAYS = self.statement.journal.get_weight(
             'origin-delta-days')
 
-        similarity_column = Similarity(database.unaccent(JsonbExtractPathText(
+        create_similarity()
+        similarity_column = Similarity(database.unaccent(JsonExtract(
                 origin_table.information, 'remittance_information')),
             database.unaccent(self.remittance_information))
         query = origin_table.join(line_table,
@@ -1274,7 +1308,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         records = cursor.fetchall()
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
-            domain = Rule.domain_get(Origin.__name__, mode='read')
+            domain = list(Rule.domain_get(Origin.__name__, mode='read') or [])
         origins = Origin.search(domain + [
                 ('id', 'in', [x[0] for x in records]),
                 ])
@@ -1290,7 +1324,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             merge = [x for x in merge if x[1] >= minimal]
         return merge
 
-    def get_suggestion_from_payments(self, payments, group_key=(), type_=''):
+    def get_suggestions_from_payments(self, payments, group_key=(), type_=''):
         """
         Create one or more suggested registers based on the move_lines.
         If there are more than one move_line, it will be grouped under
@@ -1323,9 +1357,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     line.account = payment.line.account
                 else:
                     if payment.kind == 'payable':
-                        line.account = payment.party.payable_account
+                        line.account = payment.party.account_payable_used
                     else:
-                        line.account = payment.party.receivable_account
+                        line.account = payment.party.account_receivable_used
                 line.party = payment.party
                 line.date = payment.date
                 line.related_to = payment
@@ -1333,7 +1367,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                     else -payment.amount)
                 to_save.append(line)
 
-        return [SuggestedLine.pack(to_save)]
+        suggested_line = SuggestedLine.pack(to_save)
+        suggested_line.save()
+        return [suggested_line] if suggested_line else []
 
     def get_suggestion_from_move_line(self, line):
         pool = Pool()
@@ -1373,7 +1409,6 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggested_line.based_on = based_on
             suggested_line.type = type_
             to_save.append(suggested_line)
-
         return SuggestedLine.pack(to_save)
 
     def _suggest_clearing_payment_group(self):
@@ -1429,9 +1464,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('clearing_move', '!=', None),
                 ('amount', '=', self.pending_amount),
                 ]):
-            suggested_line = self.get_suggestion_from_payments([payment],
+            suggested_lines = self.get_suggestions_from_payments([payment],
                 group_key=(), type_='payment')
-            to_save.append(suggested_line)
+            if suggested_lines:
+                to_save += suggested_lines
 
         SuggestedLine.save(to_save)
 
@@ -1513,13 +1549,17 @@ class Origin(Workflow, metaclass=PoolMeta):
         if groups['amount'] == abs(amount) and len(groups['groups']) > 1:
             payments = [
                 p for v in groups['groups'].values() for p in v['payments']]
-            to_save += self.get_suggestion_from_payments(payments,
+            suggested_lines = self.get_suggestions_from_payments(payments,
                 group_key=(), type_='payment-group')
+            if suggested_lines:
+                to_save += suggested_lines
         elif groups['amount'] != ZERO:
             for key, item in groups['groups'].items():
                 if item['amount'] == abs(amount):
-                    to_save += self.get_suggestion_from_payments(item['payments'],
+                    suggested_lines = self.get_suggestions_from_payments(item['payments'],
                         group_key=key, type_='payment-group')
+                    if suggested_lines:
+                        to_save += suggested_lines
 
         SuggestedLine.save(to_save)
 
@@ -1571,6 +1611,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             return suggested_lines
 
         last_similarity = 0
+        to_save = []
         for origin, similarity in self.similar_origins():
             if similarity == last_similarity:
                 continue
@@ -1590,19 +1631,23 @@ class Origin(Workflow, metaclass=PoolMeta):
             if len(suggestions) == 1:
                 suggestions[0].amount = amount
 
-            SuggestedLine.pack(suggestions)
+            to_save.append(SuggestedLine.pack(suggestions))
+
+        SuggestedLine.save(to_save)
 
     def _suggest_combination(self, domain, type_, based_on=None,
             sorting='oldest'):
         pool = Pool()
+        Move = pool.get('account.move')
         MoveLine = pool.get('account.move.line')
-        Rule = pool.get('ir.rule')
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
 
         MAX_LENGTH = self.statement.journal.get_weight('move-line-max-count')
 
         # TODO: Make DECIMALS depend on the currency
         DECIMALS = 2
         POWER = 10 ** DECIMALS
+        MAX_SUGGESTIONS = 100
 
         # Converting all Decimal to int to improve performance
         # In several tests reduced the time by 30%
@@ -1619,41 +1664,57 @@ class Origin(Workflow, metaclass=PoolMeta):
         if self.escape():
             return
 
-        lines = MoveLine.search(domain)
-        if sorting == 'oldest':
-            lines = sorted(lines, key=lambda x: x.maturity_date or x.date)
-        else: # sorting == 'closest'
-            lines = sorted(lines, key=lambda x: abs(self.date -
-                    (x.maturity_date or x.date)))
         # Use search in order for ir.rule to be applied
         with Transaction().set_context(_check_access=True):
-            domain = Rule.domain_get(MoveLine.__name__, mode='read')
-        lines = MoveLine.search(domain + [
-                ('id', 'in', [x.id for x in lines]),
-                ])
+            subquery = MoveLine.search(domain, query=True)
+
+        move_line = MoveLine.__table__()
+        move = Move.__table__()
+        query = move_line.join(move,
+            condition=move_line.move == move.id)
+        query = query.select(
+            move_line.id,
+            move_line.debit - move_line.credit,
+            where=move_line.id.in_(subquery))
+
+        if sorting == 'oldest':
+            query.order_by = [Coalesce(move_line.maturity_date, move.date).asc]
+        else: # sorting == 'closest'
+            query.order_by = [Abs(Literal(self.date) - Coalesce(move_line.maturity_date, move.date)).asc]
+
+        cursor = Transaction().connection.cursor()
+        cursor.execute(*query)
+        lines = cursor.fetchall()
         if not lines:
             return
 
-        found = 0
-        lines = tuple((x, to_int(x.debit - x.credit)) for x in lines)
+        target_combinations = self.journal.get_weight('target-combinations')
+
+        suggestions = []
+        lines = tuple((x[0], to_int(x[1])) for x in lines)
         for length in range(1, min(MAX_LENGTH, len(lines)) + 1):
             if length > len(lines):
                 break
             if length == 1:
                 candidates = lines
             else:
-                l = candidate_size(length)
+                l = candidate_size(length, target_combinations)
                 candidates = lines[:l]
             for combination in combinations(candidates, length):
                 total_amount = sum(x[1] for x in combination)
                 if abs(total_amount - amount) <= max_tolerance:
-                    self.get_suggestion_from_move_lines(
-                        [x[0] for x in combination], type_, based_on=based_on)
+                    suggestions.append(self.get_suggestion_from_move_lines(
+                        MoveLine.browse([x[0] for x in combination]), type_,
+                        based_on=based_on))
 
-                    found += 1
                     if type_ == 'combination-party':
                         break
                     if self.escape():
+                        return
+                    if len(suggestions) >= MAX_SUGGESTIONS:
+                        # Even if we want to find all suggestions
+                        # so later they will be sorted by weight, we cannot
+                        # spend too much time and need to set a limit
                         return
             # If we already found some lines we want to quit. The
             # larger the number of combinations, the sooner we want to
@@ -1662,6 +1723,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             # it
             #if len(to_save) >= (MAX_LENGTH - length) / 5:
                 #return
+
+        SuggestedLine.save(suggestions)
 
     def _suggest_similar_parties(self):
         Party = Pool().get('party.party')
@@ -1682,6 +1745,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                 sorting='oldest')
 
     def _suggest_combination_all(self):
+        # This suggestion could be very time-consuming, so only execute it if
+        # the weight is non-zero
+        if not self.journal.get_weight('type-combination-all'):
+            return
         domain = self._search_move_line_reconciliation_domain()
         # Execute closest first because it can rank better
         self._suggest_combination(domain, 'combination-all', sorting='closest')
@@ -1770,7 +1837,44 @@ class Origin(Workflow, metaclass=PoolMeta):
             suggestion.date = self.date
             suggestions.append(suggestion)
 
-        SuggestedLine.pack(suggestions)
+        suggestion = SuggestedLine.pack(suggestions)
+        suggestion.save()
+
+    def _suggest_sale(self):
+        try:
+            Sale = Pool().get('sale.sale')
+        except KeyError:
+            return
+        sales = Sale.search([
+                ('company', '=', self.company.id),
+                ('party', 'in', list(self.similar_parties().keys())[:5]),
+                ('state', 'in', ('quotation', 'confirmed', 'processing')),
+                ], order=[('sale_date', 'ASC')])
+        for sale in sales:
+            if sale.total_amount != self.pending_amount:
+                continue
+            if not sale.number in self.remittance_information:
+                continue
+            # Ensure sale.number is not part of a larger numeric string
+            index = self.remittance_information.index(sale.number)
+            if (index > 0
+                    and self.remittance_information[index - 1].isdigit()):
+                continue
+            index += len(sale.number)
+            if (index < len(self.remittance_information)
+                    and self.remittance_information[index].isdigit()):
+                continue
+
+            suggested_line = Pool().get(
+                'account.statement.origin.suggested.line')()
+            suggested_line.origin = self
+            suggested_line.type = 'sale'
+            suggested_line.related_to = sale
+            suggested_line.party = sale.party
+            suggested_line.account = sale.party.account_receivable_used
+            suggested_line.amount = min(self.pending_amount, sale.total_amount)
+            suggested_line.date = self.date
+            suggested_line.save()
 
     def merge_suggestions(self):
         SuggestedLine = Pool().get('account.statement.origin.suggested.line')
@@ -1848,6 +1952,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             origin._suggest_origin()
             origin._suggest_similar_parties()
             origin._suggest_combination_all()
+            origin._suggest_sale()
 
             ORIGIN_SIMILARITY = origin.statement.journal.get_weight(
                 'origin-similarity')
@@ -2091,13 +2196,20 @@ class Origin(Workflow, metaclass=PoolMeta):
 
     @classmethod
     def find_same_related_origin(cls, origins):
-        StatementLine = Pool().get('account.statement.line')
-        SuggestedLine = Pool().get('account.statement.origin.suggested.line')
+        pool = Pool()
+        StatementLine = pool.get('account.statement.line')
+        SuggestedLine = pool.get('account.statement.origin.suggested.line')
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
 
         relateds_to = {}
         for origin in origins:
             for line in origin.lines:
                 if not line.related_to:
+                    continue
+                if Sale and isinstance(line.related_to, Sale):
                     continue
                 if line.related_to not in relateds_to:
                     if line.invoice:
@@ -2122,11 +2234,14 @@ class Origin(Workflow, metaclass=PoolMeta):
                     or (values['amount'] < 0 and values['diff'] > 0)):
                 raise AccessError(gettext('account_statement_enable_banking.'
                         'msg_find_same_related_to',
-                        related_to=related_to.rec_name))
+                        related_to=(related_to.rec_name
+                            if not isinstance(related_to, str)
+                            else related_to)))
 
         lines = StatementLine.search([
             ('related_to', 'in', relateds_to),
             ('origin', 'not in', origins),
+            ('origin.state', '!=', 'posted'),
             ('statement.state', '=', 'draft'),
             ])
         suggested_lines_to_delete = []
@@ -2149,13 +2264,14 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
     type = fields.Selection([
             (None, ''),
+            ('balance', 'Balance'),
+            ('balance-invoice', 'Balance Invoices'),
             ('combination-party', 'Combine Parties'),
             ('combination-all', 'Combine All'),
             ('payment-group', 'Payment Group'),
             ('payment', 'Payment'),
             ('origin', 'Origin'),
-            ('balance', 'Balance'),
-            ('balance-invoice', 'Balance Invoices'),
+            ('sale', 'Sale'),
             ], 'Type', readonly=True, states={
             'required': ~Bool(Eval('parent')),
             'invisible': Bool(Eval('parent')),
@@ -2252,6 +2368,12 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
     @classmethod
     def __setup__(cls):
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
+
         super().__setup__()
         cls._order.insert(0, ('weight', 'DESC'))
         cls._order.insert(1, ('date', 'ASC'))
@@ -2271,6 +2393,12 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                     'depends': ['state'],
                     },
                 })
+        if Sale:
+            cls.related_to.domain.setdefault('sale.sale', [])
+            cls.related_to.domain['sale.sale'] += [
+                ('company', '=', Eval('company', -1)),
+                ('currency', '=', Eval('currency', -1)),
+                ]
 
     @classmethod
     def __register__(cls, module_name):
@@ -2312,12 +2440,20 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
     @classmethod
     def _get_relations(cls):
-        "Return a list of Model names for related_to Reference"
-        return [
+        pool = Pool()
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
+        res = [
             'account.invoice',
             'account.payment',
             'account.payment.group',
-            'account.move.line']
+            'account.move.line',
+            ]
+        if Sale:
+            res.append('sale.sale')
+        return res
 
     @classmethod
     def get_relations(cls):
@@ -2340,8 +2476,9 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     @classmethod
     def create(cls, vlist):
         suggestions = super().create(vlist)
-        for suggestion in suggestions:
-            suggestion.update_weight()
+        for suggestion, values in zip(suggestions, vlist):
+            if 'weight' not in values.keys():
+                suggestion.update_weight()
         cls.save(suggestions)
         return suggestions
 
@@ -2362,6 +2499,10 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         Invoice = pool.get('account.invoice')
         MoveLine = pool.get('account.move.line')
         Payment = pool.get('account.payment')
+        try:
+            Sale = pool.get('sale.sale')
+        except KeyError:
+            Sale = None
 
         self.weight = 0
 
@@ -2377,8 +2518,11 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 'origin': journal.get_weight('type-origin'),
                 'balance': journal.get_weight('type-balance'),
                 'balance-invoice': journal.get_weight('type-balance-invoice'),
+                'sale': journal.get_weight('type-sale'),
                 }
             self.weight += TYPE_WEIGHTS[self.type]
+
+        party_uniformity = journal.get_weight('party-uniformity')
 
         if self.childs:
             # TODO: If a suggestion has children, the larger the combination, the
@@ -2386,9 +2530,21 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
             # Also, if there are several children with different parties, the lower
             # the weight of the suggestion
 
-            # If the suggestion has childs, the weight is the sum of the childs
+            # If the suggestion has childs, the weight is the mean of the childs's weight
             self.weight += sum(child.weight for child in self.childs) / len(self.childs)
+
+            # Add some weight if there are less than 3 different parties
+            parties = {x.party for x in self.childs if x.party}
+            if len(parties) <= 1:
+                self.weight += party_uniformity
+            elif len(parties) == 2:
+                self.weight += party_uniformity // 2
             return
+
+        if not self.parent:
+            # If there is no parent and no children, add some weight because the
+            # number of parties is 1
+            self.weight += party_uniformity
 
         origin = self.origin
 
@@ -2449,6 +2605,19 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
                 self.weight += int(round(NUMBER_WEIGHT * gaussian_score(length,
                             mean=len(number), stddev=len(number) / 4)))
 
+        # Update weight based on sale number
+        sale = None
+        if Sale and isinstance(self.related_to, Sale):
+            sale = self.related_to
+
+        if sale and sale.number:
+            SALE_NUMBER_WEIGHT = journal.get_weight('number-match')
+            length = longest_common_substring(origin.remittance_information,
+                sale.number)
+            self.weight += int(round(SALE_NUMBER_WEIGHT * gaussian_score(
+                length, mean=len(sale.number),
+                stddev=len(sale.number) / 4)))
+
         if self.based_on:
             BASED_ON_WEIGHT = journal.get_weight('based-on-match')
             length = longest_common_substring(origin.remittance_information,
@@ -2463,7 +2632,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
         if not suggestions:
             return
         if len(suggestions) == 1:
-            cls.save(suggestions)
             return suggestions[0]
 
         parent = cls()
@@ -2485,7 +2653,6 @@ class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
 
         parent.childs = suggestions
         parent.amount = amount
-        parent.save()
         return parent
 
     @classmethod

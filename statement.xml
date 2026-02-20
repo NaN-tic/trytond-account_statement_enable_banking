@@ -444,6 +444,11 @@ this repository contains the full copyright notices and license terms. -->
             <field name="string">Reference Number</field>
             <field name="type_">char</field>
         </record>
+        <record model="account.statement.origin.information" id="eb_reference_number_schema">
+            <field name="name">reference_number_schema</field>
+            <field name="string">Reference Number Schema</field>
+            <field name="type_">char</field>
+        </record>
         <record model="account.statement.origin.information" id="eb_remittance_information">
             <field name="name">remittance_information</field>
             <field name="string">Remittance Information</field>
