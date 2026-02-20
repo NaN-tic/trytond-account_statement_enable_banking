@@ -132,17 +132,18 @@ class EnableBankingSession(ModelSQL, ModelView):
         return session
 
     def _get_session(self, name=None):
-        if not self.encrypted_session:
-            return None
+        if (not self.encrypted_session
+                or not config.getboolean('database', 'production', default=False)):
+            return
+
         fernet = self.get_fernet_key()
         if not fernet:
-            return None
+            return
+
         try:
             return fernet.decrypt(self.encrypted_session).decode()
         except cryptography.fernet.InvalidToken:
-            PRODUCTION = config.get('database', 'production', default=False)
-            if PRODUCTION:
-                raise
+            raise
 
     @classmethod
     def set_session(cls, eb_sessions, name, value):
