@@ -147,6 +147,34 @@ msgctxt "field:account.statement.origin,synchronized:"
 msgid "Synchronized"
 msgstr "Sincronizado"
 
+msgctxt "field:account.statement.origin.create_line.start,account:"
+msgid "Account"
+msgstr "Cuenta"
+
+msgctxt "field:account.statement.origin.create_line.start,analytic_accounts:"
+msgid "Analytic Accounts"
+msgstr "Cuentas analíticas"
+
+msgctxt "field:account.statement.origin.create_line.start,company:"
+msgid "Company"
+msgstr "Compañía"
+
+msgctxt "field:account.statement.origin.create_line.start,description:"
+msgid "Description"
+msgstr "Descripción"
+
+msgctxt "field:account.statement.origin.create_line.start,party:"
+msgid "Party"
+msgstr "Tercero"
+
+msgctxt "field:account.statement.origin.create_line.start,party_required:"
+msgid "Party Required"
+msgstr "Tercero requerido"
+
+msgctxt "field:account.statement.origin.create_line.start,post_origin:"
+msgid "Post Origins"
+msgstr "Contabilizar orígenes"
+
 msgctxt "field:account.statement.origin.multiple.invoices.start,amount:"
 msgid "Amount"
 msgstr "Importe"
@@ -443,6 +471,10 @@ msgctxt "model:account.statement.journal.weight,name:"
 msgid "Journal Weight"
 msgstr "Peso Diario"
 
+msgctxt "model:account.statement.origin.create_line.start,name:"
+msgid "Create Statement Lines from origins Start View"
+msgstr "Crear líneas de origen Inicio"
+
 msgctxt ""
 "model:account.statement.origin.information,string:eb_balance_after_transaction"
 msgid "Balance After Transaction"
@@ -685,6 +717,10 @@ msgstr "Orígenes del extracto"
 msgctxt "model:ir.action,name:act_statement_origin_form"
 msgid "Statement Origins"
 msgstr "Origenes de extracto"
+
+msgctxt "model:ir.action,name:create_line"
+msgid "Create Lines"
+msgstr "Crear líneas"
 
 msgctxt "model:ir.action,name:report_session_ko"
 msgid "Enable Banking Session KO"
@@ -1237,6 +1273,15 @@ msgstr "Banco"
 msgctxt "view:enable_banking.session:"
 msgid "Session"
 msgstr "Sesión"
+
+msgctxt ""
+"wizard_button:account.statement.origin.create_line,start,create_lines:"
+msgid "OK"
+msgstr "De Acuerdo"
+
+msgctxt "wizard_button:account.statement.origin.create_line,start,end:"
+msgid "Cancel"
+msgstr "Cancelar"
 
 msgctxt ""
 "wizard_button:account.statement.origin.multiple.invoices,start,create_lines:"

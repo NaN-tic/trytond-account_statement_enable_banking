@@ -516,6 +516,22 @@ this repository contains the full copyright notices and license terms. -->
             <field name="button" ref="statement_origin_suggested_line_use_button"/>
             <field name="group" ref="account.group_account"/>
         </record>
+
+        <!-- Account Statement Origin Create Line -->
+        <record model="ir.ui.view" id="create_line_start_view_form">
+            <field name="model">account.statement.origin.create_line.start</field>
+            <field name="type">form</field>
+            <field name="name">create_line_start_form</field>
+        </record>
+        <record model="ir.action.wizard" id="create_line">
+            <field name="name">Create Lines</field>
+            <field name="wiz_name">account.statement.origin.create_line</field>
+        </record>
+        <record model="ir.action.keyword" id="act_create_line">
+            <field name="keyword">form_action</field>
+            <field name="model">account.statement.origin,-1</field>
+            <field name="action" ref="create_line"/>
+        </record>
     </data>
 
     <data depends="analytic_account">
@@ -523,6 +539,12 @@ this repository contains the full copyright notices and license terms. -->
             <field name="model">account.statement.line</field>
             <field name="inherit" ref="account_statement.statement_line_view_form"/>
             <field name="name">statement_line_form</field>
+        </record>
+
+        <record model="ir.ui.view" id="analytic_account_create_line_start_view_form">
+            <field name="model">account.statement.origin.create_line.start</field>
+            <field name="inherit" ref="create_line_start_view_form"/>
+            <field name="name">analytic_account_create_line_start_form</field>
         </record>
     </data>
 </tryton>
