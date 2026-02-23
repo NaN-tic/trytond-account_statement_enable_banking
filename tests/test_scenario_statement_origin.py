@@ -2,7 +2,7 @@ import datetime as dt
 import unittest
 from decimal import Decimal
 
-from proteus import Model, Report, Wizard
+from proteus import Model, Wizard
 # from trytond.exceptions import StatementPostError
 from trytond.modules.account_statement.exceptions import StatementPostError
 from trytond.modules.account.tests.tools import (

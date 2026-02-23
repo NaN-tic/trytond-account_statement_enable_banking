@@ -67,6 +67,10 @@ msgctxt "field:account.statement.journal,one_move_per_origin:"
 msgid "One Move per Origin"
 msgstr "Un assentament per origen"
 
+msgctxt "field:account.statement.journal,search_suggestions:"
+msgid "Search Suggestions"
+msgstr "Cerca suggeriments"
+
 msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
 msgstr "Sincronitzar diari"
@@ -435,6 +439,10 @@ msgstr ""
 "encara que tingui més d'una línia. En cas contrari, crea un moviment per a "
 "cada línia."
 
+msgctxt "help:account.statement.journal,search_suggestions:"
+msgid "Check if want to search automatically suggestions"
+msgstr "Marca si vols cercar suggeriments automàticament"
+
 msgctxt "help:account.statement.journal,synchronize_journal:"
 msgid ""
 "Check if want to synchronize automatically. When is automatically the offset"
@@ -613,7 +621,6 @@ msgctxt ""
 msgid "Reference Number"
 msgstr "Número de referència"
 
-
 msgctxt ""
 "model:account.statement.origin.information,string:eb_reference_number_schema"
 msgid "Reference Number Schema"
@@ -759,6 +766,7 @@ msgctxt ""
 msgid "Registered"
 msgstr "Registrat"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_account_not_found"
 msgid ""
 "Account \"%(account)s\" not found in session from bank \"%(bank)s\" make "
@@ -767,6 +775,7 @@ msgstr ""
 "El compte \"%(account)s\" no s'ha trobat a la sessió del banc \"%(bank)s\" "
 "comprova que el número de compte sigui correcte."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_aspsp_not_found"
 msgid ""
 "Bank \"%(bank)s\" from country \"%(country_code)s\" not found in Enable "
@@ -775,6 +784,7 @@ msgstr ""
 "No s'ha trobat el banc \"%(bank)s\" del país \"%(country_code)s\" com a "
 "compatible amb Enable Banking.\\n%(message)s"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_connection_test_error"
 msgid "Error testing connection: %(error_message)s "
 msgstr "S'ha produït un error provant la connexió: %(error_message)s "
@@ -788,18 +798,21 @@ msgid "The bank statements currency and the journal currency dosen't match."
 msgstr ""
 "La moneda dels extractes bancaris no coincideix amb la moneda del diari."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_error_create_session"
 msgid "Error creating the session: \"%(error_code)s\" \"%(error_message)s\""
 msgstr ""
 "S'ha produït un error mentre s'intentava crear la sessió: \"%(error_code)s\""
 " \"%(error_message)s\""
 
+#, python-format
 msgctxt "model:ir.message,text:msg_error_get_statements"
 msgid "Error getting statements: \"%(error_code)s\" \"%(error_message)s\""
 msgstr ""
 "S'ha produït un error mentre s'intentava obtenir les línies d'extracte: "
 "\"%(error_code)s\" \"%(error_message)s\""
 
+#, python-format
 msgctxt "model:ir.message,text:msg_find_same_related_to"
 msgid ""
 "You are post for two or more origins that are linked to lines with the same "
@@ -838,6 +851,7 @@ msgctxt "model:ir.message,text:msg_no_session"
 msgid "Session not found."
 msgstr "Sessió no trobada."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_not_enough_amount_to_pay"
 msgid ""
 "The invoice has not enougth amount to pay. It's %(amount_to_pay)s € and the "
@@ -846,6 +860,7 @@ msgstr ""
 "La factura no té prou import per pagar. Són %(amount_to_pay)s € i els "
 "orígens seleccionats sumen %(origins_amount)s €."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_not_use_blocked_account_move"
 msgid ""
 "The suggestion you are trying to use adds move line(s) \"%(move_lines)s\" "
@@ -855,6 +870,7 @@ msgstr ""
 "\"%(move_lines)s\" els pagaments de la qual estan bloquejats. Segur que vols"
 " continuar?"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origin_line_with_move"
 msgid ""
 "The line has move \"%(move)s\" related to it. Cancel or delete the line will"
@@ -863,6 +879,7 @@ msgstr ""
 "La línia té l'assentament \"%(move)s\" relacionat. Cancel·lar o suprimir la "
 "línia suprimirà aquest moviment. Voleu continuar?"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origin_lines_with_move"
 msgid ""
 "The lines \"%(lines)s\" has moves related to it. Cancel or delete lines will"
@@ -871,6 +888,7 @@ msgstr ""
 "Les línies \"%(lines)s\" tenen assentaments relacionats. Cancel·lar o "
 "suprimir les línies suprimirà aquests moviments. Voleu continuar?"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origin_pending_amount"
 msgid ""
 "The origin could not be reconciled because the amount of the lines "
@@ -880,6 +898,7 @@ msgstr ""
 "L'orígen no s'ha pogut conciliar perquè el total de les línies "
 "\"%(line_amount)s\" i el de l'origen \"%(origin_amount)s\" són diferents."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origins_with_lines"
 msgid ""
 "The origins \"%(origins)s\" have lines. If you want to use them to pay an "
@@ -888,6 +907,7 @@ msgstr ""
 "Els orígens \"%(origins)s\" tenen línies. Si voleu utilitzar-los per pagar "
 "una factura, s'eliminaran aquestes línies."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_repeated_related_to_used"
 msgid ""
 "The related \"%(related_to)s\" is usde in a line of the posted origin "
@@ -896,6 +916,7 @@ msgstr ""
 "El relacionat \"%(related_to)s\" s'utilitza en una línia de l'origen "
 "comptabilitzat \"%(origin)s\"."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_statement_line_delete"
 msgid ""
 "It is not possible to remove the line \"%(line)s\", because the related "
@@ -904,6 +925,7 @@ msgstr ""
 "No és possible eliminar la línia \"%(line)s\", perquè l'extracte relacionat "
 "\"%(statement)s\" està validat o comptabilitzat."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_suggested_line_related_to_statement_line"
 msgid ""
 "There is some suggested line relate to the statement lines of the origins "
