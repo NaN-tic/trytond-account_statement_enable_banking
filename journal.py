@@ -170,6 +170,8 @@ class Journal(metaclass=PoolMeta):
     weights = fields.One2Many('account.statement.journal.weight', 'journal',
         'Weights')
     _get_weight_cache = Cache('account_statement_journal.get_weight')
+    search_suggestions = fields.Boolean('Search Suggestions',
+        help="Check if want to search automatically suggestions")
 
     @classmethod
     def __setup__(cls):
@@ -205,6 +207,10 @@ class Journal(metaclass=PoolMeta):
     @staticmethod
     def default_max_amount_tolerance():
         return 0
+
+    @staticmethod
+    def default_search_suggestions():
+        return True
 
     @fields.depends('enable_banking_session')
     def on_change_with_enable_banking_session_allowed_bank_accounts(self,
@@ -571,9 +577,10 @@ class Journal(metaclass=PoolMeta):
             # suggestions. And use a worker for each origin to ensure that
             # all origin try to search even one fails and can be done in
             # parallel.
-            with Transaction().set_context(queue_name=QUEUE_NAME):
-                for origin in statement.origins:
-                    StatementOrigin.__queue__.search_suggestions([origin])
+            if self.search_suggestions:
+                with Transaction().set_context(queue_name=QUEUE_NAME):
+                    for origin in statement.origins:
+                        StatementOrigin.__queue__.search_suggestions([origin])
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])

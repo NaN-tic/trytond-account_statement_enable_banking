@@ -19,7 +19,7 @@ class ImportStatement(metaclass=PoolMeta):
             origins = [o for s in statements for o in s.origins]
             # Get the suggested lines for each origin created
             # Use __queue__ to ensure the Bank lines download and origin
-            # creation are done and saved before start to create there
+            # creation are done and saved before start to create their
             # suggestions.
             StatementOrigin.__queue__.search_suggestions(origins)
 

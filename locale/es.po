@@ -67,6 +67,10 @@ msgctxt "field:account.statement.journal,one_move_per_origin:"
 msgid "One Move per Origin"
 msgstr "Un asiento por origen"
 
+msgctxt "field:account.statement.journal,search_suggestions:"
+msgid "Search Suggestions"
+msgstr "Buscar sugerencias"
+
 msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
 msgstr "Sincronizar diario"
@@ -230,7 +234,8 @@ msgctxt "field:account.statement.origin.suggested.line,amount:"
 msgid "Amount"
 msgstr "Importe"
 
-msgctxt "field:account.statement.origin.suggested.line,amount_second_currency:"
+msgctxt ""
+"field:account.statement.origin.suggested.line,amount_second_currency:"
 msgid "Amount Second Currency"
 msgstr "Importe Segunda Moneda"
 
@@ -238,7 +243,8 @@ msgctxt "field:account.statement.origin.suggested.line,analytic_accounts:"
 msgid "Analytic Accounts"
 msgstr "Cuentas analíticas"
 
-msgctxt "field:account.statement.origin.suggested.line,analytic_accounts_size:"
+msgctxt ""
+"field:account.statement.origin.suggested.line,analytic_accounts_size:"
 msgid "Analytic Accounts Size"
 msgstr "Tamaño de las cuentas analíticas"
 
@@ -315,14 +321,12 @@ msgid "Journals"
 msgstr "Diarios"
 
 msgctxt ""
-"field:enable_banking.retrieve_session.select_session,enable_banking_session_va"
-"lid:"
+"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid:"
 msgid "Enable Banking Session Valid"
 msgstr "Sesión válida Enable Banking"
 
 msgctxt ""
-"field:enable_banking.retrieve_session.select_session,enable_banking_session_va"
-"lid_days:"
+"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
 msgid "Enable Banking Session Valid Days"
 msgstr "Días de sesión vàlida Enable Banking"
 
@@ -436,6 +440,10 @@ msgstr ""
 "incluso si tiene más de una línea. De lo contrario, crea un movimiento para "
 "cada línea."
 
+msgctxt "help:account.statement.journal,search_suggestions:"
+msgid "Check if want to search automatically suggestions"
+msgstr "Marque si desea buscar sugerencias automáticamente"
+
 msgctxt "help:account.statement.journal,synchronize_journal:"
 msgid ""
 "Check if want to synchronize automatically. When is automatically the offset"
@@ -457,8 +465,7 @@ msgid "Offset in days to apply when importing statements manually"
 msgstr "Offset en días que se aplicará al importar extractos manualmente"
 
 msgctxt ""
-"help:enable_banking.retrieve_session.select_session,enable_banking_session_val"
-"id_days:"
+"help:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
 msgid "Only allowed maximum 180 days."
 msgstr "Solo se permite un máximo de 180 días."
 
@@ -481,20 +488,17 @@ msgid "Balance After Transaction"
 msgstr "Saldo después de la transacción"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code_cod"
-"e"
+"model:account.statement.origin.information,string:eb_bank_transaction_code_code"
 msgid "Bank Transaction Code"
 msgstr "Código de transacción bancaria"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code_des"
-"cription"
+"model:account.statement.origin.information,string:eb_bank_transaction_code_description"
 msgid "Bank Transaction Code Description"
 msgstr "Descripción del código de transacción bancaria"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code_sub"
-"_code"
+"model:account.statement.origin.information,string:eb_bank_transaction_code_sub_code"
 msgid "Bank Transaction Code Sub Code"
 msgstr "Subcódigo del código de transacción bancaria"
 
@@ -508,8 +512,7 @@ msgid "Credit Debit Indicator"
 msgstr "Indicador de débito de crédito"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_account_addition"
-"al_identification"
+"model:account.statement.origin.information,string:eb_creditor_account_additional_identification"
 msgid "Creditor Account Additional Identification"
 msgstr "Información adicional de la cuenta acreedor"
 
@@ -543,8 +546,7 @@ msgid "Creditor Postal Address"
 msgstr "Dirección postal del acreedor"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_account_additional"
-"_identification"
+"model:account.statement.origin.information,string:eb_debtor_account_additional_identification"
 msgid "Debtor Account Additional Identification"
 msgstr "Identificación adicional de la cuenta deudora"
 
@@ -582,20 +584,17 @@ msgid "Exchange Rate"
 msgstr "Tasa de cambio"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_contract_id"
-"entification"
+"model:account.statement.origin.information,string:eb_exchange_rate_contract_identification"
 msgid "Exchange Rate Contract Identification"
 msgstr "Identificación del contrato de tipo de cambio"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_exchange_ra"
-"te"
+"model:account.statement.origin.information,string:eb_exchange_rate_exchange_rate"
 msgid "Exchange Rate"
 msgstr "Tipo de cambio"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_instructed_"
-"amount"
+"model:account.statement.origin.information,string:eb_exchange_rate_instructed_amount"
 msgid "Exchange Rate Instructed Amount"
 msgstr "Importe del tipo de cambio"
 
@@ -605,8 +604,7 @@ msgid "Exchange Rate Type"
 msgstr "Tipo de tipo de cambio"
 
 msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_unit_curren"
-"cy"
+"model:account.statement.origin.information,string:eb_exchange_rate_unit_currency"
 msgid "Exchange Rate Unit Currency"
 msgstr "Moneda de tipo de cambio"
 
@@ -619,7 +617,8 @@ msgctxt "model:account.statement.origin.information,string:eb_note"
 msgid "Note"
 msgstr "Nota"
 
-msgctxt "model:account.statement.origin.information,string:eb_reference_number"
+msgctxt ""
+"model:account.statement.origin.information,string:eb_reference_number"
 msgid "Reference Number"
 msgstr "Número de referencia"
 
@@ -642,7 +641,8 @@ msgctxt ""
 msgid "Transaction Amount"
 msgstr "Importe de transacción"
 
-msgctxt "model:account.statement.origin.information,string:eb_transaction_date"
+msgctxt ""
+"model:account.statement.origin.information,string:eb_transaction_date"
 msgid "Transaction Date"
 msgstr "Fecha transacción"
 
@@ -686,7 +686,8 @@ msgctxt "model:ir.action,name:"
 msgid "Synchronize Statement Enable Banking"
 msgstr "Sincroniza Extractos a través de Enable Banking"
 
-msgctxt "model:ir.action,name:act_account_statement_origin_suggested_line_view"
+msgctxt ""
+"model:ir.action,name:act_account_statement_origin_suggested_line_view"
 msgid "Account Statement Origin Suggested Line"
 msgstr "Línea Sugerida Origen Extracte"
 
@@ -762,11 +763,11 @@ msgid "Posted"
 msgstr "Contabilizado"
 
 msgctxt ""
-"model:ir.action.act_window.domain,name:act_statement_origin_form_domain_regist"
-"ered"
+"model:ir.action.act_window.domain,name:act_statement_origin_form_domain_registered"
 msgid "Registered"
 msgstr "Registrado"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_account_not_found"
 msgid ""
 "Account \"%(account)s\" not found in session from bank \"%(bank)s\" make "
@@ -775,6 +776,7 @@ msgstr ""
 "La cuenta \"%(account)s\" no se ha encontrado en la sesión del banco "
 "\"%(bank)s\" comprueba que el número de cuenta es correcto."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_aspsp_not_found"
 msgid ""
 "Bank \"%(bank)s\" from country \"%(country_code)s\" not found in Enable "
@@ -783,6 +785,7 @@ msgstr ""
 "El banco \"%(bank)s\" del país \"%(country_code)s\" no es compatbile con "
 "Enable Banking.\\n%(message)s"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_connection_test_error"
 msgid "Error testing connection: %(error_message)s "
 msgstr "Se ha producido un error probando la conexión: %(error_message)s "
@@ -796,18 +799,21 @@ msgid "The bank statements currency and the journal currency dosen't match."
 msgstr ""
 "La moneda de los extractos bancarios no coincide con la moneda del diario."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_error_create_session"
 msgid "Error creating the session: \"%(error_code)s\" \"%(error_message)s\""
 msgstr ""
 "Se ha producido un error mientras se intentaba crear la sesión: "
 "\"%(error_code)s\" \"%(error_message)s\""
 
+#, python-format
 msgctxt "model:ir.message,text:msg_error_get_statements"
 msgid "Error getting statements: \"%(error_code)s\" \"%(error_message)s\""
 msgstr ""
 "Se ha producido un error mientras se intentaba obtener las líneas de "
 "extracto: \"%(error_code)s\" \"%(error_message)s\""
 
+#, python-format
 msgctxt "model:ir.message,text:msg_find_same_related_to"
 msgid ""
 "You are post for two or more origins that are linked to lines with the same "
@@ -846,6 +852,7 @@ msgctxt "model:ir.message,text:msg_no_session"
 msgid "Session not found."
 msgstr "Sesión no encontrada"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_not_enough_amount_to_pay"
 msgid ""
 "The invoice has not enougth amount to pay. It's %(amount_to_pay)s € and the "
@@ -854,6 +861,7 @@ msgstr ""
 "La factura no tiene suficiente importe a pagar. Son %(amount_to_pay)s € y el"
 " origen seleccionado suma %(origins_amount)s €."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_not_use_blocked_account_move"
 msgid ""
 "The suggestion you are trying to use adds move line(s) \"%(move_lines)s\" "
@@ -863,6 +871,7 @@ msgstr ""
 "\"%(move_lines)s\" cuyos pagos están bloqueados. ¿Estás seguro de que deseas"
 " continuar?"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origin_line_with_move"
 msgid ""
 "The line has move \"%(move)s\" related to it. Cancel or delete the line will"
@@ -871,6 +880,7 @@ msgstr ""
 "La línea tiene el asiento \"%(move)s\" relacionado. Cancelar o eliminar la "
 "línea eliminará este asiento. ¿Quieres continuar?"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origin_lines_with_move"
 msgid ""
 "The lines \"%(lines)s\" has moves related to it. Cancel or delete lines will"
@@ -879,6 +889,7 @@ msgstr ""
 "Las líneas \"%(lines)s\" tiene asientos relacionados. Cancelar o eliminar "
 "las líneas eliminaran estos asientos. ¿Quieres continuar?"
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origin_pending_amount"
 msgid ""
 "The origin could not be reconciled because the amount of the lines "
@@ -888,6 +899,7 @@ msgstr ""
 "El origen no se pudo conciliar porque el total de las líneas "
 "\"%(line_amount)s\" y el del origen \"%(origin_amount)s\" son distintos."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_origins_with_lines"
 msgid ""
 "The origins \"%(origins)s\" have lines. If you want to use them to pay an "
@@ -896,6 +908,7 @@ msgstr ""
 "Los origenes \"%(origins)s\" tienen líneas. Si desea usarlos para pagar una "
 "factura, se eliminaran estas líneas."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_repeated_related_to_used"
 msgid ""
 "The related \"%(related_to)s\" is usde in a line of the posted origin "
@@ -904,6 +917,7 @@ msgstr ""
 "El relacionado \"%(related_to)s\" se utiliza en una línea del origen "
 "contabilizado \"%(origin)s\"."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_statement_line_delete"
 msgid ""
 "It is not possible to remove the line \"%(line)s\", because the related "
@@ -912,6 +926,7 @@ msgstr ""
 "No es posible eliminar la línea \"%(line)s\", porque el extracto relacionado"
 " \"%(statement)s\" está validado o contabilizado."
 
+#, python-format
 msgctxt "model:ir.message,text:msg_suggested_line_related_to_statement_line"
 msgid ""
 "There is some suggested line relate to the statement lines of the origins "
@@ -994,8 +1009,7 @@ msgid "Syncronize Statements"
 msgstr "Sincronizar extractos"
 
 msgctxt ""
-"model:ir.model.button,string:test_connection_enable_banking_configuration_butt"
-"on"
+"model:ir.model.button,string:test_connection_enable_banking_configuration_button"
 msgid "Test Connection"
 msgstr "Prueba de conexión"
 
@@ -1252,7 +1266,8 @@ msgstr ""
 
 msgctxt "view:enable_banking.retrieve_session.select_session:"
 msgid "A valid session has been found for the journal's bank account:"
-msgstr "Se ha encontrado una sesión válida para la cuenta bancaria del diario:"
+msgstr ""
+"Se ha encontrado una sesión válida para la cuenta bancaria del diario:"
 
 msgctxt "view:enable_banking.retrieve_session.select_session:"
 msgid "NOTE: Choosing to generate a new session will delete this existing one"
@@ -1297,7 +1312,8 @@ msgctxt ""
 msgid "OK"
 msgstr "De Acuerdo"
 
-msgctxt "wizard_button:account.statement.origin.multiple.move_lines,start,end:"
+msgctxt ""
+"wizard_button:account.statement.origin.multiple.move_lines,start,end:"
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1310,7 +1326,8 @@ msgctxt ""
 msgid "Journal"
 msgstr "Diarios"
 
-msgctxt "wizard_button:enable_banking.origin_synchronize_statement,ask,origin:"
+msgctxt ""
+"wizard_button:enable_banking.origin_synchronize_statement,ask,origin:"
 msgid "Origin"
 msgstr "Origenes"
 
