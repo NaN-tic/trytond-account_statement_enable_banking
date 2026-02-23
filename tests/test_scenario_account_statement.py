@@ -2,8 +2,8 @@ import datetime as dt
 import unittest
 from decimal import Decimal
 
-from proteus import Model, Report
-from trytond.modules.account_statement.exceptions import StatementValidateError, StatementValidateWarning
+from proteus import Model
+from trytond.modules.account_statement.exceptions import StatementValidateError
 from trytond.modules.account.tests.tools import (
     create_chart, create_fiscalyear, get_accounts)
 from trytond.modules.account_invoice.tests.tools import (
@@ -28,7 +28,7 @@ class Test(unittest.TestCase):
         today = dt.date.today()
 
         # Activate modules
-        config = activate_modules(['account_statement_enable_banking', 'account_invoice'],
+        activate_modules(['account_statement_enable_banking', 'account_invoice'],
             create_company, create_chart)
 
         # Create fiscal year

@@ -22,6 +22,8 @@ this repository contains the full copyright notices and license terms. -->
         <field name="enable_banking_session"/>
         <label name="offset_days_to"/>
         <field name="offset_days_to"/>
+        <label name="search_suggestions"/>
+        <field name="search_suggestions"/>
 
         <group colspan="4" id="EB Session">
             <button name="retrieve_enable_banking_session"/>
