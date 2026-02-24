@@ -200,7 +200,7 @@ class Test(unittest.TestCase):
         statement_line = statement.lines[0]
         move = statement_line.move
         self.assertEqual(sorted((l.description_used or '' for l in move.lines)),
-            ['', 'other description'])
+            ['other description', 'other description'])
         statement_line = statement.lines[2]
         move = statement_line.move
         self.assertEqual(sorted((l.description_used or '' for l in move.lines)),
