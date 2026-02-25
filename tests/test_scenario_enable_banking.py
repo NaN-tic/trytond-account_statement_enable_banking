@@ -89,7 +89,7 @@ class TestEnableBankingScenario(unittest.TestCase):
         sale.click('quote')
 
         Invoice = Model.get('account.invoice')
-        invoice = Invoice()
+        invoice = Invoice(type='out')
         invoice.company = company
         invoice.party = customer
         line = invoice.lines.new()
