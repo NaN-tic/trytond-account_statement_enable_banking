@@ -363,10 +363,19 @@ class Line(metaclass=PoolMeta):
         if self.origin:
             return self.origin.state
 
-    @fields.depends('origin', 'related_to', '_parent_origin.second_currency')
+    @fields.depends('origin', 'second_currency', 'related_to', 'amount',
+        'date', '_parent_origin.second_currency')
     def on_change_with_second_currency(self, name=None):
-        if not self.related_to:
-            return None
+        pool = Pool()
+        Currency = pool.get('currency.currency')
+
+        if (self.origin and self.second_currency and not self.related_to
+                and self.amount and self.date):
+            with Transaction().set_context(date=self.date):
+                amount = Currency.compute(
+                    self.second_currency, self.amount, self.company_currency)
+            self.amount_second_currency = amount
+
         if self.origin and self.origin.second_currency:
             return self.origin.second_currency
 
@@ -1195,7 +1204,7 @@ class Origin(Workflow, metaclass=PoolMeta):
                 raise AccessError(
                     gettext('account_statement_enable_banking.'
                         'msg_repeated_related_to_used',
-                        realted_to=str(lines_not_allowed[0].related_to),
+                        related_to=str(lines_not_allowed[0].related_to),
                         origin=(lines_not_allowed[0].origin.rec_name
                             if lines_not_allowed[0].origin else '')))
             if lines_to_remove:
