@@ -2,7 +2,8 @@
 # this repository contains the full copyright notices and license terms.
 from datetime import datetime
 from trytond.pool import Pool, PoolMeta
-
+from trytond.transaction import Transaction
+from .journal import QUEUE_NAME
 
 class ImportStatement(metaclass=PoolMeta):
     __name__ = 'account.statement.import'
@@ -16,12 +17,16 @@ class ImportStatement(metaclass=PoolMeta):
         statement_ids = data.get('res_id', None)
         if statement_ids:
             statements = Statement.browse(statement_ids)
-            origins = [o for s in statements for o in s.origins]
-            # Get the suggested lines for each origin created
-            # Use __queue__ to ensure the Bank lines download and origin
-            # creation are done and saved before start to create their
-            # suggestions.
-            StatementOrigin.__queue__.search_suggestions(origins)
+            for statement in statements:
+                # Get the suggested lines for each origin created
+                # Use __queue__ to ensure the Bank lines download and origin
+                # creation are done and saved before start to create their
+                # suggestions.
+                if statement.journal and statement.journal.search_suggestions:
+                    with Transaction().set_context(queue_name=QUEUE_NAME):
+                        for origin in statement.origins:
+                            StatementOrigin.__queue__.search_suggestions(
+                                [origin])
 
         return action, data
 
