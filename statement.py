@@ -3113,7 +3113,6 @@ class RetrieveEnableBankingSession(Wizard):
     def transition_check_session_before_start(self):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
-        EBSession = pool.get('enable_banking.session')
         base_headers = get_base_header()
 
         active_id = Transaction().context.get('active_id', None)
@@ -3135,8 +3134,6 @@ class RetrieveEnableBankingSession(Wizard):
                     session = r.json()
                     if session['status'] == 'AUTHORIZED':
                         return 'end'
-            if eb_session:
-                EBSession.delete([eb_session])
         return 'start'
 
     def default_start(self, fields):
@@ -3171,14 +3168,9 @@ class RetrieveEnableBankingSession(Wizard):
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))
 
-        # We need to check the date and if we have the field session, if
-        # not, the session was not created correctly and need to be deleted
-        eb_session = journal.enable_banking_session
-        if eb_session and eb_session.session and eb_session.session_expired:
-            EBSession.delete([eb_session])
-
         eb_sessions = EBSession.search([
             ('bank', '=', journal.bank_account.bank),
+            ('allowed_bank_accounts', '=', journal.bank_account),
             ])
         eb_session = [ebs for ebs in eb_sessions
             if ebs.session_expired is False]
@@ -3197,6 +3189,7 @@ class RetrieveEnableBankingSession(Wizard):
             return None
         eb_sessions = EBSession.search([
             ('bank', '=', journal.bank_account.bank),
+            ('allowed_bank_accounts', '=', journal.bank_account),
             ])
         eb_session = [ebs for ebs in eb_sessions
             if ebs.session_expired is False]
@@ -3300,8 +3293,6 @@ class RetrieveEnableBankingSession(Wizard):
                     'msg_error_create_session',
                     error_code=r.status_code,
                     error_message=r.text))
-        journal.enable_banking_session = None
-        journal.save()
         return action, {}
 
 
