@@ -604,22 +604,42 @@ class Journal(metaclass=PoolMeta):
 
     @classmethod
     def set_ebsession(cls, eb_session):
+        pool = Pool()
+        EBSession = pool.get('enable_banking.session')
+
+        if not eb_session.encrypted_session:
+            return
+
         journals = cls.search([
-                ('bank_account', '!=', None),
-                ('aspsp_name', '!=', None),
-                ('aspsp_country', '!=', None),
-                ('enable_banking_session', '=', None),
+                ('bank_account', 'in', eb_session.allowed_bank_accounts),
                 ])
+        old_session_ids = {
+            journal.enable_banking_session.id
+            for journal in journals
+            if (journal.enable_banking_session
+                and journal.enable_banking_session != eb_session)
+            }
         to_save = []
         for journal in journals:
-            if not eb_session.encrypted_session:
-                continue
-            if journal.bank_account in eb_session.allowed_bank_accounts:
-                journal.enable_banking_session = eb_session
-                to_save = [journal]
-                break
+            journal.enable_banking_session = eb_session
+            journal.on_change_enable_banking_session()
+            to_save.append(journal)
         if to_save:
             cls.save(to_save)
+
+        if not old_session_ids:
+            return
+
+        used_session_ids = {
+            journal.enable_banking_session.id
+            for journal in cls.search([
+                    ('enable_banking_session', 'in', list(old_session_ids)),
+                    ])
+            if journal.enable_banking_session
+            }
+        obsolete_session_ids = list(old_session_ids - used_session_ids)
+        if obsolete_session_ids:
+            EBSession.delete(EBSession.browse(obsolete_session_ids))
 
 
 class Cron(metaclass=PoolMeta):
