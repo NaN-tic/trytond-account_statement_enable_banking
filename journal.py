@@ -2,6 +2,7 @@
 # this repository contains the full copyright notices and license terms.
 import json
 import requests
+from requests.exceptions import ConnectionError, RequestException
 from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime, timedelta
@@ -456,9 +457,22 @@ class Journal(metaclass=PoolMeta):
             if continuation_key:
                 query["continuation_key"] = continuation_key
 
-            r = requests.get(
-                f"{URL}/accounts/{account_id}/transactions",
-                params=query, headers=base_headers)
+            try:
+                r = requests.get(
+                    f"{URL}/accounts/{account_id}/transactions",
+                    params=query, headers=base_headers)
+            except ConnectionError as e:
+                raise AccessError(gettext(
+                    'account_statement_enable_banking.'
+                    'msg_error_get_statements',
+                    error_code='connection_error',
+                    error_message=str(e)))
+            except RequestException as e:
+                raise AccessError(gettext(
+                    'account_statement_enable_banking.'
+                    'msg_error_get_statements',
+                    error_code='request_error',
+                    error_message=str(e)))
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
