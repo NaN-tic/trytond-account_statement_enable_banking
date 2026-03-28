@@ -132,7 +132,7 @@ class Journal(metaclass=PoolMeta):
                 Id('account_statement_enable_banking',
                     'sequence_type_account_statement_origin')),
             ['OR',
-                ('company', '=', Eval('company')),
+                ('company', '=', Eval('company', -1)),
                 ('company', '=', None),
             ]])
     enable_banking_session = fields.Many2One('enable_banking.session',
