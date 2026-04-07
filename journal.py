@@ -1,5 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import time
 import json
 import requests
 from collections import defaultdict
@@ -456,9 +457,21 @@ class Journal(metaclass=PoolMeta):
             if continuation_key:
                 query["continuation_key"] = continuation_key
 
-            r = requests.get(
-                f"{URL}/accounts/{account_id}/transactions",
-                params=query, headers=base_headers)
+            for retry in range(3):
+                try:
+                    r = requests.get(
+                        f"{URL}/accounts/{account_id}/transactions",
+                        params=query, headers=base_headers)
+                    break
+                except requests.RequestException as e:
+                    if retry == 2:
+                        raise AccessError(
+                            gettext('account_statement_enable_banking.'
+                                'msg_error_get_statements',
+                                error_code='N/A',
+                                error_message=str(e)))
+                    time.sleep(2 ** retry)
+
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
