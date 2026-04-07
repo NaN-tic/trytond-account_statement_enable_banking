@@ -456,9 +456,16 @@ class Journal(metaclass=PoolMeta):
             if continuation_key:
                 query["continuation_key"] = continuation_key
 
-            r = requests.get(
-                f"{URL}/accounts/{account_id}/transactions",
-                params=query, headers=base_headers)
+            try:
+                r = requests.get(
+                    f"{URL}/accounts/{account_id}/transactions",
+                    params=query, headers=base_headers)
+            except requests.exceptions.RequestException as exc:
+                raise AccessError(
+                    gettext('account_statement_enable_banking.'
+                        'msg_error_get_statements',
+                        error_code=type(exc).__name__,
+                        error_message=str(exc))) from exc
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
