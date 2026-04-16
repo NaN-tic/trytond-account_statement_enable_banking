@@ -402,7 +402,7 @@ msgstr "Import orígens"
 
 msgctxt "field:statement.link.invoice.start,post_origin:"
 msgid "Post Origins"
-msgstr "Comptabilitzar Origens"
+msgstr "Comptabilitzar Orígens"
 
 msgctxt "help:account.invoice,paid_directly:"
 msgid "The invoice has payed with the 'PAY' button"
@@ -716,7 +716,7 @@ msgstr "Orígens de l'extracte"
 
 msgctxt "model:ir.action,name:act_statement_origin_form"
 msgid "Statement Origins"
-msgstr "Origens d'extracte"
+msgstr "Orígens d'extracte"
 
 msgctxt "model:ir.action,name:create_line"
 msgid "Create Lines"
@@ -1032,7 +1032,7 @@ msgstr "Sessió Enable Banking"
 
 msgctxt "model:ir.ui.menu,name:menu_statement_form"
 msgid "Statement Origins"
-msgstr "Origens d'extracte"
+msgstr "Orígens d'extracte"
 
 msgctxt "model:statement.link.invoice.start,name:"
 msgid "Link Invoice Start"
@@ -1326,7 +1326,7 @@ msgstr "Diaris"
 msgctxt ""
 "wizard_button:enable_banking.origin_synchronize_statement,ask,origin:"
 msgid "Origin"
-msgstr "Origens"
+msgstr "Orígens"
 
 msgctxt ""
 "wizard_button:enable_banking.retrieve_session,select_session,create_session:"
