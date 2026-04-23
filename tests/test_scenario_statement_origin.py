@@ -79,7 +79,6 @@ class Test(unittest.TestCase):
         # Statement can not be posted until all origins are finished
         with self.assertRaises(StatementPostError):
             statement.click('post')
-        statement.click('draft')
 
         self.assertEqual(len(origin.lines), 0)
 
