@@ -3224,6 +3224,10 @@ class RetrieveEnableBankingSession(Wizard):
             self.start.enable_banking_session_valid_days)
         base_headers = get_base_header()
         if not journal.aspsp_name or not journal.aspsp_country:
+            if (not journal.bank_account or not journal.bank_account.bank or
+                    not journal.bank_account.bank.party):
+                raise AccessError(gettext('account_statement_enable_banking.'
+                        'msg_no_bank_account'))
             bank_name = journal.bank_account.bank.party.name.lower()
             bic = (journal.bank_account.bank.bic or '').lower()
             if journal.bank_account.bank.party.addresses:
