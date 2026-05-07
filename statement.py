@@ -2312,6 +2312,14 @@ class Origin(Workflow, metaclass=PoolMeta):
         StatementLine.delete(lines)
         SuggestedLine.delete(suggested_lines_to_delete)
 
+    @classmethod
+    def search_rec_name(cls, name, clause):
+        domain = super().search_rec_name(name, clause)
+        return ['OR',
+            domain,
+            ('description',) + tuple(clause[1:]),
+            ]
+
 
 class OriginSuggestedLine(Workflow, ModelSQL, ModelView, tree()):
     'Account Statement Origin Suggested Line'
