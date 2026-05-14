@@ -1,7 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import time
-import json
 import requests
 from collections import defaultdict
 from decimal import Decimal
@@ -15,7 +14,7 @@ from trytond.i18n import gettext
 from trytond.transaction import Transaction
 from trytond.model.exceptions import AccessError
 from trytond.exceptions import UserError
-from .common import get_base_header, URL
+from .common import get_base_header, load_session_json, URL
 
 QUEUE_NAME = config.get('enable_banking', 'queue_name', default='default')
 
@@ -377,7 +376,7 @@ class Journal(metaclass=PoolMeta):
             return
 
         # Search the account from the journal
-        session = json.loads(self.enable_banking_session.session)
+        session = load_session_json(self.enable_banking_session.session)
         if not self.bank_account:
             raise AccessError(gettext(
                     'account_statement_enable_banking.msg_no_bank_account'))

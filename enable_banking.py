@@ -1,7 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
 import cryptography
-import json
 import requests
 from requests.exceptions import ConnectionError
 from datetime import datetime
@@ -13,7 +12,7 @@ from trytond.i18n import gettext
 from trytond.exceptions import UserError
 from trytond.config import config
 from trytond.transaction import Transaction
-from .common import get_base_header, URL
+from .common import get_base_header, load_session_json, URL
 from trytond.report import Report
 
 FERNET_KEY = config.get('cryptography', 'fernet_key')
@@ -171,7 +170,7 @@ class EnableBankingSession(ModelSQL, ModelView):
 
         if not enable_banking_session.session:
             return []
-        session = json.loads(enable_banking_session.session)
+        session = load_session_json(enable_banking_session.session)
         accounts = session.get('accounts') if session else {}
         iban_numbers = [x.get('account_id', {}).get('iban') for x in accounts]
         domain = [
