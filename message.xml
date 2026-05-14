@@ -18,6 +18,9 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_no_bank_account">
             <field name="text">No bank account found in journal, if you want to synchronize statements, you need to set a bank account.</field>
         </record>
+        <record model="ir.message" id="msg_invalid_session_file">
+            <field name="text">The Enable Banking session file could not be read.</field>
+        </record>
         <record model="ir.message" id="msg_no_country">
             <field name="text">Country not found in bank party, please, make sure the bank party have at least one address with country.</field>
         </record>
