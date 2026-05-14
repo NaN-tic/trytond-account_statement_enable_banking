@@ -2,7 +2,6 @@
 # this repository contains the full copyright notices and license terms.
 import re
 import difflib
-import json
 import hashlib
 import math
 import requests
@@ -22,7 +21,7 @@ from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 from trytond.transaction import Transaction
-from .common import get_base_header, URL, REDIRECT_URL
+from .common import get_base_header, load_session_json, URL, REDIRECT_URL
 from trytond.i18n import gettext
 from trytond.exceptions import UserWarning
 from trytond.model.exceptions import AccessError
@@ -3126,7 +3125,7 @@ class RetrieveEnableBankingSession(Wizard):
             # not the session was not created correctly and need to be deleted
             eb_session = journal.enable_banking_session
             if eb_session.session and not eb_session.session_expired:
-                session = json.loads(eb_session.session)
+                session = load_session_json(eb_session.session)
                 r = requests.get(
                     f"{URL}/sessions/{session['session_id']}",
                     headers=base_headers)

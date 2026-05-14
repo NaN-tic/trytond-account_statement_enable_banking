@@ -3,6 +3,9 @@
 # the full copyright notices and license terms.
 from unittest.mock import patch
 
+from trytond.exceptions import UserError
+from trytond.modules.account_statement_enable_banking.common import (
+    load_session_json)
 from trytond.pool import Pool
 from trytond.tests.test_tryton import ModuleTestCase, with_transaction
 
@@ -11,6 +14,11 @@ class AccountStatementEnableBankingTestCase(ModuleTestCase):
     'Test Account Statement Enable Banking module'
     module = 'account_statement_enable_banking'
     extras = ['account_statement_aeb43', 'analytic_account']
+
+    @with_transaction()
+    def test_load_session_json_invalid_data(self):
+        with self.assertRaises(UserError):
+            load_session_json(None)
 
     @with_transaction()
     def test_set_ebsession_updates_all_matching_journals(self):
