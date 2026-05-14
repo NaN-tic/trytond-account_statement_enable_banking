@@ -1,10 +1,13 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import json
 from datetime import datetime
 import jwt as pyjwt
 from urllib.parse import urlparse
 
 from trytond.config import config
+from trytond.exceptions import UserError
+from trytond.i18n import gettext
 
 KEYPATH = config.get('enable_banking', 'keypath')
 URL = config.get('enable_banking', 'api_origin', default='https://sandbox.enablebanking.com')
@@ -40,3 +43,11 @@ def get_base_header():
         "Authorization": f"Bearer {jwt}",
         }
     return base_headers
+
+
+def load_session_json(session):
+    try:
+        return json.loads(session)
+    except (TypeError, ValueError):
+        raise UserError(gettext(
+                'account_statement_enable_banking.msg_invalid_session_file'))
