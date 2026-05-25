@@ -220,7 +220,7 @@ class Statement(metaclass=PoolMeta):
                     raise AccessError(gettext(
                             'account_statement.'
                             'msg_statement_delete_cancel',
-                            statements=statements.rec_name))
+                            statements=statement.rec_name))
 
     @classmethod
     def cancel(cls, statements):
