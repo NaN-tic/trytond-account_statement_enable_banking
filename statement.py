@@ -28,6 +28,7 @@ from trytond.model.exceptions import AccessError
 from trytond.modules.account_statement.exceptions import (
     StatementValidateError, StatementValidateWarning)
 from trytond.modules.currency.fields import Monetary
+from trytond.modules.widgets.tools import Similarity, create_similarity
 from trytond.modules.account_statement.statement import Unequal
 from trytond import backend
 from trytond.config import config
@@ -89,34 +90,6 @@ def compare_party(party_name, text):
         length = longest_common_substring(name, text)
         percent = max(length / len(name), percent)
     return int(round(percent * 100))
-
-def create_similarity():
-    conn = Transaction().connection
-    if backend.name == 'sqlite':
-        def trigram_similarity(a, b):
-            if a is None or b is None:
-                return None
-            a = str(a)
-            b = str(b)
-            if len(a) < 3 or len(b) < 3:
-                return 1.0 if a == b else 0.0
-
-            def trigrams(s):
-                return {s[i:i+3] for i in range(len(s) - 2)}
-
-            ta = trigrams(a)
-            tb = trigrams(b)
-            union = ta | tb
-            if not union:
-                return 0.0
-            return len(ta & tb) / len(union)
-        conn.create_function('similarity', 2, trigram_similarity)
-
-
-class Similarity(Function):
-    __slots__ = ()
-    _function = 'SIMILARITY'
-
 
 if backend.name == 'postgresql':
     class JsonExtract(Function):
