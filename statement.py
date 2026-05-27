@@ -191,9 +191,8 @@ class Statement(metaclass=PoolMeta):
             for statement in statements:
                 if statement.state in {'validated', 'posted'}:
                     raise AccessError(gettext(
-                            'account_statement.'
-                            'msg_statement_delete_cancel',
-                            statements=statement.rec_name))
+                            'account_statement.msg_statement_delete_cancel',
+                            statement=statement.rec_name))
 
     @classmethod
     def cancel(cls, statements):
