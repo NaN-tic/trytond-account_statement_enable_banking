@@ -298,9 +298,12 @@ class Line(metaclass=PoolMeta):
         cls.party.states['required'] = (Eval('party_required', False)
             & (Eval('statement_state').in_(['draft', 'registered']))
             )
-        cls.account.required = None
+        # cls.account is required (not null)
         cls.account.states['readonly'] = _readonly
-        cls.account.states['required'] = Eval('account_required', True)
+        invisible = ~Eval('account_required', True)
+        if 'invisible' in cls.account.states:
+            invisible |= cls.account.states['invisible']
+        cls.account.states['invisible'] = invisible
         cls.description.states['readonly'] = _readonly
         cls.related_to.states['readonly'] = _readonly
         cls._buttons.update({
@@ -356,6 +359,14 @@ class Line(metaclass=PoolMeta):
                 and not self.payment_group.journal.clearing_account):
             return False
         return True
+
+    @fields.depends('statement', '_parent_statement.journal', 'account',
+        methods=['on_change_with_account_required'])
+    def set_default_account_from_journal(self):
+        if self.account or self.on_change_with_account_required():
+            return
+        if self.statement and self.statement.journal:
+            self.account = self.statement.journal.account
 
     @property
     @fields.depends('related_to')
@@ -558,6 +569,7 @@ class Line(metaclass=PoolMeta):
         if amount is None and self.move_line:
             self.move_line = None
         self.amount = amount
+        self.set_default_account_from_journal()
 
     @classmethod
     def cancel_lines(cls, lines):
