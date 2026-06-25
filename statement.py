@@ -353,7 +353,7 @@ class Line(metaclass=PoolMeta):
         if self.origin and self.origin.second_currency:
             return self.origin.second_currency
 
-    @fields.depends(methods=['payment_group'])
+    @fields.depends('account', methods=['payment_group'])
     def on_change_with_account_required(self, name=None):
         if (self.payment_group
                 and not self.payment_group.journal.clearing_account):
