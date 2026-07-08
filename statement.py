@@ -1381,6 +1381,7 @@ class Origin(Workflow, metaclass=PoolMeta):
             line.related_to = group
             line.amount = sum(payment.amount if payment.kind == 'receivable'
                 else -payment.amount for payment in payments)
+            line.account = self.statement.journal.account
             to_save.append(line)
         else:
             for payment in payments:
