@@ -31,9 +31,7 @@ from trytond.modules.currency.fields import Monetary
 from trytond.modules.widgets.tools import Similarity, create_similarity
 from trytond.modules.account_statement.statement import Unequal
 from trytond import backend
-from trytond.config import config
-
-
+import trytond.config as config
 ZERO = Decimal(0)
 PRODUCTION = config.get('database', 'production', default=False)
 PARTY_SIMILARITY_THRESHOLD = config.get('enable_banking',

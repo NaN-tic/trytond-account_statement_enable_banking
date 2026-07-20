@@ -6,7 +6,7 @@ from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime, timedelta
 from trytond.cache import Cache
-from trytond.config import config
+import trytond.config as config
 from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelSQL, ModelView, fields, Unique
 from trytond.pyson import Eval, Id, If
