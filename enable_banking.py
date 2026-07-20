@@ -10,7 +10,7 @@ from trytond.pool import Pool
 from trytond.model import ModelSingleton, ModelSQL, ModelView, fields
 from trytond.i18n import gettext
 from trytond.exceptions import UserError
-from trytond.config import config
+import trytond.config as config
 from trytond.transaction import Transaction
 from .common import get_base_header, load_session_json, URL
 from trytond.report import Report
