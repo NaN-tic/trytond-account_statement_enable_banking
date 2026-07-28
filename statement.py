@@ -276,7 +276,11 @@ class Line(metaclass=PoolMeta):
             ('move_state', '=', 'posted'),
             ('account.reconcile', '=', True),
             ('state', '=', 'valid'),
-            ('reconciliation', '=', None),
+            If(Eval('origin_state', '').in_(['posted', 'cancelled']),
+                (),
+                If(Eval('statement_state', '').in_(['posted', 'cancelled']),
+                    (),
+                    ('reconciliation', '=', None))),
             ('invoice_payment', '=', None),
             ]
         if Sale:
