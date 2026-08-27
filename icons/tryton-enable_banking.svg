@@ -1,8 +1,9 @@
 <svg
   fill="none"
   xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 64 64"
->
+  viewBox="0 0 24 24"
+ width="24" height="24">
+  <g data-icon-normalized="1" transform="scale(0.375)">
   <rect x="24" y="24" width="12" height="12" stroke="black" stroke-width="6px">
     <animate
       attributeName="x"
@@ -68,4 +69,6 @@
       "
     />
   </circle>
+
+  </g>
 </svg>
