@@ -336,7 +336,7 @@ class Line(metaclass=PoolMeta):
             return self.origin.state
 
     @fields.depends('origin', 'second_currency', 'related_to', 'amount',
-        'date', '_parent_origin.second_currency')
+        'date', 'company_currency', '_parent_origin.second_currency')
     def on_change_with_second_currency(self, name=None):
         pool = Pool()
         Currency = pool.get('currency.currency')
