@@ -1,7 +1,24 @@
 account_statement_enable_banking
 ================================
 
-The account_statement_enable_banking module of the Tryton application platform.
+Enable Banking synchronization for Tryton: bank authorization, encrypted
+sessions, API downloads and scheduled synchronization.
+
+Shared statement management, reconciliation suggestions and accounting
+assistants are provided by the account_statement_common dependency.
+
+Set the journal's Synchronization Provider to Enable Banking. Its synchronization
+methods ignore journals assigned to another provider. Existing configured journals
+are migrated when the provider selector is first installed.
+
+Upgrade
+-------
+
+Deploy account_statement_common together with this module, refresh the module
+list, activate account_statement_common and upgrade account_statement_enable_banking
+in the same activation/upgrade operation. The new dependency migrates
+the shared records while preserving their database IDs. See
+account_statement_common/doc/index.rst for the migration and connector contract.
 
 Installing
 ----------

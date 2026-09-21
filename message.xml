@@ -36,44 +36,11 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_connection_test_error">
             <field name="text">Error testing connection: %(error_message)s </field>
         </record>
-        <record model="ir.message" id="msg_origin_pending_amount">
-            <field name="text">The origin could not be reconciled because the amount of the lines "%(line_amount)s" and the amount of the origin "%(origin_amount)s" differ.</field>
-        </record>
-        <record model="ir.message" id="msg_origin_line_with_move">
-            <field name="text">The line has move "%(move)s" related to it. Cancel or delete the line will delete that move. Do you want to continue?</field>
-        </record>
-        <record model="ir.message" id="msg_origin_lines_with_move">
-            <field name="text">The lines "%(lines)s" has moves related to it. Cancel or delete lines will delete those moves. Do you want to continue?</field>
-        </record>
-        <record model="ir.message" id="msg_suggested_line_related_to_statement_line">
-            <field name="text">There is some suggested line relate to the statement lines of the origins "%(origins_name)s". Befeore make a new search, remove the statement line.</field>
-        </record>
         <record model="ir.message" id="msg_valid_days_out_of_range">
             <field name="text">The Enable Banking Session Valid Days fields must be between 1 and 90 days.</field>
         </record>
-        <record model="ir.message" id="msg_repeated_related_to_used">
-            <field name="text">The related "%(related_to)s" is usde in a line of the posted origin "%(origin)s."</field>
-        </record>
         <record model="ir.message" id="msg_missing_fernet_key">
             <field name="text">Missing Fernet key.</field>
-        </record>
-        <record model="ir.message" id="msg_not_use_blocked_account_move">
-            <field name="text">The suggestion you are trying to use adds move line(s) "%(move_lines)s" whose payments are blocked. Are you sure you want to continue?</field>
-        </record>
-        <record model="ir.message" id="msg_origins_with_lines">
-            <field name="text">The origins "%(origins)s" have lines. If you want to use them to pay an Invoice, the related lines will be removed.</field>
-        </record>
-        <record model="ir.message" id="msg_not_enough_amount_to_pay">
-            <field name="text">The invoice has not enougth amount to pay. It's %(amount_to_pay)s € and the origins selected sum %(origins_amount)s €.</field>
-        </record>
-        <record model="ir.message" id="msg_journal_weight_unique">
-            <field name="text">Weight Type must be unique per journal.</field>
-        </record>
-        <record model="ir.message" id="msg_statement_line_delete">
-            <field name="text">It is not possible to remove the line "%(line)s", because the related statement "%(statement)s" is validated or posted.</field>
-        </record>
-        <record model="ir.message" id="msg_find_same_related_to">
-            <field name="text">You are post for two or more origins that are linked to lines with the same related (%(related_to)s) record and sum more than the related to amount. Please post for only one origin.</field>
         </record>
         <record model="ir.message" id="msg_no_bank">
             <field name="text">No bank or bank party found in journal bank account.</field>

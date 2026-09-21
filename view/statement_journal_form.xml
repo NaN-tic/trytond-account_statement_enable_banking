@@ -3,12 +3,6 @@
 this repository contains the full copyright notices and license terms. -->
 <data>
     <xpath expr="/form/field[@name='validation']" position="after">
-        <label name="one_move_per_origin"/>
-        <field name="one_move_per_origin"/>
-        <label name="max_amount_tolerance"/>
-        <field name="max_amount_tolerance"/>
-        <field name="weights" colspan="4"/>
-
         <separator id="enable_banking" string="Enable Banking" colspan="4"/>
         <label name="aspsp_name"/>
         <field name="aspsp_name"/>
@@ -16,19 +10,14 @@ this repository contains the full copyright notices and license terms. -->
         <field name="aspsp_country"/>
         <label name="synchronize_journal"/>
         <field name="synchronize_journal"/>
-        <label name="account_statement_origin_sequence"/>
-        <field name="account_statement_origin_sequence"/>
         <label name="enable_banking_session"/>
         <field name="enable_banking_session"/>
         <label name="offset_days_to"/>
         <field name="offset_days_to"/>
-        <label name="search_suggestions"/>
-        <field name="search_suggestions"/>
 
         <group colspan="4" id="EB Session">
             <button name="retrieve_enable_banking_session"/>
             <button name="synchronize_statement_enable_banking"/>
-            <button name="evaluate_weights"/>
         </group>
     </xpath>
 </data>

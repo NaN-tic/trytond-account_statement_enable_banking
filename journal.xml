@@ -3,22 +3,9 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
-        <!-- account.statement -->
-        <record model="ir.ui.view" id="journal_weight_view_tree">
-            <field name="model">account.statement.journal.weight</field>
-            <field name="type">tree</field>
-            <field name="name">journal_weight_tree</field>
-        </record>
-        <record model="ir.ui.view" id="journal_weight_view_form">
-            <field name="model">account.statement.journal.weight</field>
-            <field name="type">form</field>
-            <field name="name">journal_weight_form</field>
-        </record>
-
-        <!-- account.statement.journal -->
-        <record model="ir.ui.view" id="statement_journal_view_form">
+        <record model="ir.ui.view" id="enable_banking_journal_view_form">
             <field name="model">account.statement.journal</field>
-            <field name="inherit" ref="account_statement.statement_journal_view_form"/>
+            <field name="inherit" ref="account_statement_common.statement_journal_view_form"/>
             <field name="name">statement_journal_form</field>
         </record>
         <record model="ir.model.button" id="retrieve_enable_banking_session_button">
@@ -29,11 +16,6 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.model.button" id="synchronize_statement_enable_banking_button">
             <field name="name">synchronize_statement_enable_banking</field>
             <field name="string">Syncronize Statements</field>
-            <field name="model">account.statement.journal</field>
-        </record>
-        <record model="ir.model.button" id="evaluate_weights_button">
-            <field name="name">evaluate_weights</field>
-            <field name="string">Evaluate Weights</field>
             <field name="model">account.statement.journal</field>
         </record>
     </data>

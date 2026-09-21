@@ -1,8 +1,0 @@
-<form>
-    <label name="journal"/>
-    <field name="journal" colspan="3"/>
-    <label name="type"/>
-    <field name="type"/>
-    <label name="weight"/>
-    <field name="weight"/>
-</form>
