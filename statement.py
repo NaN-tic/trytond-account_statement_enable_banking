@@ -710,8 +710,8 @@ class Line(metaclass=PoolMeta):
         if move_to_reconcile:
             with Transaction().set_context(
                     account_statement_lines=statement_lines):
-                for _, value in move_to_reconcile.items():
-                    MoveLine.reconcile(*value)
+                MoveLine.reconcile(*chain.from_iterable(
+                    move_to_reconcile.values()))
 
     @classmethod
     def delete(cls, lines):
