@@ -2,42 +2,6 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
-msgctxt "field:account.invoice,paid_directly:"
-msgid "Has Payed directly"
-msgstr "Ha pagat directament"
-
-msgctxt "field:account.move,allow_button_draft:"
-msgid "Allow Button Draft Move"
-msgstr "Permetre Botó d'esborrany d'assentament"
-
-msgctxt "field:account.move,allow_draft:"
-msgid "Allow Draft Move"
-msgstr "Permetre assentament a esborrany"
-
-msgctxt "field:account.move.line,debit_credit_balance:"
-msgid "Debit-Credit Balance"
-msgstr "Saldo dèbit-crèdit"
-
-msgctxt "field:account.move.line,payment_date:"
-msgid "Payment Date"
-msgstr "Data de pagament"
-
-msgctxt "field:account.move.line,payment_group:"
-msgid "Payment Group"
-msgstr "Grup de pagament"
-
-msgctxt "field:account.statement,end_date:"
-msgid "End Date"
-msgstr "Data final"
-
-msgctxt "field:account.statement,start_date:"
-msgid "Start Date"
-msgstr "Data inicial"
-
-msgctxt "field:account.statement.journal,account_statement_origin_sequence:"
-msgid "Account Statement Origin Sequence"
-msgstr "Seqüència d'Origen Extracte"
-
 msgctxt "field:account.statement.journal,aspsp_country:"
 msgid "ASPSP Country"
 msgstr "País ASPSP"
@@ -50,259 +14,17 @@ msgctxt "field:account.statement.journal,enable_banking_session:"
 msgid "Enable Banking Session"
 msgstr "Sessió Enable Banking"
 
-msgctxt ""
-"field:account.statement.journal,enable_banking_session_allowed_bank_accounts:"
+msgctxt "field:account.statement.journal,enable_banking_session_allowed_bank_accounts:"
 msgid "Allowed Bank Accounts"
 msgstr "Comptes bancaris permesos"
-
-msgctxt "field:account.statement.journal,max_amount_tolerance:"
-msgid "Max Amount tolerance"
-msgstr "Tolerància import màxim"
 
 msgctxt "field:account.statement.journal,offset_days_to:"
 msgid "Offset Days To"
 msgstr "Dies marge fins a"
 
-msgctxt "field:account.statement.journal,one_move_per_origin:"
-msgid "One Move per Origin"
-msgstr "Un assentament per origen"
-
-msgctxt "field:account.statement.journal,search_suggestions:"
-msgid "Search Suggestions"
-msgstr "Cerca suggeriments"
-
 msgctxt "field:account.statement.journal,synchronize_journal:"
 msgid "Synchronize Journal"
 msgstr "Sincronitzar diari"
-
-msgctxt "field:account.statement.journal,weights:"
-msgid "Weights"
-msgstr "Pesos"
-
-msgctxt "field:account.statement.journal.weight,journal:"
-msgid "Journal"
-msgstr "Diari"
-
-msgctxt "field:account.statement.journal.weight,type:"
-msgid "Type"
-msgstr "Tipus"
-
-msgctxt "field:account.statement.journal.weight,weight:"
-msgid "Weight"
-msgstr "Pes"
-
-msgctxt "field:account.statement.line,account_required:"
-msgid "Account Required"
-msgstr "Compte requerit"
-
-msgctxt "field:account.statement.line,analytic_accounts:"
-msgid "Analytic Accounts"
-msgstr "Comptes analítics"
-
-msgctxt "field:account.statement.line,analytic_accounts_size:"
-msgid "Analytic Accounts Size"
-msgstr "Mida dels comptes analítics"
-
-msgctxt "field:account.statement.line,maturity_date:"
-msgid "Maturity Date"
-msgstr "Data de venciment"
-
-msgctxt "field:account.statement.line,origin_state:"
-msgid "Origin State"
-msgstr "Estat d'origen"
-
-msgctxt "field:account.statement.line,show_paid_invoices:"
-msgid "Show Paid Invoices"
-msgstr "Mostra les factures pagades"
-
-msgctxt "field:account.statement.line,suggested_line:"
-msgid "Suggested Line"
-msgstr "Línia suggerida"
-
-msgctxt "field:account.statement.origin,balance:"
-msgid "Balance"
-msgstr "Balanç"
-
-msgctxt "field:account.statement.origin,entry_reference:"
-msgid "Entry Reference"
-msgstr "Referència d'entrada"
-
-msgctxt "field:account.statement.origin,journal:"
-msgid "Journal"
-msgstr "Diari"
-
-msgctxt "field:account.statement.origin,remittance_information:"
-msgid "Remittance Information"
-msgstr "Informació del banc"
-
-msgctxt "field:account.statement.origin,state:"
-msgid "State"
-msgstr "Estat"
-
-msgctxt "field:account.statement.origin,suggested_lines:"
-msgid "Suggested Lines"
-msgstr "Línies suggerides"
-
-msgctxt "field:account.statement.origin,suggested_lines_tree:"
-msgid "Suggested Lines"
-msgstr "Línies suggerides"
-
-msgctxt "field:account.statement.origin,synchronized:"
-msgid "Synchronized"
-msgstr "Sincronitzat"
-
-msgctxt "field:account.statement.origin.create_line.start,account:"
-msgid "Account"
-msgstr "Compte"
-
-msgctxt "field:account.statement.origin.create_line.start,analytic_accounts:"
-msgid "Analytic Accounts"
-msgstr "Comptes analítics"
-
-msgctxt "field:account.statement.origin.create_line.start,company:"
-msgid "Company"
-msgstr "Companyia"
-
-msgctxt "field:account.statement.origin.create_line.start,description:"
-msgid "Description"
-msgstr "Descripció"
-
-msgctxt "field:account.statement.origin.create_line.start,party:"
-msgid "Party"
-msgstr "Tercer"
-
-msgctxt "field:account.statement.origin.create_line.start,party_required:"
-msgid "Party Required"
-msgstr "Tercer requerit"
-
-msgctxt "field:account.statement.origin.create_line.start,post_origin:"
-msgid "Post Origins"
-msgstr "Comptabilitza orígens"
-
-msgctxt "field:account.statement.origin.multiple.invoices.start,amount:"
-msgid "Amount"
-msgstr "Import"
-
-msgctxt "field:account.statement.origin.multiple.invoices.start,company:"
-msgid "Company"
-msgstr "Companyia"
-
-msgctxt "field:account.statement.origin.multiple.invoices.start,currency:"
-msgid "Currency"
-msgstr "Moneda"
-
-msgctxt "field:account.statement.origin.multiple.invoices.start,invoices:"
-msgid "Invoices"
-msgstr "Factures"
-
-msgctxt ""
-"field:account.statement.origin.multiple.invoices.start,pending_amount:"
-msgid "Pending Amount"
-msgstr "Import pendent"
-
-msgctxt "field:account.statement.origin.multiple.move_lines.start,amount:"
-msgid "Amount"
-msgstr "Import"
-
-msgctxt "field:account.statement.origin.multiple.move_lines.start,company:"
-msgid "Company"
-msgstr "Companyia"
-
-msgctxt "field:account.statement.origin.multiple.move_lines.start,currency:"
-msgid "Currency"
-msgstr "Moneda"
-
-msgctxt "field:account.statement.origin.multiple.move_lines.start,move_lines:"
-msgid "Move Lines"
-msgstr "Apunts"
-
-msgctxt ""
-"field:account.statement.origin.multiple.move_lines.start,pending_amount:"
-msgid "Pending Amount"
-msgstr "Import pendent"
-
-msgctxt ""
-"field:account.statement.origin.multiple.move_lines.start,second_currency:"
-msgid "Second Currency"
-msgstr "Segona moneda"
-
-msgctxt "field:account.statement.origin.suggested.line,account:"
-msgid "Account"
-msgstr "Compte"
-
-msgctxt "field:account.statement.origin.suggested.line,amount:"
-msgid "Amount"
-msgstr "Import"
-
-msgctxt ""
-"field:account.statement.origin.suggested.line,amount_second_currency:"
-msgid "Amount Second Currency"
-msgstr "Import Segona moneda"
-
-msgctxt "field:account.statement.origin.suggested.line,analytic_accounts:"
-msgid "Analytic Accounts"
-msgstr "Comptes analítics"
-
-msgctxt ""
-"field:account.statement.origin.suggested.line,analytic_accounts_size:"
-msgid "Analytic Accounts Size"
-msgstr "Mida dels comptes analítics"
-
-msgctxt "field:account.statement.origin.suggested.line,based_on:"
-msgid "Based On"
-msgstr "Basat en"
-
-msgctxt "field:account.statement.origin.suggested.line,childs:"
-msgid "Children"
-msgstr "Fills"
-
-msgctxt "field:account.statement.origin.suggested.line,company:"
-msgid "Company"
-msgstr "Companyia"
-
-msgctxt "field:account.statement.origin.suggested.line,company_currency:"
-msgid "Company Currency"
-msgstr "Moneda de l'empresa"
-
-msgctxt "field:account.statement.origin.suggested.line,currency:"
-msgid "Currency"
-msgstr "Moneda"
-
-msgctxt "field:account.statement.origin.suggested.line,date:"
-msgid "Date"
-msgstr "Data"
-
-msgctxt "field:account.statement.origin.suggested.line,origin:"
-msgid "Origin"
-msgstr "Origen"
-
-msgctxt "field:account.statement.origin.suggested.line,parent:"
-msgid "Parent"
-msgstr "Pare"
-
-msgctxt "field:account.statement.origin.suggested.line,party:"
-msgid "Party"
-msgstr "Tercer"
-
-msgctxt "field:account.statement.origin.suggested.line,related_to:"
-msgid "Related To"
-msgstr "Relacionat amb"
-
-msgctxt "field:account.statement.origin.suggested.line,second_currency:"
-msgid "Second Currency"
-msgstr "Segona moneda"
-
-msgctxt "field:account.statement.origin.suggested.line,state:"
-msgid "State"
-msgstr "Estat"
-
-msgctxt "field:account.statement.origin.suggested.line,type:"
-msgid "Type"
-msgstr "Tipus"
-
-msgctxt "field:account.statement.origin.suggested.line,weight:"
-msgid "Weight"
-msgstr "Pes"
 
 msgctxt "field:enable_banking.configuration,date_field:"
 msgid "Date Field"
@@ -320,13 +42,11 @@ msgctxt "field:enable_banking.origin_synchronize_statement.ask,journals:"
 msgid "Journals"
 msgstr "Diaris"
 
-msgctxt ""
-"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid:"
+msgctxt "field:enable_banking.retrieve_session.select_session,enable_banking_session_valid:"
 msgid "Enable Banking Session Valid"
 msgstr "Sessió vàlida Enable Banking"
 
-msgctxt ""
-"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
+msgctxt "field:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
 msgid "Enable Banking Session Valid Days"
 msgstr "Dies de sessió vàlida Enable Banking"
 
@@ -334,13 +54,11 @@ msgctxt "field:enable_banking.retrieve_session.select_session,found_session:"
 msgid "Found Session"
 msgstr "Sessió trobada"
 
-msgctxt ""
-"field:enable_banking.retrieve_session.start,enable_banking_session_valid:"
+msgctxt "field:enable_banking.retrieve_session.start,enable_banking_session_valid:"
 msgid "Enable Banking Session Valid"
 msgstr "Sessió vàlida Enable Banking"
 
-msgctxt ""
-"field:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
+msgctxt "field:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
 msgid "Enable Banking Session Valid Days"
 msgstr "Dies de sessió vàlida Enable Banking"
 
@@ -376,84 +94,13 @@ msgctxt "field:enable_banking.session,valid_until:"
 msgid "Valid Until"
 msgstr "Vàlid fins a"
 
-msgctxt "field:statement.link.invoice.start,company:"
-msgid "Company"
-msgstr "Empresa"
-
-msgctxt "field:statement.link.invoice.start,currency:"
-msgid "Currency"
-msgstr "moneda"
-
-msgctxt "field:statement.link.invoice.start,diff_amount:"
-msgid "Difference Amount"
-msgstr "Diferència"
-
-msgctxt "field:statement.link.invoice.start,invoice:"
-msgid "Invoice"
-msgstr "Factura"
-
-msgctxt "field:statement.link.invoice.start,invoice_amount:"
-msgid "Invoice Amount"
-msgstr "Import factura"
-
-msgctxt "field:statement.link.invoice.start,origins_amount:"
-msgid "Origins Amount"
-msgstr "Import orígens"
-
-msgctxt "field:statement.link.invoice.start,post_origin:"
-msgid "Post Origins"
-msgstr "Comptabilitzar Orígens"
-
-msgctxt "help:account.invoice,paid_directly:"
-msgid "The invoice has payed with the 'PAY' button"
-msgstr "La factura s'ha pagat amb el botó \"PAGAR\""
-
-msgctxt "help:account.statement.journal,max_amount_tolerance:"
-msgid ""
-"In some cases, it is possible to have amounts that vary in X. This field if "
-"set is the maximum of the allowed tolerance. That is, if value is set when "
-"searching for similarities it will look for equal amounts or with +X, value "
-"that has been set here."
-msgstr ""
-"En alguns casos, és possible tenir imports que varien en X. Aquest camp, si "
-"s'estableix, és el màxim de la tolerància permesa. És a dir, si s'estableix "
-"un valor en cercar similituds, buscarà imports iguals o amb +X, valor que "
-"s'ha establert aquí."
-
 msgctxt "help:account.statement.journal,offset_days_to:"
-msgid ""
-"Default offset days in the Bank transaction search. Allow to not download "
-"\"to\" today, could be set \"to\" some days before. This field could be from"
-" 0 to 20. 0 meaning today, other value will be substracted from today."
-msgstr ""
-"Dies de marge per defecte a la cerca de transaccions bancàries. Permet no "
-"descarregar \"a\" avui, es pot establir \"a\" uns dies abans. Aquest camp "
-"pot ser de 0 a 20. 0 significa avui, l'altre valor es restarà d'avui."
-
-msgctxt "help:account.statement.journal,one_move_per_origin:"
-msgid ""
-"Check if want to create only one move per origin when post it even it has "
-"more than one line. Else it create one move for eaach line."
-msgstr ""
-"Marca si vols crear només un assentmanet per origen quan el comptabilitzes "
-"encara que tingui més d'una línia. En cas contrari, crea un moviment per a "
-"cada línia."
-
-msgctxt "help:account.statement.journal,search_suggestions:"
-msgid "Check if want to search automatically suggestions"
-msgstr "Marca si vols cercar suggeriments automàticament"
+msgid "Default offset days in the Bank transaction search. Allow to not download \"to\" today, could be set \"to\" some days before. This field could be from 0 to 20. 0 meaning today, other value will be substracted from today."
+msgstr "Dies de marge per defecte a la cerca de transaccions bancàries. Permet no descarregar \"a\" avui, es pot establir \"a\" uns dies abans. Aquest camp pot ser de 0 a 20. 0 significa avui, l'altre valor es restarà d'avui."
 
 msgctxt "help:account.statement.journal,synchronize_journal:"
-msgid ""
-"Check if want to synchronize automatically. When is automatically the offset"
-" is not used and tak the las statement synched date."
-msgstr ""
-"Marcar si voleu sincronitzar automàticament. Quan és automàticament no "
-"s'utilitza l'offset i agafa la data de sincronització de l'últim extracte."
-
-msgctxt "help:account.statement.line,maturity_date:"
-msgid "Set a date to make the line payable or receivable."
-msgstr "Establiu una data per fer la línia a pagar o a cobrar."
+msgid "Check if want to synchronize automatically. When is automatically the offset is not used and tak the las statement synched date."
+msgstr "Marcar si voleu sincronitzar automàticament. Quan és automàticament no s'utilitza l'offset i agafa la data de sincronització de l'últim extracte."
 
 msgctxt "help:enable_banking.configuration,date_field:"
 msgid "Choose which date to use when importing statements"
@@ -463,203 +110,13 @@ msgctxt "help:enable_banking.configuration,offset:"
 msgid "Offset in days to apply when importing statements manually"
 msgstr "Offset en dies per aplicar en importar extractes manualment"
 
-msgctxt ""
-"help:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
+msgctxt "help:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
 msgid "Only allowed maximum 180 days."
 msgstr "Només es permeten un màxim de 180 dies."
 
-msgctxt ""
-"help:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
+msgctxt "help:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
 msgid "Only allowed maximum 180 days."
 msgstr "Només es permeten un màxim de 180 dies."
-
-msgctxt "model:account.statement.journal.weight,string:"
-msgid "Account Statement Journal Weight"
-msgstr "Pes del diari de origens d'extractes"
-
-msgctxt "model:account.statement.origin.create_line.start,string:"
-msgid "Account Statement Origin Create Line Start"
-msgstr "Origen de l'extracte de compte Crear línia Inici"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_balance_after_transaction"
-msgid "Balance After Transaction"
-msgstr "Saldo després de la transacció"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code_code"
-msgid "Bank Transaction Code"
-msgstr "Codi de transacció bancària"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code_description"
-msgid "Bank Transaction Code Description"
-msgstr "Descripció del codi de transacció bancària"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_bank_transaction_code_sub_code"
-msgid "Bank Transaction Code Sub Code"
-msgstr "Subcodi del codi de transacció bancària"
-
-msgctxt "model:account.statement.origin.information,string:eb_booking_date"
-msgid "Booking Date"
-msgstr "Data reserva"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_credit_debit_indicator"
-msgid "Credit Debit Indicator"
-msgstr "Indicador de dèbit de crèdit"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_account_additional_identification"
-msgid "Creditor Account Additional Identification"
-msgstr "Informació addicional del compte de creditor."
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_account_iban"
-msgid "Creditor Account IBAN"
-msgstr "IBAN del compte creditor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_account_other"
-msgid "Creditor Account Other"
-msgstr "Un altre compte creditor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_agent_bic_fi"
-msgid "Creditor Agent BIC FI"
-msgstr "Agent creditor BIC FI"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_agent_name"
-msgid "Creditor Agent Name"
-msgstr "Nom de l'agent creditor"
-
-msgctxt "model:account.statement.origin.information,string:eb_creditor_name"
-msgid "Creditor Name"
-msgstr "Nom del creditor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_creditor_postal_address"
-msgid "Creditor Postal Address"
-msgstr "Adreça postal del creditor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_account_additional_identification"
-msgid "Debtor Account Additional Identification"
-msgstr "Informació addicional del compte de deutor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_account_iban"
-msgid "Debtor Account IBAN"
-msgstr "IBAN del compte deutor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_account_other"
-msgid "Debtor Account Other"
-msgstr "Un altre compte deutor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_agent_bic_fi"
-msgid "Debtor Agent BIC FI"
-msgstr "Agent deutor BIC FI"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_agent_name"
-msgid "Debtor Agent Name"
-msgstr "Nom de l'agent deutor"
-
-msgctxt "model:account.statement.origin.information,string:eb_debtor_name"
-msgid "Debtor Name"
-msgstr "Nom del deutor"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_debtor_postal_address"
-msgid "Debtor Postal Address"
-msgstr "Adreça postal del deutor"
-
-msgctxt "model:account.statement.origin.information,string:eb_exchange_rate"
-msgid "Exchange Rate"
-msgstr "Tassa de canvi"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_contract_identification"
-msgid "Exchange Rate Contract Identification"
-msgstr "Identificació del contracte de tipus de canvi"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_exchange_rate"
-msgid "Exchange Rate"
-msgstr "Tipus de canvi"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_instructed_amount"
-msgid "Exchange Rate Instructed Amount"
-msgstr "Import del tipus de canvi"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_rate_type"
-msgid "Exchange Rate Type"
-msgstr "Tipus de tipus de canvi"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_exchange_rate_unit_currency"
-msgid "Exchange Rate Unit Currency"
-msgstr "Moneda de tipus de canvi"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_merchant_category_code"
-msgid "Merchant Category Code"
-msgstr "Codi de categoria de comerciant"
-
-msgctxt "model:account.statement.origin.information,string:eb_note"
-msgid "Note"
-msgstr "Nota"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_reference_number"
-msgid "Reference Number"
-msgstr "Número de referència"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_reference_number_schema"
-msgid "Reference Number Schema"
-msgstr "Esquema de números de referència"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_remittance_information"
-msgid "Remittance Information"
-msgstr "Informació enviament"
-
-msgctxt "model:account.statement.origin.information,string:eb_status"
-msgid "Status"
-msgstr "Estat"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_transaction_amount"
-msgid "Transaction Amount"
-msgstr "Import de transacció"
-
-msgctxt ""
-"model:account.statement.origin.information,string:eb_transaction_date"
-msgid "Transaction Date"
-msgstr "Data de transacció"
-
-msgctxt "model:account.statement.origin.information,string:eb_value_date"
-msgid "Value Date"
-msgstr "Data valor"
-
-msgctxt "model:account.statement.origin.multiple.invoices.start,string:"
-msgid "Account Statement Origin Multiple Invoices Start"
-msgstr "Origen de l'extracte de compte Inici de múltiples factures"
-
-msgctxt "model:account.statement.origin.multiple.move_lines.start,string:"
-msgid "Account Statement Origin Multiple Move Lines Start"
-msgstr "Origen de l'extracte de compte Inici de múltiples línies de moviment"
-
-msgctxt "model:account.statement.origin.suggested.line,string:"
-msgid "Account Statement Origin Suggested Line"
-msgstr "Línia suggerida per a l'origen de l'extracte de compte"
 
 msgctxt "model:enable_banking.configuration,name:"
 msgid "Enable Banking Configuration"
@@ -685,11 +142,6 @@ msgctxt "model:ir.action,name:"
 msgid "Synchronize Statement Enable Banking"
 msgstr "Sincronitza extractes a través d'Enable Banking"
 
-msgctxt ""
-"model:ir.action,name:act_account_statement_origin_suggested_line_view"
-msgid "Account Statement Origin Suggested Line"
-msgstr "Línia Suggerida Origen Extracte"
-
 msgctxt "model:ir.action,name:act_enable_banking_configuration_form"
 msgid "Enable Banking Configuration"
 msgstr "Configuració Enable Banking"
@@ -702,25 +154,9 @@ msgctxt "model:ir.action,name:act_enable_banking_session_form"
 msgid "Enable Banking Session"
 msgstr "Sessió Enable Banking"
 
-msgctxt "model:ir.action,name:act_origin_move_lines_form"
-msgid "Move Lines"
-msgstr "Apunts"
-
-msgctxt "model:ir.action,name:act_origin_moves_form"
-msgid "Moves"
-msgstr "Assentaments"
-
 msgctxt "model:ir.action,name:act_origin_synchronize_statement"
 msgid "Statement Origins"
 msgstr "Orígens de l'extracte"
-
-msgctxt "model:ir.action,name:act_statement_origin_form"
-msgid "Statement Origins"
-msgstr "Orígens d'extracte"
-
-msgctxt "model:ir.action,name:create_line"
-msgid "Create Lines"
-msgstr "Crea línies"
 
 msgctxt "model:ir.action,name:report_session_ko"
 msgid "Enable Banking Session KO"
@@ -734,53 +170,13 @@ msgctxt "model:ir.action,name:url_session"
 msgid "Enable Banking Session"
 msgstr "Sessió Enable Banking"
 
-msgctxt "model:ir.action,name:wizard_link_invoice"
-msgid "Link Invoice"
-msgstr "Enllaça factura"
-
-msgctxt "model:ir.action,name:wizard_multiple_invoices"
-msgid "Add Multiple Invoices"
-msgstr "Afegeix Diverses Factures"
-
-msgctxt "model:ir.action,name:wizard_multiple_move_lines"
-msgid "Add Multiple Move Lines"
-msgstr "Afegeix Diversos Apunts"
-
-msgctxt ""
-"model:ir.action.act_window.domain,name:act_statement_form_domain_registered"
-msgid "Registered"
-msgstr "Registrat"
-
-msgctxt ""
-"model:ir.action.act_window.domain,name:act_statement_origin_form_domain_all"
-msgid "All"
-msgstr "Tot"
-
-msgctxt ""
-"model:ir.action.act_window.domain,name:act_statement_origin_form_domain_posted"
-msgid "Posted"
-msgstr "Comptabilitzat"
-
-msgctxt ""
-"model:ir.action.act_window.domain,name:act_statement_origin_form_domain_registered"
-msgid "Registered"
-msgstr "Registrat"
-
 msgctxt "model:ir.message,text:msg_account_not_found"
-msgid ""
-"Account \"%(account)s\" not found in session from bank \"%(bank)s\" make "
-"sure the account number is correct."
-msgstr ""
-"El compte \"%(account)s\" no s'ha trobat a la sessió del banc \"%(bank)s\" "
-"comprova que el número de compte sigui correcte."
+msgid "Account \"%(account)s\" not found in session from bank \"%(bank)s\" make sure the account number is correct."
+msgstr "El compte \"%(account)s\" no s'ha trobat a la sessió del banc \"%(bank)s\" comprova que el número de compte sigui correcte."
 
 msgctxt "model:ir.message,text:msg_aspsp_not_found"
-msgid ""
-"Bank \"%(bank)s\" from country \"%(country_code)s\" not found in Enable "
-"Banking compatible banks.\\n%(message)s"
-msgstr ""
-"No s'ha trobat el banc \"%(bank)s\" del país \"%(country_code)s\" com a "
-"compatible amb Enable Banking.\\n%(message)s"
+msgid "Bank \"%(bank)s\" from country \"%(country_code)s\" not found in Enable Banking compatible banks.\\n%(message)s"
+msgstr "No s'ha trobat el banc \"%(bank)s\" del país \"%(country_code)s\" com a compatible amb Enable Banking.\\n%(message)s"
 
 msgctxt "model:ir.message,text:msg_connection_test_error"
 msgid "Error testing connection: %(error_message)s "
@@ -792,34 +188,15 @@ msgstr "El test de connexió ha funcionat correctament."
 
 msgctxt "model:ir.message,text:msg_currency_not_match"
 msgid "The bank statements currency and the journal currency dosen't match."
-msgstr ""
-"La moneda dels extractes bancaris no coincideix amb la moneda del diari."
+msgstr "La moneda dels extractes bancaris no coincideix amb la moneda del diari."
 
 msgctxt "model:ir.message,text:msg_error_create_session"
 msgid "Error creating the session: \"%(error_code)s\" \"%(error_message)s\""
-msgstr ""
-"S'ha produït un error mentre s'intentava crear la sessió: \"%(error_code)s\""
-" \"%(error_message)s\""
+msgstr "S'ha produït un error mentre s'intentava crear la sessió: \"%(error_code)s\" \"%(error_message)s\""
 
 msgctxt "model:ir.message,text:msg_error_get_statements"
 msgid "Error getting statements: \"%(error_code)s\" \"%(error_message)s\""
-msgstr ""
-"S'ha produït un error mentre s'intentava obtenir les línies d'extracte: "
-"\"%(error_code)s\" \"%(error_message)s\""
-
-msgctxt "model:ir.message,text:msg_find_same_related_to"
-msgid ""
-"You are post for two or more origins that are linked to lines with the same "
-"related (%(related_to)s) record and sum more than the related to amount. "
-"Please post for only one origin."
-msgstr ""
-"Esteu comptabilitzant dos o més orígens que estan vinculats a línies amb el "
-"mateix registre relacionat (%(related_to)s) i sumen més que l'import "
-"relacionat. Publiqueu només per a un origen."
-
-msgctxt "model:ir.message,text:msg_journal_weight_unique"
-msgid "Weight Type must be unique per journal."
-msgstr "El tipus de pes ha de ser únic per diari."
+msgstr "S'ha produït un error mentre s'intentava obtenir les línies d'extracte: \"%(error_code)s\" \"%(error_message)s\""
 
 msgctxt "model:ir.message,text:msg_missing_fernet_key"
 msgid "Missing Fernet key."
@@ -827,112 +204,23 @@ msgstr "Falta la clau Fernet."
 
 msgctxt "model:ir.message,text:msg_no_bank"
 msgid "No bank or bank party found in journal bank account."
-msgstr ""
-"No s'ha trobat cap banc ni cap tercer del banc al compte bancari del diari."
+msgstr "No s'ha trobat cap banc ni cap tercer del banc al compte bancari del diari."
 
 msgctxt "model:ir.message,text:msg_no_bank_account"
-msgid ""
-"No bank account found in journal, if you want to synchronize statements, you"
-" need to set a bank account."
-msgstr ""
-"No s'ha trobat un compte bancari en el diari, si vols sincronitzar "
-"extractes, necessites indicar un compte bancari."
+msgid "No bank account found in journal, if you want to synchronize statements, you need to set a bank account."
+msgstr "No s'ha trobat un compte bancari en el diari, si vols sincronitzar extractes, necessites indicar un compte bancari."
 
 msgctxt "model:ir.message,text:msg_no_country"
-msgid ""
-"Country not found in bank party, please, make sure the bank party have at "
-"least one address with country."
-msgstr ""
-"No s'ha trobat un país al tercer del banc, si us plau, assegurat que el "
-"tercer del banc té almenys una direcció amb país."
+msgid "Country not found in bank party, please, make sure the bank party have at least one address with country."
+msgstr "No s'ha trobat un país al tercer del banc, si us plau, assegurat que el tercer del banc té almenys una direcció amb país."
 
 msgctxt "model:ir.message,text:msg_no_session"
 msgid "Session not found."
 msgstr "Sessió no trobada."
 
-msgctxt "model:ir.message,text:msg_not_enough_amount_to_pay"
-msgid ""
-"The invoice has not enougth amount to pay. It's %(amount_to_pay)s € and the "
-"origins selected sum %(origins_amount)s €."
-msgstr ""
-"La factura no té prou import per pagar. Són %(amount_to_pay)s € i els "
-"orígens seleccionats sumen %(origins_amount)s €."
-
-msgctxt "model:ir.message,text:msg_not_use_blocked_account_move"
-msgid ""
-"The suggestion you are trying to use adds move line(s) \"%(move_lines)s\" "
-"whose payments are blocked. Are you sure you want to continue?"
-msgstr ""
-"El suggeriment que intentes utilitzar afegeix la línia o línies de moviment "
-"\"%(move_lines)s\" els pagaments de la qual estan bloquejats. Segur que vols"
-" continuar?"
-
-msgctxt "model:ir.message,text:msg_origin_line_with_move"
-msgid ""
-"The line has move \"%(move)s\" related to it. Cancel or delete the line will"
-" delete that move. Do you want to continue?"
-msgstr ""
-"La línia té l'assentament \"%(move)s\" relacionat. Cancel·lar o suprimir la "
-"línia suprimirà aquest moviment. Voleu continuar?"
-
-msgctxt "model:ir.message,text:msg_origin_lines_with_move"
-msgid ""
-"The lines \"%(lines)s\" has moves related to it. Cancel or delete lines will"
-" delete those moves. Do you want to continue?"
-msgstr ""
-"Les línies \"%(lines)s\" tenen assentaments relacionats. Cancel·lar o "
-"suprimir les línies suprimirà aquests moviments. Voleu continuar?"
-
-msgctxt "model:ir.message,text:msg_origin_pending_amount"
-msgid ""
-"The origin could not be reconciled because the amount of the lines "
-"\"%(line_amount)s\" and the amount of the origin \"%(origin_amount)s\" "
-"differ."
-msgstr ""
-"L'orígen no s'ha pogut conciliar perquè el total de les línies "
-"\"%(line_amount)s\" i el de l'origen \"%(origin_amount)s\" són diferents."
-
-msgctxt "model:ir.message,text:msg_origins_with_lines"
-msgid ""
-"The origins \"%(origins)s\" have lines. If you want to use them to pay an "
-"Invoice, the related lines will be removed."
-msgstr ""
-"Els orígens \"%(origins)s\" tenen línies. Si voleu utilitzar-los per pagar "
-"una factura, s'eliminaran aquestes línies."
-
-msgctxt "model:ir.message,text:msg_repeated_related_to_used"
-msgid ""
-"The related \"%(related_to)s\" is usde in a line of the posted origin "
-"\"%(origin)s.\""
-msgstr ""
-"El relacionat \"%(related_to)s\" s'utilitza en una línia de l'origen "
-"comptabilitzat \"%(origin)s\"."
-
-msgctxt "model:ir.message,text:msg_statement_line_delete"
-msgid ""
-"It is not possible to remove the line \"%(line)s\", because the related "
-"statement \"%(statement)s\" is validated or posted."
-msgstr ""
-"No és possible eliminar la línia \"%(line)s\", perquè l'extracte relacionat "
-"\"%(statement)s\" està validat o comptabilitzat."
-
-msgctxt "model:ir.message,text:msg_suggested_line_related_to_statement_line"
-msgid ""
-"There is some suggested line relate to the statement lines of the origins "
-"\"%(origins_name)s\". Befeore make a new search, remove the statement line."
-msgstr ""
-"Hi ha alguna línia suggerida relacionada amb les línies dels origen "
-"\"%(origins_name)s\". Abans de fer una cerca nova, elimineu les línies."
-
 msgctxt "model:ir.message,text:msg_valid_days_out_of_range"
-msgid ""
-"The Enable Banking Session Valid Days fields must be between 1 and 90 days."
-msgstr ""
-"El camp Dies validesa sessió Enable Banking han de tenir entre 1 i 90 dies."
-
-msgctxt "model:ir.model.button,string:evaluate_weights_button"
-msgid "Evaluate Weights"
-msgstr "Avaluar pesos"
+msgid "The Enable Banking Session Valid Days fields must be between 1 and 90 days."
+msgstr "El camp Dies validesa sessió Enable Banking han de tenir entre 1 i 90 dies."
 
 msgctxt "model:ir.model.button,string:retrieve_enable_banking_session_button"
 msgid "Retrieve EB Session"
@@ -942,71 +230,13 @@ msgctxt "model:ir.model.button,string:retrieve_session_enable_banking_button"
 msgid "Synchronize Statement Enable Banking"
 msgstr "Sincronitza extracte Enable Banking"
 
-msgctxt "model:ir.model.button,string:statement_line_add_pending_button"
-msgid "Add Pending"
-msgstr "Afegeix pendent"
-
-msgctxt "model:ir.model.button,string:statement_line_multiple_invoices_button"
-msgid "Add Invoices"
-msgstr "Afegeix factures"
-
-msgctxt ""
-"model:ir.model.button,string:statement_line_multiple_move_lines_button"
-msgid "Add Move Lines"
-msgstr "Afegeix apunts comptables"
-
-msgctxt "model:ir.model.button,string:statement_origin_cancel_button"
-msgid "Cancel"
-msgstr "Cancel·la"
-
-msgctxt "model:ir.model.button,string:statement_origin_link_invoice_button"
-msgid "Link Invoice"
-msgstr "Enllaça factura"
-
-msgctxt "model:ir.model.button,string:statement_origin_post_button"
-msgid "Post"
-msgstr "Comptabilitza"
-
-msgctxt "model:ir.model.button,string:statement_origin_register_button"
-msgid "Register"
-msgstr "Registra"
-
-msgctxt ""
-"model:ir.model.button,string:statement_origin_search_suggestions_button"
-msgid "Search Suggestions"
-msgstr "Cerca Suggeriments"
-
-msgctxt ""
-"model:ir.model.button,string:statement_origin_suggested_line_propose_button"
-msgid "Propose"
-msgstr "Proposa"
-
-msgctxt ""
-"model:ir.model.button,string:statement_origin_suggested_line_use_button"
-msgid "Use"
-msgstr "Utilitza"
-
-msgctxt "model:ir.model.button,string:statement_register_button"
-msgid "Register"
-msgstr "Registra"
-
-msgctxt ""
-"model:ir.model.button,string:synchronize_statement_enable_banking_button"
+msgctxt "model:ir.model.button,string:synchronize_statement_enable_banking_button"
 msgid "Syncronize Statements"
 msgstr "Sincronitzar extractes"
 
-msgctxt ""
-"model:ir.model.button,string:test_connection_enable_banking_configuration_button"
+msgctxt "model:ir.model.button,string:test_connection_enable_banking_configuration_button"
 msgid "Test Connection"
 msgstr "Test de connexió"
-
-msgctxt "model:ir.sequence,name:sequence_account_statement_origin"
-msgid "Account Statement Origin"
-msgstr "Origen Extracte"
-
-msgctxt "model:ir.sequence.type,name:sequence_type_account_statement_origin"
-msgid "Account Statement Origin"
-msgstr "Origen Extracte"
 
 msgctxt "model:ir.ui.menu,name:menu_enable_banking"
 msgid "Enable Banking"
@@ -1019,62 +249,6 @@ msgstr "Configuració Enable Banking"
 msgctxt "model:ir.ui.menu,name:menu_enable_banking_session_form"
 msgid "Enable Banking Session"
 msgstr "Sessió Enable Banking"
-
-msgctxt "model:ir.ui.menu,name:menu_statement_form"
-msgid "Statement Origins"
-msgstr "Orígens d'extracte"
-
-msgctxt "model:statement.link.invoice.start,string:"
-msgid "Statement Link Invoice Start"
-msgstr "Inici de la factura de l'enllaç de l'extracte"
-
-msgctxt "report:account.statement:"
-msgid "#"
-msgstr "#"
-
-msgctxt "report:account.statement:"
-msgid "Amount"
-msgstr "Import"
-
-msgctxt "report:account.statement:"
-msgid "Cancelled"
-msgstr "Cancel·lat"
-
-msgctxt "report:account.statement:"
-msgid "Date"
-msgstr "Data"
-
-msgctxt "report:account.statement:"
-msgid "Date:"
-msgstr "Data:"
-
-msgctxt "report:account.statement:"
-msgid "Description"
-msgstr "Descripció"
-
-msgctxt "report:account.statement:"
-msgid "Draft"
-msgstr "Esborrany"
-
-msgctxt "report:account.statement:"
-msgid "Journal:"
-msgstr "Diari:"
-
-msgctxt "report:account.statement:"
-msgid "Number"
-msgstr "Número"
-
-msgctxt "report:account.statement:"
-msgid "Party"
-msgstr "Tercer"
-
-msgctxt "report:account.statement:"
-msgid "Statement"
-msgstr "Extracte"
-
-msgctxt "report:account.statement:"
-msgid "Total"
-msgstr "Total"
 
 msgctxt "report:enable_banking.session_ko:"
 msgid "Please. Try to create the session again later."
@@ -1097,150 +271,8 @@ msgid "Session created successfully."
 msgstr "Sessió creada amb èxit."
 
 msgctxt "report:enable_banking.session_ok:"
-msgid ""
-"The session between enable banking and your bank has been created "
-"successfully."
+msgid "The session between enable banking and your bank has been created successfully."
 msgstr "La sessió entre Enable Banking i el teu banc s'ha creat amb èxit."
-
-msgctxt "selection:account.statement,state:"
-msgid "Registered"
-msgstr "Registrat"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Based On Match"
-msgstr "Coincidencia de Basat en"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Combination Escape Threshold"
-msgstr "Llindar d'escapament combinat"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Date Match"
-msgstr "Coincidència de dates"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Escape Threshold"
-msgstr "Llindar d'escapament"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Max Suggestion Count"
-msgstr "Nombre màxim de suggeriments"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Move Line Max Count"
-msgstr "Nombre màxim d'apunts"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Number Match"
-msgstr "Coincidència de número"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Origin Delta Days"
-msgstr "Dies diferència d'Origen"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Origin Similarity"
-msgstr "Similitud d'origen"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Origin Similarity Threshold"
-msgstr "Llindar de similitud d'origen"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Party Match"
-msgstr "Coincidència de tercer"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Party Uniformity"
-msgstr "Uniformitat de tercers"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Target Combinations"
-msgstr "Combinacions objectiu"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Balance"
-msgstr "Tipus saldo"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Balance Invoice"
-msgstr "Tipus saldo factura"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Combination All"
-msgstr "Tipus combinació de tot"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Combination Party"
-msgstr "Tipus combinació de tercer"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Origin"
-msgstr "Tipus origen"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Payment"
-msgstr "Tipus pagament"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Payment Group"
-msgstr "Tipus grup de pagament"
-
-msgctxt "selection:account.statement.journal.weight,type:"
-msgid "Type Sale"
-msgstr "Tipus venda"
-
-msgctxt "selection:account.statement.origin,state:"
-msgid "Cancelled"
-msgstr "Cancel·lat"
-
-msgctxt "selection:account.statement.origin,state:"
-msgid "Posted"
-msgstr "Comptabilitzat"
-
-msgctxt "selection:account.statement.origin,state:"
-msgid "Registered"
-msgstr "Registrat"
-
-msgctxt "selection:account.statement.origin.suggested.line,state:"
-msgid "Proposed"
-msgstr "Proposat"
-
-msgctxt "selection:account.statement.origin.suggested.line,state:"
-msgid "Used"
-msgstr "Utilitzat"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Balance"
-msgstr "Saldo"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Balance Invoices"
-msgstr "Saldo de factures"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Combine All"
-msgstr "Combinació de tot"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Combine Parties"
-msgstr "Combinació de tercers"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Origin"
-msgstr "Origen"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Payment"
-msgstr "Pagament"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Payment Group"
-msgstr "Grup de pagaments"
-
-msgctxt "selection:account.statement.origin.suggested.line,type:"
-msgid "Sale"
-msgstr "Venda"
 
 msgctxt "selection:enable_banking.configuration,date_field:"
 msgid "Booking Date"
@@ -1258,46 +290,13 @@ msgctxt "selection:ir.cron,method:"
 msgid "Synchronize Enable Banking Journals"
 msgstr "Sincronitzar Diaris Enable Banking"
 
-msgctxt "view:account.invoice:"
-msgid "Tax"
-msgstr "Impost"
-
-msgctxt "view:account.invoice:"
-msgid "Total"
-msgstr "Total"
-
-msgctxt "view:account.invoice:"
-msgid "Untaxed"
-msgstr "Base imposable"
-
-msgctxt "view:account.move.line:"
-msgid "Total credit"
-msgstr "Haver total"
-
-msgctxt "view:account.move.line:"
-msgid "Total debit"
-msgstr "Dèbit total"
-
 msgctxt "view:account.statement.journal:"
 msgid "Enable Banking"
 msgstr "Enable Banking"
 
-msgctxt "view:account.statement:"
-msgid "End Time"
-msgstr "Hora final"
-
-msgctxt "view:account.statement:"
-msgid "Start Time"
-msgstr "Hora inicial"
-
 msgctxt "view:enable_banking.origin_synchronize_statement.ask:"
-msgid ""
-"There are one or more Statement Journal with the Enable Banking Session "
-"expired. Do you want to go to the Origins or to the Journals to updat the "
-"sessions?"
-msgstr ""
-"Hi ha un o més diaris d'extractes amb la sessió d'Enable Banking caducada. "
-"Vols anar als Orígens o als Diaris per actualitzar les sessions?"
+msgid "There are one or more Statement Journal with the Enable Banking Session expired. Do you want to go to the Origins or to the Journals to updat the sessions?"
+msgstr "Hi ha un o més diaris d'extractes amb la sessió d'Enable Banking caducada. Vols anar als Orígens o als Diaris per actualitzar les sessions?"
 
 msgctxt "view:enable_banking.retrieve_session.select_session:"
 msgid "A valid session has been found for the journal's bank account:"
@@ -1313,8 +312,7 @@ msgstr "Vols continuar?"
 
 msgctxt "view:enable_banking.retrieve_session.start:"
 msgid "Retrieve an enable banking session, creating one if it does not exist"
-msgstr ""
-"Recuperar una sessió bancària habilitada i crear-ne una si no existeix"
+msgstr "Recuperar una sessió bancària habilitada i crear-ne una si no existeix"
 
 msgctxt "view:enable_banking.session:"
 msgid "Bank"
@@ -1324,50 +322,19 @@ msgctxt "view:enable_banking.session:"
 msgid "Session"
 msgstr "Sessió"
 
-msgctxt ""
-"wizard_button:account.statement.origin.create_line,start,create_lines:"
-msgid "OK"
-msgstr "D'acord"
-
-msgctxt "wizard_button:account.statement.origin.create_line,start,end:"
-msgid "Cancel"
-msgstr "Cancel·lar"
-
-msgctxt ""
-"wizard_button:account.statement.origin.multiple.invoices,start,create_lines:"
-msgid "OK"
-msgstr "D'acord"
-
-msgctxt "wizard_button:account.statement.origin.multiple.invoices,start,end:"
-msgid "Cancel"
-msgstr "Cancel·lar"
-
-msgctxt ""
-"wizard_button:account.statement.origin.multiple.move_lines,start,create_lines:"
-msgid "OK"
-msgstr "D'acord"
-
-msgctxt ""
-"wizard_button:account.statement.origin.multiple.move_lines,start,end:"
-msgid "Cancel"
-msgstr "Cancel·lar"
-
 msgctxt "wizard_button:enable_banking.origin_synchronize_statement,ask,end:"
 msgid "Cancel"
 msgstr "Cancel·la"
 
-msgctxt ""
-"wizard_button:enable_banking.origin_synchronize_statement,ask,journal:"
+msgctxt "wizard_button:enable_banking.origin_synchronize_statement,ask,journal:"
 msgid "Journal"
 msgstr "Diaris"
 
-msgctxt ""
-"wizard_button:enable_banking.origin_synchronize_statement,ask,origin:"
+msgctxt "wizard_button:enable_banking.origin_synchronize_statement,ask,origin:"
 msgid "Origin"
 msgstr "Orígens"
 
-msgctxt ""
-"wizard_button:enable_banking.retrieve_session,select_session,create_session:"
+msgctxt "wizard_button:enable_banking.retrieve_session,select_session,create_session:"
 msgid "Create New Session"
 msgstr "Crea una nova sessió"
 
@@ -1375,8 +342,7 @@ msgctxt "wizard_button:enable_banking.retrieve_session,select_session,end:"
 msgid "Cancel"
 msgstr "Cancel·la"
 
-msgctxt ""
-"wizard_button:enable_banking.retrieve_session,select_session,use_session:"
+msgctxt "wizard_button:enable_banking.retrieve_session,select_session,use_session:"
 msgid "Use Existing Session"
 msgstr "Utilitza la sessió existent"
 
@@ -1385,13 +351,5 @@ msgid "OK"
 msgstr "D'acord"
 
 msgctxt "wizard_button:enable_banking.retrieve_session,start,end:"
-msgid "Cancel"
-msgstr "Cancel·la"
-
-msgctxt "wizard_button:statement.link.invoice,start,apply:"
-msgid "Apply"
-msgstr "Aplica"
-
-msgctxt "wizard_button:statement.link.invoice,start,end:"
 msgid "Cancel"
 msgstr "Cancel·la"

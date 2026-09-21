@@ -10,7 +10,7 @@ from configparser import ConfigParser
 MODULE = 'account_statement_enable_banking'
 PREFIX = 'nantic'
 MODULE2PREFIX = {
-    'account_code_digits': 'nantic',
+    'account_statement_common': 'nantic',
 }
 
 
@@ -30,7 +30,7 @@ def get_require_version(name):
     return require
 
 config = ConfigParser()
-config.readfp(open('tryton.cfg'))
+config.read('tryton.cfg')
 info = dict(config.items('tryton'))
 for key in ('depends', 'extras_depend', 'xml'):
     if key in info:
@@ -41,7 +41,7 @@ major_version, minor_version, _ = version.split('.', 2)
 major_version = int(major_version)
 minor_version = int(minor_version)
 
-requires = []
+requires = ['requests', 'PyJWT[crypto]', 'cryptography']
 for dep in info.get('depends', []):
     if not re.match(r'(ir|res)(\W|$)', dep):
         prefix = MODULE2PREFIX.get(dep, 'trytond')
@@ -79,7 +79,8 @@ setup(name='%s_%s' % (PREFIX, MODULE),
         ],
     package_data={
         'trytond.modules.%s' % MODULE: (info.get('xml', [])
-            + ['tryton.cfg', 'view/*.xml', 'locale/*.po', 'tests/*.rst']),
+            + ['tryton.cfg', 'view/*.xml', 'locale/*.po', 'tests/*.rst',
+                '*.html', 'icons/*.svg']),
         },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
