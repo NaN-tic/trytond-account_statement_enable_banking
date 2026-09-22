@@ -21,6 +21,7 @@ from trytond.rpc import RPC
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 from trytond.transaction import Transaction
+from trytond.tools import grouped_slice
 from .common import get_base_header, load_session_json, URL, REDIRECT_URL
 from trytond.i18n import gettext
 from trytond.exceptions import UserWarning
@@ -599,22 +600,22 @@ class Line(metaclass=PoolMeta):
                         lines=names))
 
         moves = set()
-        to_unreconcile = []
+        to_unreconcile = set()
         to_unpay = []
         for line in lines:
             if not line.move:
                 continue
 
             moves.add(line.move)
-            to_unreconcile += [x.reconciliation for x in line.move.lines
-                if x.reconciliation]
+            to_unreconcile.update(x.reconciliation.id
+                for x in line.move.lines if x.reconciliation)
             # On possible related invoices, need to unlink the payment
             # lines
             to_unpay += [x for x in line.move.lines if x.invoice_payment]
 
         if to_unreconcile:
-            to_unreconcile = Reconciliation.browse(to_unreconcile)
-            Reconciliation.delete(to_unreconcile)
+            for sub_ids in grouped_slice(to_unreconcile, 500):
+                Reconciliation.delete(Reconciliation.browse(sub_ids))
 
         if moves:
             moves = list(moves)
@@ -1149,9 +1150,10 @@ class Origin(Workflow, metaclass=PoolMeta):
                     amount, amount_second_currency, lines)
                 move_line.move = move
                 move_lines.append((move_line, None, None))
-
-        if move_lines:
-            MoveLine.save([x for x, _, _ in move_lines])
+        moves_to_post = [m for m, _ in moves]
+        with Transaction().set_context(skip_move_validation=True):
+            if move_lines:
+                MoveLine.save([x for x, _, _ in move_lines])
 
         # Ensure that any related_to posted lines are not in another registered
         # origin or suggested. Except for the paid invoice process or the
@@ -1197,9 +1199,13 @@ class Origin(Workflow, metaclass=PoolMeta):
                     ])
             if suggestions_to_remove:
                 StatementSuggestion.delete(suggestions_to_remove)
+
         # Before reconcile ensure the moves are posted to avoid that some
         # possible estra moves, like writeoff, exchange, won't be posted.
-        Move.post([m for m, _ in moves])
+        with Transaction().set_context(skip_move_validation=True):
+            moves_to_post = Move.browse([move.id for move in moves_to_post])
+            Move.post(moves_to_post)
+        Move.validate_move(moves_to_post)
         # Reconcile at the end to avoid problems with the related_to lines
         if move_lines:
             StatementLine.reconcile(move_lines)
@@ -2185,8 +2191,24 @@ class Origin(Workflow, metaclass=PoolMeta):
     @Workflow.transition('posted')
     def post(cls, origins):
         pool = Pool()
+        Period = pool.get('account.period')
+        SequenceStrict = pool.get('ir.sequence.strict')
         Statement = pool.get('account.statement')
         StatementLine = pool.get('account.statement.line')
+
+        periods = {}
+        for origin in origins:
+            company = origin.statement.company
+            for line in origin.lines:
+                key = company.id, line.date
+                if key not in periods:
+                    periods[key] = Period.find(company, date=line.date)
+        sequences = {
+            period.move_sequence_used
+            for period in periods.values()
+        }
+        if sequences:
+            SequenceStrict.lock(sequences)
 
         cls.find_same_related_origin(origins)
         cls.validate_origin(origins)

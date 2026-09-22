@@ -14,6 +14,12 @@ class Move(metaclass=PoolMeta):
     __name__ = 'account.move'
 
     @classmethod
+    def validate_move(cls, moves):
+        if Transaction().context.get('skip_move_validation'):
+            return
+        super().validate_move(moves)
+
+    @classmethod
     def _get_origin(cls):
         return super()._get_origin() + ['account.statement.origin']
 
@@ -29,6 +35,27 @@ class MoveLine(metaclass=PoolMeta):
     debit_credit_balance = fields.Function(Monetary(
         'Debit-Credit Balance', digits=(16, 2)),
         'get_debit_credit_balance')
+
+    @classmethod
+    def write(cls, *args):
+        actions = list(zip(args[::2], args[1::2]))
+        if (actions
+                and all(set(values) == {'reconciliation'}
+                    for _, values in actions)):
+            Move = Pool().get('account.move')
+            moves = list({line.move
+                    for records, _ in actions
+                    for line in records if line.move})
+            Move.validate_move(moves)
+
+            context_args = []
+            with Transaction().set_context(skip_move_validation=True):
+                for records, values in actions:
+                    records = cls.browse([record.id for record in records])
+                    context_args.extend((records, values))
+                super().write(*context_args)
+            return
+        super().write(*args)
 
     @classmethod
     def get_payment_fields(cls, lines, name):
