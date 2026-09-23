@@ -37,25 +37,14 @@ class MoveLine(metaclass=PoolMeta):
         'get_debit_credit_balance')
 
     @classmethod
-    def write(cls, *args):
-        actions = list(zip(args[::2], args[1::2]))
-        if (actions
-                and all(set(values) == {'reconciliation'}
-                    for _, values in actions)):
-            Move = Pool().get('account.move')
-            moves = list({line.move
-                    for records, _ in actions
-                    for line in records if line.move})
-            Move.validate_move(moves)
-
-            context_args = []
+    def check_modification(cls, mode, lines, values=None, external=False):
+        if (mode == 'write'
+                and not values.keys() & {'credit', 'debit', 'move'}):
             with Transaction().set_context(skip_move_validation=True):
-                for records, values in actions:
-                    records = cls.browse([record.id for record in records])
-                    context_args.extend((records, values))
-                super().write(*context_args)
-            return
-        super().write(*args)
+                return super().check_modification(
+                    mode, lines, values=values, external=external)
+        return super().check_modification(
+            mode, lines, values=values, external=external)
 
     @classmethod
     def get_payment_fields(cls, lines, name):
