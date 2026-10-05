@@ -745,7 +745,7 @@ class Line(metaclass=PoolMeta):
 
     def get_move_line(self):
         line = super().get_move_line()
-        if self.maturity_date:
+        if line and self.maturity_date:
             line.maturity_date = self.maturity_date
         return line
 
