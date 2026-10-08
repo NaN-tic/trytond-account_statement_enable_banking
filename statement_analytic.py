@@ -155,8 +155,16 @@ class AnalyticAccountEntry(metaclass=PoolMeta):
             ]
 
 
-class AnalyticAccountOriginCreateStamentLineStart(metaclass=PoolMeta):
+class AnalyticAccountOriginCreateStamentLineStart(
+        AnalyticMixin, metaclass=PoolMeta):
     __name__ = 'account.statement.origin.create_line.start'
 
-    analytic_accounts = fields.One2Many(
-        'analytic.account.entry', None, 'Analytic Accounts')
+    @classmethod
+    def __setup__(cls):
+        super().__setup__()
+        # Wizard entries are temporary and have no persistent origin.
+        cls.analytic_accounts.field = None
+        cls.analytic_accounts.domain = [
+            ('company', '=', Eval('company', -1)),
+            ]
+        cls.analytic_accounts.context = {'default_editable': True}
