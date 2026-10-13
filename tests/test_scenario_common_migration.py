@@ -1,6 +1,8 @@
 import unittest
 from decimal import Decimal
+from unittest.mock import patch
 
+from cryptography.fernet import Fernet
 from proteus import Model, Wizard
 from sql import Table
 from trytond.modules.account.tests.tools import create_chart
@@ -22,6 +24,14 @@ class TestCommonMigration(unittest.TestCase):
         super().tearDown()
 
     def test(self):
+        key = Fernet.generate_key()
+        key_patch = patch(
+            'trytond.modules.account_statement_enable_banking.'
+            'enable_banking.FERNET_KEY', key)
+        self.addCleanup(key_patch.stop)
+        key_patch.start()
+        session_json = '{"accounts": []}'
+        encrypted_session = Fernet(key).encrypt(session_json.encode())
         config = activate_modules([
             'account_statement_enable_banking', 'analytic_account',
             'account_statement_aeb43'], create_company, create_chart)
@@ -73,7 +83,7 @@ class TestCommonMigration(unittest.TestCase):
                     ])}
             session, = Session.create([{
                 'session_id': 'preserved-session',
-                'encrypted_session': b'preserved-ciphertext',
+                'encrypted_session': encrypted_session,
                 }])
             shared_ids = {data.fs_id: (data.model, data.db_id)
                 for data in Data.search([('module', '=', new_module)])}
@@ -120,7 +130,8 @@ class TestCommonMigration(unittest.TestCase):
                 if model == 'ir.ui.view':
                     self.assertEqual(View(db_id).module, new_module)
             self.assertEqual(Session(session.id).encrypted_session,
-                b'preserved-ciphertext')
+                encrypted_session)
+            self.assertEqual(Session(session.id).session, session_json)
             # Re-running the migration must preserve the same references.
             Data.migrate_enable_banking_data()
             self.assertEqual(Data.get_id(new_module,

@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import Mock, patch
 
+from cryptography.fernet import Fernet
 from proteus import Model
 from trytond.modules.account.tests.tools import create_chart
 from trytond.modules.company.tests.tools import create_company, get_company
@@ -23,6 +24,11 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         super().tearDown()
 
     def test(self):
+        key_patch = patch(
+            'trytond.modules.account_statement_enable_banking.'
+            'enable_banking.FERNET_KEY', Fernet.generate_key())
+        self.addCleanup(key_patch.stop)
+        key_patch.start()
         config = activate_modules(
             'account_statement_enable_banking', create_company, create_chart)
         company = get_company()
@@ -66,20 +72,18 @@ class TestEnableBankingSynchronization(unittest.TestCase):
             configuration.date_field = 'transaction_date'
             configuration.offset = 2
             configuration.save()
-            session, = Session.create([{
-                'session_id': 'test-session',
-                'bank': bank.id,
-                'encrypted_session': b'encrypted-session',
-                'valid_until': datetime.now() + timedelta(days=30),
-                }])
-            journal = Journal(journal.id)
             session_json = json.dumps({'accounts': [{
                 'account_id': {'iban': 'ES9121000418450200051332'},
                 'uid': 'external-account',
                 }]})
-            with patch.object(Session, '_get_session',
-                    return_value=session_json):
-                Journal.write([journal], {'enable_banking_session': session.id})
+            session, = Session.create([{
+                'session_id': 'test-session',
+                'bank': bank.id,
+                'session': session_json,
+                'valid_until': datetime.now() + timedelta(days=30),
+                }])
+            journal = Journal(journal.id)
+            Journal.write([journal], {'enable_banking_session': session.id})
             today = date.today().isoformat()
             credit = {
                 'entry_reference': 'credit-1',
@@ -100,8 +104,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
                 Mock(status_code=200, json=Mock(return_value={
                     'transactions': [credit, debit]})),
                 ]
-            with patch.object(Session, '_get_session',
-                    return_value=session_json), patch(
+            with patch(
                     'trytond.modules.account_statement_enable_banking.'
                     'journal.get_base_header', return_value={}), patch(
                     'trytond.modules.account_statement_enable_banking.'
@@ -119,8 +122,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
             self.assertEqual(statement.state, 'registered')
             self.assertEqual(statement.end_balance, Decimal('80.15'))
 
-            with patch.object(Session, '_get_session',
-                    return_value=session_json), patch(
+            with patch(
                     'trytond.modules.account_statement_enable_banking.'
                     'journal.get_base_header', return_value={}), patch(
                     'trytond.modules.account_statement_enable_banking.'
