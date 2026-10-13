@@ -90,7 +90,8 @@ class TestEnableBankingSynchronization(unittest.TestCase):
                 'transaction_amount': {
                     'amount': '100.25', 'currency': currency_code},
                 'credit_debit_indicator': 'CRDT',
-                'transaction_date': today,
+                'booking_date': today,
+                'transaction_date': None,
                 'value_date': today,
                 'remittance_information': ['Invoice 123'],
                 }

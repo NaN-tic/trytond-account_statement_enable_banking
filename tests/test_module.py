@@ -1,9 +1,11 @@
 # This file is part account_statement_enable_banking module for Tryton.
 # The COPYRIGHT file at the top level of this repository contains
 # the full copyright notices and license terms.
+from datetime import date
 from unittest.mock import patch
 
 from trytond.exceptions import UserError
+from trytond.model.exceptions import AccessError
 from trytond.modules.account_statement_enable_banking.common import (
     load_session_json)
 from trytond.pool import Pool
@@ -19,6 +21,39 @@ class AccountStatementEnableBankingTestCase(ModuleTestCase):
     def test_load_session_json_invalid_data(self):
         with self.assertRaises(UserError):
             load_session_json(None)
+
+    @with_transaction()
+    def test_get_transaction_date(self):
+        Journal = Pool().get('account.statement.journal')
+        cases = [
+            ('configured field', {
+                    'entry_reference': 'transaction-1',
+                    'booking_date': '2026-10-12',
+                    'transaction_date': '2026-10-11',
+                    }, date(2026, 10, 11), None),
+            ('fallback to booking date', {
+                    'entry_reference': 'transaction-1',
+                    'booking_date': '2026-10-12',
+                    'transaction_date': None,
+                    }, date(2026, 10, 12), None),
+            ('missing date', {
+                    'entry_reference': 'transaction-1',
+                    }, None, AccessError),
+            ('invalid date', {
+                    'entry_reference': 'transaction-1',
+                    'transaction_date': '12/10/2026',
+                    }, None, AccessError),
+            ]
+
+        for name, transaction, expected, exception in cases:
+            with self.subTest(name=name):
+                if exception:
+                    with self.assertRaises(exception):
+                        Journal._get_transaction_date(
+                            transaction, 'transaction_date')
+                else:
+                    self.assertEqual(Journal._get_transaction_date(
+                            transaction, 'transaction_date'), expected)
 
     @with_transaction()
     def test_set_ebsession_updates_all_matching_journals(self):

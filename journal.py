@@ -102,6 +102,32 @@ class Journal(metaclass=PoolMeta):
             ]
         return keys
 
+    @staticmethod
+    def _get_transaction_date(transaction, configured_field):
+        date_fields = tuple(dict.fromkeys((
+                    configured_field,
+                    'booking_date',
+                    'value_date',
+                    'transaction_date',
+                    )))
+        for field in date_fields:
+            value = transaction.get(field)
+            if not value:
+                continue
+            try:
+                return datetime.strptime(value, '%Y-%m-%d').date()
+            except (TypeError, ValueError):
+                raise AccessError(gettext(
+                        'account_statement_enable_banking.'
+                        'msg_invalid_transaction_date',
+                        entry_reference=transaction.get('entry_reference'),
+                        field=field,
+                        value=value)) from None
+        raise AccessError(gettext(
+                'account_statement_enable_banking.'
+                'msg_missing_transaction_date',
+                entry_reference=transaction.get('entry_reference')))
+
     @classmethod
     @ModelView.button_action('account_statement_enable_banking.'
         'act_enable_banking_retrieve_session')
@@ -240,8 +266,8 @@ class Journal(metaclass=PoolMeta):
                     if balance_after_transaction:
                         balance = Decimal(str(
                             balance_after_transaction['amount']))
-                    transaction_date = datetime.strptime(
-                        transaction[ebconfig.date_field], '%Y-%m-%d').date()
+                    transaction_date = self._get_transaction_date(
+                        transaction, ebconfig.date_field)
                     information_dict = {}
                     for key, value in transaction.items():
                         if value is None or key in self._keys_not_needed():

@@ -202,6 +202,14 @@ msgctxt "model:ir.message,text:msg_missing_fernet_key"
 msgid "Missing Fernet key."
 msgstr "Falta la clau Fernet."
 
+msgctxt "model:ir.message,text:msg_missing_transaction_date"
+msgid "Transaction \"%(entry_reference)s\" has no usable date."
+msgstr "La transacció \"%(entry_reference)s\" no té cap data utilitzable."
+
+msgctxt "model:ir.message,text:msg_invalid_transaction_date"
+msgid "Transaction \"%(entry_reference)s\" has an invalid date in field \"%(field)s\": \"%(value)s\"."
+msgstr "La transacció \"%(entry_reference)s\" té una data no vàlida al camp \"%(field)s\": \"%(value)s\"."
+
 msgctxt "model:ir.message,text:msg_no_bank"
 msgid "No bank or bank party found in journal bank account."
 msgstr "No s'ha trobat cap banc ni cap tercer del banc al compte bancari del diari."

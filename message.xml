@@ -45,5 +45,11 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_no_bank">
             <field name="text">No bank or bank party found in journal bank account.</field>
         </record>
+        <record model="ir.message" id="msg_missing_transaction_date">
+            <field name="text">Transaction "%(entry_reference)s" has no usable date.</field>
+        </record>
+        <record model="ir.message" id="msg_invalid_transaction_date">
+            <field name="text">Transaction "%(entry_reference)s" has an invalid date in field "%(field)s": "%(value)s".</field>
+        </record>
     </data>
 </tryton>
