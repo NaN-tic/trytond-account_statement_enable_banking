@@ -5,7 +5,6 @@ from secrets import token_hex
 
 import requests
 
-import trytond.config as config
 from trytond.i18n import gettext
 from trytond.model import ModelView, fields
 from trytond.model.exceptions import AccessError
@@ -16,8 +15,6 @@ from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
 from .common import get_base_header, load_session_json, URL, REDIRECT_URL
-
-PRODUCTION = config.get('database', 'production', default=False)
 
 
 class Origin(metaclass=PoolMeta):
@@ -316,8 +313,6 @@ class OriginSynchronizeStatementEnableBanking(Wizard):
         journal_unsynchronized = []
         company_id = Transaction().context.get('company')
         if not company_id:
-            return []
-        if not PRODUCTION:
             return []
         for journal in Journal.search([
                 ('company.id', '=', company_id),
