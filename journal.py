@@ -398,3 +398,5 @@ class Cron(metaclass=PoolMeta):
             ('account.statement.journal|synchronize_enable_banking_journals',
                 "Synchronize Enable Banking Journals"),
             ])
+        cls.methods_company_needed.add(
+            'account.statement.journal|synchronize_enable_banking_journals')
