@@ -1,5 +1,6 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+import logging
 import time
 import requests
 from datetime import datetime, timedelta
@@ -9,11 +10,13 @@ from trytond.pool import Pool, PoolMeta
 from trytond.model import ModelView, fields
 from trytond.pyson import Bool, Eval, If
 from trytond.i18n import gettext
+from trytond.exceptions import UserError
 from trytond.transaction import Transaction
 from trytond.model.exceptions import AccessError
 from .common import get_base_header, load_session_json, URL
 
 QUEUE_NAME = config.get('enable_banking', 'queue_name', default='default')
+logger = logging.getLogger(__name__)
 
 class Journal(metaclass=PoolMeta):
     __name__ = 'account.statement.journal'
@@ -238,6 +241,20 @@ class Journal(metaclass=PoolMeta):
                                 error_code='N/A',
                                 error_message=str(e)))
                     time.sleep(2 ** retry)
+
+            if r.status_code != 200:
+                try:
+                    error_response = r.json()
+                except ValueError:
+                    error_response = {}
+                if (isinstance(error_response, dict)
+                        and error_response.get('error') == 'ASPSP_ERROR'):
+                    logger.warning(
+                        'Enable Banking could not communicate with the bank '
+                        '(HTTP %s): %s', r.status_code, r.text)
+                    raise UserError(gettext(
+                        'account_statement_enable_banking.'
+                        'msg_aspsp_connection_failed'))
 
             if r.status_code == 200:
                 response = r.json()

@@ -2,6 +2,10 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
+msgctxt "model:ir.message,text:msg_aspsp_connection_failed"
+msgid "The connection to the bank could not be completed. Enable Banking reports a problem communicating with the bank. Please try again later. If the problem persists, you may need to renew the banking session."
+msgstr "No se ha podido completar la conexión con el banco. Enable Banking informa de una incidencia al comunicarse con el banco. Vuelve a intentarlo más tarde. Si el problema persiste, puede ser necesario renovar la sesión bancaria."
+
 msgctxt "field:account.statement.journal,aspsp_country:"
 msgid "ASPSP Country"
 msgstr "País ASPSP"

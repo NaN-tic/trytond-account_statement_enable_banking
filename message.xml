@@ -15,6 +15,9 @@ this repository contains the full copyright notices and license terms. -->
         <record model="ir.message" id="msg_error_get_statements">
             <field name="text">Error getting statements: "%(error_code)s" "%(error_message)s"</field>
         </record>
+        <record model="ir.message" id="msg_aspsp_connection_failed">
+            <field name="text">The connection to the bank could not be completed. Enable Banking reports a problem communicating with the bank. Please try again later. If the problem persists, you may need to renew the banking session.</field>
+        </record>
         <record model="ir.message" id="msg_no_bank_account">
             <field name="text">No bank account found in journal, if you want to synchronize statements, you need to set a bank account.</field>
         </record>
