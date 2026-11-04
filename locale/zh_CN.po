@@ -1,0 +1,444 @@
+#
+msgid ""
+msgstr ""
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgctxt "field:account.statement.journal,aspsp_country:"
+msgid "ASPSP Country"
+msgstr "ASPSP 国家"
+
+msgctxt "field:account.statement.journal,aspsp_name:"
+msgid "ASPSP Name"
+msgstr "ASPSP 名称"
+
+msgctxt "field:account.statement.journal,enable_banking_session:"
+msgid "Enable Banking Session"
+msgstr "Enable Banking 会话"
+
+msgctxt ""
+"field:account.statement.journal,enable_banking_session_allowed_bank_accounts:"
+msgid "Allowed Bank Accounts"
+msgstr "允许的银行账户"
+
+msgctxt "field:account.statement.journal,offset_days_to:"
+msgid "Offset Days To"
+msgstr "截止日期偏移天数"
+
+msgctxt "field:account.statement.journal,synchronize_journal:"
+msgid "Synchronize Journal"
+msgstr "同步日记账"
+
+msgctxt "field:enable_banking.configuration,date_field:"
+msgid "Date Field"
+msgstr "日期字段"
+
+msgctxt "field:enable_banking.configuration,offset:"
+msgid "Offset Days"
+msgstr "偏移天数"
+
+msgctxt "field:enable_banking.configuration,redirecturl:"
+msgid "Redirect URL"
+msgstr "重定向 URL"
+
+msgctxt "field:enable_banking.origin_synchronize_statement.ask,journals:"
+msgid "Journals"
+msgstr "日记账"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid:"
+msgid "Enable Banking Session Valid"
+msgstr "Enable Banking 会话有效"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
+msgid "Enable Banking Session Valid Days"
+msgstr "Enable Banking 会话有效天数"
+
+msgctxt "field:enable_banking.retrieve_session.select_session,found_session:"
+msgid "Found Session"
+msgstr "找到的会话"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.start,enable_banking_session_valid:"
+msgid "Enable Banking Session Valid"
+msgstr "Enable Banking 会话有效"
+
+msgctxt ""
+"field:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
+msgid "Enable Banking Session Valid Days"
+msgstr "Enable Banking 会话有效天数"
+
+msgctxt "field:enable_banking.session,allowed_bank_accounts:"
+msgid "Allowed Bank Accounts"
+msgstr "允许的银行账户"
+
+msgctxt "field:enable_banking.session,aspsp_country:"
+msgid "ASPSP Country"
+msgstr "ASPSP 国家"
+
+msgctxt "field:enable_banking.session,aspsp_name:"
+msgid "ASPSP Name"
+msgstr "ASPSP 名称"
+
+msgctxt "field:enable_banking.session,bank:"
+msgid "Bank"
+msgstr "银行"
+
+msgctxt "field:enable_banking.session,encrypted_session:"
+msgid "Encrypted Session"
+msgstr "加密会话"
+
+msgctxt "field:enable_banking.session,session:"
+msgid "Session"
+msgstr "会话"
+
+msgctxt "field:enable_banking.session,session_id:"
+msgid "Session ID"
+msgstr "会话 ID"
+
+msgctxt "field:enable_banking.session,valid_until:"
+msgid "Valid Until"
+msgstr "有效截止日期"
+
+msgctxt "help:account.statement.journal,offset_days_to:"
+msgid ""
+"Default offset days in the Bank transaction search. Allow to not download "
+"\"to\" today, could be set \"to\" some days before. This field could be from"
+" 0 to 20. 0 meaning today, other value will be substracted from today."
+msgstr ""
+"银行交易搜索的默认偏移天数。可将下载截止日期设为今天之前的某一天，而非今天。此字段范围为 0 至 20，0 表示今天，其他值将从今天减去相应天数。"
+
+msgctxt "help:account.statement.journal,synchronize_journal:"
+msgid ""
+"Check if want to synchronize automatically. When is automatically the offset"
+" is not used and tak the las statement synched date."
+msgstr "勾选以自动同步。自动同步时不使用偏移量，而使用最近一次已同步对账单的日期。"
+
+msgctxt "help:enable_banking.configuration,date_field:"
+msgid "Choose which date to use when importing statements"
+msgstr "选择导入对账单时使用的日期"
+
+msgctxt "help:enable_banking.configuration,offset:"
+msgid "Offset in days to apply when importing statements manually"
+msgstr "手动导入对账单时应用的偏移天数"
+
+msgctxt ""
+"help:enable_banking.retrieve_session.select_session,enable_banking_session_valid_days:"
+msgid "Only allowed maximum 180 days."
+msgstr "最多允许 180 天。"
+
+msgctxt ""
+"help:enable_banking.retrieve_session.start,enable_banking_session_valid_days:"
+msgid "Only allowed maximum 180 days."
+msgstr "最多允许 180 天。"
+
+msgctxt "model:enable_banking.configuration,name:"
+msgid "Enable Banking Configuration"
+msgstr "Enable Banking 配置"
+
+msgctxt "model:enable_banking.origin_synchronize_statement.ask,string:"
+msgid "Enable Banking Origin Synchronize Statement Ask"
+msgstr "Enable Banking 来源同步银行对账单：询问"
+
+msgctxt "model:enable_banking.retrieve_session.select_session,string:"
+msgid "Enable Banking Retrieve Session Select Session"
+msgstr "获取 Enable Banking 会话：选择会话"
+
+msgctxt "model:enable_banking.retrieve_session.start,string:"
+msgid "Enable Banking Retrieve Session Start"
+msgstr "获取 Enable Banking 会话：开始"
+
+msgctxt "model:enable_banking.session,name:"
+msgid "Enable Banking Session"
+msgstr "Enable Banking 会话"
+
+msgctxt "model:ir.action,name:"
+msgid "Synchronize Statement Enable Banking"
+msgstr "通过 Enable Banking 同步银行对账单"
+
+msgctxt "model:ir.action,name:act_enable_banking_configuration_form"
+msgid "Enable Banking Configuration"
+msgstr "Enable Banking 配置"
+
+msgctxt "model:ir.action,name:act_enable_banking_retrieve_session"
+msgid "Synchronize Statement Enable Banking"
+msgstr "通过 Enable Banking 同步银行对账单"
+
+msgctxt "model:ir.action,name:act_enable_banking_session_form"
+msgid "Enable Banking Session"
+msgstr "Enable Banking 会话"
+
+msgctxt "model:ir.action,name:act_origin_synchronize_statement"
+msgid "Statement Origins"
+msgstr "对账单来源"
+
+msgctxt "model:ir.action,name:report_session_ko"
+msgid "Enable Banking Session KO"
+msgstr "Enable Banking 会话失败"
+
+msgctxt "model:ir.action,name:report_session_ok"
+msgid "Enable Banking Session OK"
+msgstr "Enable Banking 会话成功"
+
+msgctxt "model:ir.action,name:url_session"
+msgid "Enable Banking Session"
+msgstr "Enable Banking 会话"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_account_not_found"
+msgid ""
+"Account \"%(account)s\" not found in session from bank \"%(bank)s\" make "
+"sure the account number is correct."
+msgstr "在银行“%(bank)s”的会话中找不到账户“%(account)s”，请确认账号正确。"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_aspsp_not_found"
+msgid ""
+"Bank \"%(bank)s\" from country \"%(country_code)s\" not found in Enable "
+"Banking compatible banks.\\n%(message)s"
+msgstr ""
+"在 Enable Banking 支持的银行中找不到国家“%(country_code)s”的银行“%(bank)s”。\\n%(message)s"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_connection_test_error"
+msgid "Error testing connection: %(error_message)s "
+msgstr "测试连接时出错：%(error_message)s "
+
+msgctxt "model:ir.message,text:msg_connection_test_ok"
+msgid "Connection test successful."
+msgstr "连接测试成功。"
+
+msgctxt "model:ir.message,text:msg_currency_not_match"
+msgid "The bank statements currency and the journal currency dosen't match."
+msgstr "银行对账单货币与日记账货币不一致。"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_error_create_session"
+msgid "Error creating the session: \"%(error_code)s\" \"%(error_message)s\""
+msgstr "创建会话时出错：“%(error_code)s”“%(error_message)s”"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_error_get_statements"
+msgid "Error getting statements: \"%(error_code)s\" \"%(error_message)s\""
+msgstr "获取银行对账单时出错：“%(error_code)s”“%(error_message)s”"
+
+msgctxt "model:ir.message,text:msg_missing_fernet_key"
+msgid "Missing Fernet key."
+msgstr "缺少 Fernet 密钥。"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_missing_transaction_date"
+msgid "Transaction \"%(entry_reference)s\" has no usable date."
+msgstr "交易“%(entry_reference)s”没有可用日期。"
+
+#, python-format
+msgctxt "model:ir.message,text:msg_invalid_transaction_date"
+msgid ""
+"Transaction \"%(entry_reference)s\" has an invalid date in field "
+"\"%(field)s\": \"%(value)s\"."
+msgstr "交易“%(entry_reference)s”的字段“%(field)s”中的日期无效：“%(value)s”。"
+
+msgctxt "model:ir.message,text:msg_no_bank"
+msgid "No bank or bank party found in journal bank account."
+msgstr "日记账的银行账户中未找到银行或银行往来单位。"
+
+msgctxt "model:ir.message,text:msg_no_bank_account"
+msgid ""
+"No bank account found in journal, if you want to synchronize statements, you"
+" need to set a bank account."
+msgstr "日记账未设置银行账户。要同步银行对账单，必须先设置银行账户。"
+
+msgctxt "model:ir.message,text:msg_no_country"
+msgid ""
+"Country not found in bank party, please, make sure the bank party have at "
+"least one address with country."
+msgstr "银行往来单位未设置国家，请确保其至少有一个包含国家的地址。"
+
+msgctxt "model:ir.message,text:msg_no_session"
+msgid "Session not found."
+msgstr "未找到会话。"
+
+msgctxt "model:ir.message,text:msg_valid_days_out_of_range"
+msgid ""
+"The Enable Banking Session Valid Days fields must be between 1 and 90 days."
+msgstr "Enable Banking 会话有效天数字段必须介于 1 至 90 天之间。"
+
+msgctxt "model:ir.model.button,string:retrieve_enable_banking_session_button"
+msgid "Retrieve EB Session"
+msgstr "获取 EB 会话"
+
+msgctxt "model:ir.model.button,string:retrieve_session_enable_banking_button"
+msgid "Synchronize Statement Enable Banking"
+msgstr "通过 Enable Banking 同步银行对账单"
+
+msgctxt ""
+"model:ir.model.button,string:synchronize_statement_enable_banking_button"
+msgid "Syncronize Statements"
+msgstr "同步银行对账单"
+
+msgctxt ""
+"model:ir.model.button,string:test_connection_enable_banking_configuration_button"
+msgid "Test Connection"
+msgstr "测试连接"
+
+msgctxt "model:ir.ui.menu,name:menu_enable_banking"
+msgid "Enable Banking"
+msgstr "Enable Banking"
+
+msgctxt "model:ir.ui.menu,name:menu_enable_banking_configuration_form"
+msgid "Enable Banking Configuration"
+msgstr "Enable Banking 配置"
+
+msgctxt "model:ir.ui.menu,name:menu_enable_banking_session_form"
+msgid "Enable Banking Session"
+msgstr "Enable Banking 会话"
+
+msgctxt "report:enable_banking.session_ko:"
+msgid "Please. Try to create the session again later."
+msgstr "请稍后再次尝试创建会话。"
+
+msgctxt "report:enable_banking.session_ko:"
+msgid "Session creating failed"
+msgstr "会话创建失败"
+
+msgctxt "report:enable_banking.session_ko:"
+msgid "Session creating failed."
+msgstr "会话创建失败。"
+
+msgctxt "report:enable_banking.session_ok:"
+msgid "Now, you can close this window and go back to Tryton."
+msgstr "现在可以关闭此窗口并返回 Tryton。"
+
+msgctxt "report:enable_banking.session_ok:"
+msgid "Session created successfully."
+msgstr "会话创建成功。"
+
+msgctxt "report:enable_banking.session_ok:"
+msgid ""
+"The session between enable banking and your bank has been created "
+"successfully."
+msgstr "Enable Banking 与您的银行之间的会话已成功创建。"
+
+msgctxt "selection:enable_banking.configuration,date_field:"
+msgid "Booking Date"
+msgstr "记账日期"
+
+msgctxt "selection:enable_banking.configuration,date_field:"
+msgid "Transaction Date"
+msgstr "交易日期"
+
+msgctxt "selection:enable_banking.configuration,date_field:"
+msgid "Value Date"
+msgstr "起息日"
+
+msgctxt "selection:ir.cron,method:"
+msgid "Synchronize Enable Banking Journals"
+msgstr "同步 Enable Banking 日记账"
+
+msgctxt "view:account.statement.journal:"
+msgid "Enable Banking"
+msgstr "Enable Banking"
+
+msgctxt "view:enable_banking.origin_synchronize_statement.ask:"
+msgid ""
+"There are one or more Statement Journal with the Enable Banking Session "
+"expired. Do you want to go to the Origins or to the Journals to updat the "
+"sessions?"
+msgstr "一个或多个银行对账单日记账的 Enable Banking 会话已过期。要前往来源记录还是日记账更新会话？"
+
+msgctxt "view:enable_banking.retrieve_session.select_session:"
+msgid "A valid session has been found for the journal's bank account:"
+msgstr "已找到此日记账银行账户的有效会话："
+
+msgctxt "view:enable_banking.retrieve_session.select_session:"
+msgid "NOTE: Choosing to generate a new session will delete this existing one"
+msgstr "注意：选择生成新会话将删除现有会话"
+
+msgctxt "view:enable_banking.retrieve_session.start:"
+msgid "Do you want to continue?"
+msgstr "是否继续？"
+
+msgctxt "view:enable_banking.retrieve_session.start:"
+msgid "Retrieve an enable banking session, creating one if it does not exist"
+msgstr "获取 Enable Banking 会话；若不存在，则创建会话"
+
+msgctxt "view:enable_banking.session:"
+msgid "Bank"
+msgstr "银行"
+
+msgctxt "view:enable_banking.session:"
+msgid "Session"
+msgstr "会话"
+
+msgctxt "wizard_button:enable_banking.origin_synchronize_statement,ask,end:"
+msgid "Cancel"
+msgstr "取消"
+
+msgctxt ""
+"wizard_button:enable_banking.origin_synchronize_statement,ask,journal:"
+msgid "Journal"
+msgstr "日记账"
+
+msgctxt ""
+"wizard_button:enable_banking.origin_synchronize_statement,ask,origin:"
+msgid "Origin"
+msgstr "依据"
+
+msgctxt ""
+"wizard_button:enable_banking.retrieve_session,select_session,create_session:"
+msgid "Create New Session"
+msgstr "创建新会话"
+
+msgctxt "wizard_button:enable_banking.retrieve_session,select_session,end:"
+msgid "Cancel"
+msgstr "取消"
+
+msgctxt ""
+"wizard_button:enable_banking.retrieve_session,select_session,use_session:"
+msgid "Use Existing Session"
+msgstr "使用现有会话"
+
+msgctxt "wizard_button:enable_banking.retrieve_session,start,check_session:"
+msgid "OK"
+msgstr "确定"
+
+msgctxt "wizard_button:enable_banking.retrieve_session,start,end:"
+msgid "Cancel"
+msgstr "取消"
+
+msgctxt "model:enable_banking.configuration,string:"
+msgid "Enable Banking Configuration"
+msgstr "Enable Banking 配置"
+
+msgctxt "model:enable_banking.origin_synchronize_statement.ask,name:"
+msgid "Statement Origin or Synchronize Statement Enable Banking Ask"
+msgstr "银行对账单来源或 Enable Banking 同步：询问"
+
+msgctxt "model:enable_banking.retrieve_session.select_session,name:"
+msgid "Retrieve Enable Banking Session Select Session"
+msgstr "获取 Enable Banking 会话：选择会话"
+
+msgctxt "model:enable_banking.retrieve_session.start,name:"
+msgid "Retrieve Enable Banking Session Start"
+msgstr "获取 Enable Banking 会话：开始"
+
+msgctxt "model:enable_banking.session,string:"
+msgid "Enable Banking Session"
+msgstr "Enable Banking 会话"
+
+msgctxt "model:ir.message,text:msg_invalid_session_file"
+msgid "The Enable Banking session file could not be read."
+msgstr "无法读取 Enable Banking 会话文件。"
+
+msgctxt ""
+"wizard_button:enable_banking.synchronize_statement,start,check_session:"
+msgid "OK"
+msgstr "确定"
+
+msgctxt "wizard_button:enable_banking.synchronize_statement,start,end:"
+msgid "Cancel"
+msgstr "取消"
