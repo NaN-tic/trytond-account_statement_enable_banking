@@ -11,8 +11,8 @@ from datetime import datetime, UTC, timedelta
 from decimal import Decimal
 from secrets import token_hex
 from itertools import chain, combinations, groupby
-from sql import Literal
-from sql.conditionals import Coalesce, Greatest
+from sql import Cast, Literal
+from sql.conditionals import Coalesce, Greatest, NullIf
 from sql.functions import Abs, Function
 from trytond.model import Workflow, ModelView, ModelSQL, fields, tree
 from trytond.pool import Pool, PoolMeta
@@ -954,8 +954,18 @@ class Origin(Workflow, metaclass=PoolMeta):
         return suggested_lines
 
     def get_remittance_information(self, name):
-        return (self.information.get('remittance_information', '')
-            if self.information else '')
+        return ((self.information or {}).get('remittance_information')
+            or self.description or '')
+
+    @classmethod
+    def remittance_information_column(cls, table):
+        if backend.name == 'postgresql':
+            information = JsonExtract(Cast(table.information, 'jsonb'),
+                'remittance_information')
+        else:
+            information = JsonExtract(table.information,
+                '$.remittance_information')
+        return Coalesce(NullIf(information, ''), table.description, '')
 
     def get_information_value(self, field):
         if self.information:
@@ -974,11 +984,8 @@ class Origin(Workflow, metaclass=PoolMeta):
         _, operator, value = clause
         operator = 'in' if value else 'not in'
 
-        if backend.name == 'postgresql':
-            remittance_information_column = JsonExtract(
-                    origin_table.information, 'remittance_information')
-        else:
-            remittance_information_column = origin_table.information
+        remittance_information_column = cls.remittance_information_column(
+            origin_table)
         query = origin_table.select(origin_table.id,
             where=(database.unaccent(remittance_information_column).ilike(
                     database.unaccent(value))))
@@ -1326,8 +1333,8 @@ class Origin(Workflow, metaclass=PoolMeta):
             'origin-delta-days')
 
         create_similarity()
-        similarity_column = Similarity(database.unaccent(JsonExtract(
-                origin_table.information, 'remittance_information')),
+        similarity_column = Similarity(database.unaccent(
+                self.remittance_information_column(origin_table)),
             database.unaccent(self.remittance_information))
         query = origin_table.join(line_table,
             condition=origin_table.id == line_table.origin).join(
@@ -1886,24 +1893,31 @@ class Origin(Workflow, metaclass=PoolMeta):
             return
         sales = Sale.search([
                 ('company', '=', self.company.id),
-                ('party', 'in', list(self.similar_parties().keys())[:5]),
                 ('state', 'in', ('quotation', 'confirmed', 'processing')),
                 ], order=[('sale_date', 'ASC')])
+        information = re.sub(r'[\s/.-]+', '',
+            self.remittance_information).casefold()
+        matching_sales = []
         for sale in sales:
-            if sale.total_amount != self.pending_amount:
+            if not sale.number or sale.total_amount != self.pending_amount:
                 continue
-            if not sale.number in self.remittance_information:
+            number = re.sub(r'[\s/.-]+', '', sale.number).casefold()
+            if not number:
                 continue
-            # Ensure sale.number is not part of a larger numeric string
-            index = self.remittance_information.index(sale.number)
-            if (index > 0
-                    and self.remittance_information[index - 1].isdigit()):
+            # Allow adjacent text, but not a longer numeric reference.
+            if not re.search(r'(?<!\d)' + re.escape(number) + r'(?!\d)',
+                    information):
                 continue
-            index += len(sale.number)
-            if (index < len(self.remittance_information)
-                    and self.remittance_information[index].isdigit()):
-                continue
+            matching_sales.append(sale)
 
+        if len(matching_sales) > 1:
+            for party in list(self.similar_parties().keys())[:5]:
+                party_sales = [s for s in matching_sales if s.party == party]
+                if party_sales:
+                    matching_sales = party_sales
+                    break
+
+        for sale in matching_sales:
             suggested_line = Pool().get(
                 'account.statement.origin.suggested.line')()
             suggested_line.origin = self
