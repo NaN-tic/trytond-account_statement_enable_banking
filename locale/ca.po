@@ -2,6 +2,26 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
+msgctxt "field:account.statement.origin,possible_duplicate:"
+msgid "Possible Duplicate"
+msgstr "Possible duplicat"
+
+msgctxt "field:account.statement.origin,possible_duplicates:"
+msgid "Possible Duplicates"
+msgstr "Possibles duplicats"
+
+msgctxt "field:account.statement.origin,duplicates_reviewed:"
+msgid "Duplicates Reviewed"
+msgstr "Duplicats revisats"
+
+msgctxt "help:account.statement.origin,duplicates_reviewed:"
+msgid "Check after confirming that the matching movements are legitimate separate transactions."
+msgstr "Marca-ho després de confirmar que els moviments coincidents són operacions diferents legítimes."
+
+msgctxt "model:ir.message,text:msg_possible_duplicate"
+msgid "Origin \"%(origin)s\" may duplicate these bank movements: %(duplicates)s. They have the same date, amount, description and information but different entry references. Review them before posting. Do you want to continue?"
+msgstr "L'origen \"%(origin)s\" podria duplicar aquests moviments bancaris: %(duplicates)s. Tenen la mateixa data, import, descripció i informació, però referències diferents. Revisa'ls abans de comptabilitzar. Vols continuar?"
+
 msgctxt "model:ir.message,text:msg_aspsp_connection_failed"
 msgid "The connection to the bank could not be completed. Enable Banking reports a problem communicating with the bank. Please try again later. If the problem persists, you may need to renew the banking session."
 msgstr "No s'ha pogut completar la connexió amb el banc. Enable Banking informa d'una incidència en comunicar-se amb el banc. Torna-ho a provar més tard. Si el problema persisteix, pot ser necessari renovar la sessió bancària."

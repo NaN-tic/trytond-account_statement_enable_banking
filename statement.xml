@@ -3,6 +3,16 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data>
+        <record model="ir.ui.view" id="statement_origin_duplicate_form">
+            <field name="model">account.statement.origin</field>
+            <field name="inherit" ref="account_statement_common.statement_origin_form"/>
+            <field name="name">statement_origin_form</field>
+        </record>
+        <record model="ir.ui.view" id="statement_origin_duplicate_tree">
+            <field name="model">account.statement.origin</field>
+            <field name="inherit" ref="account_statement.statement_origin_view_tree"/>
+            <field name="name">statement_origin_tree</field>
+        </record>
         <record model="ir.ui.view" id="origin_synchronize_statement_ask_view_form">
             <field name="model">enable_banking.origin_synchronize_statement.ask</field>
             <field name="type">form</field>
