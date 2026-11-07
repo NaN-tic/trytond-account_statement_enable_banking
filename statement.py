@@ -1,24 +1,126 @@
 # This file is part of Tryton.  The COPYRIGHT file at the top level of
 # this repository contains the full copyright notices and license terms.
+from collections import defaultdict
 from datetime import datetime, UTC, timedelta
 from secrets import token_hex
 
 import requests
 
 from trytond.i18n import gettext
+from trytond.exceptions import UserWarning
 from trytond.model import ModelView, fields
 from trytond.model.exceptions import AccessError
 from trytond.pool import Pool, PoolMeta
 from trytond.pyson import Eval, PYSONEncoder
 from trytond.transaction import Transaction
+from trytond.tools import grouped_slice
 from trytond.wizard import (
     Button, StateAction, StateTransition, StateView, Wizard)
 
 from .common import get_base_header, load_session_json, URL, REDIRECT_URL
 
 
+class Statement(metaclass=PoolMeta):
+    __name__ = 'account.statement'
+
+    @classmethod
+    @ModelView.button
+    def post(cls, statements):
+        Origin = Pool().get('account.statement.origin')
+        Origin.check_possible_duplicates([
+                origin for statement in statements for origin in statement.origins
+                if origin.state == 'registered'])
+        super().post(statements)
+
+
 class Origin(metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
+
+    possible_duplicates = fields.Function(fields.Many2Many(
+            'account.statement.origin', None, None, "Possible Duplicates"),
+        'get_possible_duplicates')
+    possible_duplicate = fields.Function(fields.Boolean("Possible Duplicate"),
+        'get_possible_duplicates')
+    duplicates_reviewed = fields.Boolean("Duplicates Reviewed", states={
+            'editable': Eval('state') == 'registered',
+            }, help="Check after confirming that the matching movements are "
+        "legitimate separate transactions.")
+
+    @classmethod
+    def get_possible_duplicates(cls, origins, names):
+        matches = {origin.id: [] for origin in origins}
+        by_journal = defaultdict(list)
+        for origin in origins:
+            if (origin.id >= 0 and origin.entry_reference
+                    and origin.state != 'cancelled'
+                    and origin.statement.journal.statement_provider
+                    == 'enable_banking'):
+                by_journal[origin.statement.journal.id].append(origin)
+
+        for journal, journal_origins in by_journal.items():
+            for batch in grouped_slice(journal_origins):
+                batch = list(batch)
+                by_key = defaultdict(list)
+                for origin in batch:
+                    key = (origin.company.id, origin.currency.id, origin.date,
+                        origin.amount, origin.description or '')
+                    by_key[key].append(origin)
+                candidates = cls.search([
+                        ('statement.journal', '=', journal),
+                        ('date', 'in', list({o.date for o in batch})),
+                        ('amount', 'in', list({o.amount for o in batch})),
+                        ('state', '!=', 'cancelled'),
+                        ('entry_reference', '!=', None),
+                        ('entry_reference', '!=', ''),
+                        ], order=[('id', 'ASC')])
+                for candidate in candidates:
+                    key = (candidate.company.id, candidate.currency.id,
+                        candidate.date, candidate.amount,
+                        candidate.description or '')
+                    for origin in by_key.get(key, []):
+                        if (candidate.id != origin.id
+                                and candidate.entry_reference
+                                != origin.entry_reference
+                                and (candidate.information or {})
+                                == (origin.information or {})):
+                            matches[origin.id].append(candidate.id)
+        return {name: {
+                    origin.id: (bool(matches[origin.id])
+                        if name == 'possible_duplicate' else matches[origin.id])
+                    for origin in origins}
+                for name in names}
+
+    @classmethod
+    def check_possible_duplicates(cls, origins):
+        Warning = Pool().get('res.user.warning')
+        origins = [o for o in origins if not o.duplicates_reviewed]
+        matches = cls.get_possible_duplicates(
+            origins, ['possible_duplicates'])['possible_duplicates']
+        for origin in origins:
+            duplicates = cls.browse(matches[origin.id])
+            if not duplicates:
+                continue
+            warning_name = Warning.format('enable_banking_possible_duplicates',
+                [origin, *duplicates])
+            if Warning.check(warning_name):
+                raise UserWarning(warning_name, gettext(
+                        'account_statement_enable_banking.'
+                        'msg_possible_duplicate',
+                        origin=origin.rec_name,
+                        duplicates=', '.join(
+                            '%s [%s]' % (o.rec_name, o.entry_reference)
+                            for o in duplicates)))
+
+    @classmethod
+    def validate_origin(cls, origins):
+        cls.check_possible_duplicates(origins)
+        super().validate_origin(origins)
+
+    @classmethod
+    def copy(cls, origins, default=None):
+        default = default.copy() if default is not None else {}
+        default.setdefault('duplicates_reviewed', False)
+        return super().copy(origins, default=default)
 
     @fields.depends('statement', '_parent_statement.journal')
     def on_change_with_synchronized(self, name=None):

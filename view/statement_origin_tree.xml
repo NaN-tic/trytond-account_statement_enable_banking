@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<data>
+    <xpath expr="/tree/field[@name='description']" position="after">
+        <field name="possible_duplicate" optional="0"/>
+        <field name="duplicates_reviewed" optional="1"/>
+    </xpath>
+</data>

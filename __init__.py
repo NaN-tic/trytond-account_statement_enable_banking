@@ -18,6 +18,7 @@ def register():
         enable_banking.EnableBankingSession,
         journal.Journal,
         journal.Cron,
+        statement.Statement,
         statement.Origin,
         statement.RetrieveEnableBankingSessionStart,
         statement.RetrieveEnableBankingSessionSelect,
