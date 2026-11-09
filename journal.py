@@ -21,8 +21,10 @@ logger = logging.getLogger(__name__)
 class Journal(metaclass=PoolMeta):
     __name__ = 'account.statement.journal'
 
-    aspsp_name = fields.Char("ASPSP Name", readonly=True)
-    aspsp_country = fields.Char("ASPSP Country", readonly=True)
+    aspsp_name = fields.Char(
+        "ASPSP Name", states={'editable': False})
+    aspsp_country = fields.Char(
+        "ASPSP Country", states={'editable': False})
     synchronize_journal = fields.Boolean("Synchronize Journal",
         help="Check if want to synchronize automatically. When is "
         "automatically the offset is not used and tak the las "
