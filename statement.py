@@ -3403,8 +3403,12 @@ class OriginCreateStamentLine(Wizard):
     create_lines = StateTransition()
 
     def default_start(self, fields):
+        record = self.record
+        if record is None and self.records:
+            record = self.records[0]
         return {
-            'company': self.record.company.id,
+            'company': (record.company.id if record is not None
+                else Transaction().context.get('company')),
             }
 
     def transition_create_lines(self):
