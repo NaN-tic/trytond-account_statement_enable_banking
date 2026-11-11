@@ -202,7 +202,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         duplicate.save()
         with self.assertRaises(UserWarning) as warning:
             duplicate.click('post')
-        self.assertIn('different entry references', warning.exception.message)
+        self.assertIn('may duplicate', warning.exception.message)
         duplicate.reload()
         self.assertEqual(duplicate.state, 'registered')
         self.assertFalse(duplicate.lines[0].move)
