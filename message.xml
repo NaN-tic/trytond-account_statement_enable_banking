@@ -3,9 +3,6 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data grouped="1">
-        <record model="ir.message" id="msg_possible_duplicate">
-            <field name="text">Origin "%(origin)s" may duplicate these bank movements: %(duplicates)s. They have the same date, amount, description and information but different entry references. Review them before posting. Do you want to continue?</field>
-        </record>
         <record model="ir.message" id="msg_no_session">
             <field name="text">Session not found.</field>
         </record>
