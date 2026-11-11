@@ -64,7 +64,7 @@ this repository contains the full copyright notices and license terms. -->
             <field name="group" ref="account.group_account_admin"/>
         </record>
         <record model="ir.action-res.group" id="create_line_group_account">
-            <field name="action" ref="create_line"/>
+            <field name="action" ref="account_statement_common.create_line"/>
             <field name="group" ref="account.group_account"/>
         </record>
     </data>
