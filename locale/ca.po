@@ -6,6 +6,10 @@ msgctxt "field:account.statement.origin,possible_duplicate:"
 msgid "Possible Duplicate"
 msgstr "Possible duplicat"
 
+msgctxt "field:account.statement.origin,conflict_details:"
+msgid "Conflict Details"
+msgstr "Detalls del conflicte"
+
 msgctxt "field:account.statement.origin,possible_duplicates:"
 msgid "Possible Duplicates"
 msgstr "Possibles duplicats"
@@ -19,8 +23,16 @@ msgid "Check after confirming that the matching movements are legitimate separat
 msgstr "Marca-ho després de confirmar que els moviments coincidents són operacions diferents legítimes."
 
 msgctxt "model:ir.message,text:msg_possible_duplicate"
-msgid "Origin \"%(origin)s\" may duplicate these bank movements: %(duplicates)s. They have the same date, amount, description and information but different entry references. Review them before posting. Do you want to continue?"
-msgstr "L'origen \"%(origin)s\" podria duplicar aquests moviments bancaris: %(duplicates)s. Tenen la mateixa data, import, descripció i informació, però referències diferents. Revisa'ls abans de comptabilitzar. Vols continuar?"
+msgid "Origin \"%(origin)s\" may duplicate or conflict with these bank movements: %(duplicates)s. Review the conflict details before posting. Do you want to continue?"
+msgstr "L'origen \"%(origin)s\" podria duplicar o entrar en conflicte amb aquests moviments bancaris: %(duplicates)s. Revisa els detalls del conflicte abans de comptabilitzar. Vols continuar?"
+
+msgctxt "model:ir.message,text:msg_reference_conflict"
+msgid "Origin \"%(origin)s\": same entry reference \"%(reference)s\", but different fields: %(fields)s."
+msgstr "Origen \"%(origin)s\": mateixa referència \"%(reference)s\", però camps diferents: %(fields)s."
+
+msgctxt "model:ir.message,text:msg_changed_reference"
+msgid "Origin \"%(origin)s\": same date, amount, description and information, but a different entry reference \"%(reference)s\"."
+msgstr "Origen \"%(origin)s\": mateixa data, import, descripció i informació, però una referència diferent \"%(reference)s\"."
 
 msgctxt "field:account.statement.journal,aspsp_country:"
 msgid "ASPSP Country"

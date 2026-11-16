@@ -41,6 +41,8 @@ class Origin(metaclass=PoolMeta):
         'get_possible_duplicates')
     possible_duplicate = fields.Function(fields.Boolean("Possible Duplicate"),
         'get_possible_duplicates')
+    conflict_details = fields.Function(fields.Text("Conflict Details"),
+        'get_possible_duplicates')
     duplicates_reviewed = fields.Boolean("Duplicates Reviewed", states={
             'readonly': Eval('state') != 'registered',
             }, help="Check after confirming that the matching movements are "
@@ -49,6 +51,7 @@ class Origin(metaclass=PoolMeta):
     @classmethod
     def get_possible_duplicates(cls, origins, names):
         matches = {origin.id: [] for origin in origins}
+        details = {origin.id: [] for origin in origins}
         by_journal = defaultdict(list)
         for origin in origins:
             if (origin.id >= 0 and origin.entry_reference
@@ -61,19 +64,43 @@ class Origin(metaclass=PoolMeta):
             for batch in grouped_slice(journal_origins):
                 batch = list(batch)
                 by_key = defaultdict(list)
+                by_reference = defaultdict(list)
                 for origin in batch:
                     key = (origin.company.id, origin.currency.id, origin.date,
                         origin.amount, origin.description or '')
                     by_key[key].append(origin)
+                    by_reference[origin.entry_reference].append(origin)
                 candidates = cls.search([
                         ('statement.journal', '=', journal),
-                        ('date', 'in', list({o.date for o in batch})),
-                        ('amount', 'in', list({o.amount for o in batch})),
+                        ['OR',
+                            ('entry_reference', 'in', list(by_reference)),
+                            [
+                                ('date', 'in', list({o.date for o in batch})),
+                                ('amount', 'in', list({o.amount for o in batch})),
+                                ],
+                            ],
                         ('state', '!=', 'cancelled'),
                         ('entry_reference', '!=', None),
                         ('entry_reference', '!=', ''),
                         ], order=[('id', 'ASC')])
                 for candidate in candidates:
+                    for origin in by_reference[candidate.entry_reference]:
+                        if candidate.id == origin.id:
+                            continue
+                        differences = origin._get_import_differences({
+                                name: getattr(candidate, name)
+                                for name in ('date', 'amount', 'description',
+                                    'information', 'balance')})
+                        if differences:
+                            matches[origin.id].append(candidate.id)
+                            labels = cls.fields_get(differences)
+                            details[origin.id].append(gettext(
+                                    'account_statement_enable_banking.'
+                                    'msg_reference_conflict',
+                                    origin=candidate.rec_name,
+                                    reference=candidate.entry_reference,
+                                    fields=', '.join(labels[name]['string']
+                                        for name in differences)))
                     key = (candidate.company.id, candidate.currency.id,
                         candidate.date, candidate.amount,
                         candidate.description or '')
@@ -84,8 +111,15 @@ class Origin(metaclass=PoolMeta):
                                 and (candidate.information or {})
                                 == (origin.information or {})):
                             matches[origin.id].append(candidate.id)
+                            details[origin.id].append(gettext(
+                                    'account_statement_enable_banking.'
+                                    'msg_changed_reference',
+                                    origin=candidate.rec_name,
+                                    reference=candidate.entry_reference))
         return {name: {
-                    origin.id: (bool(matches[origin.id])
+                    origin.id: ('\n'.join(details[origin.id])
+                        if name == 'conflict_details'
+                        else bool(matches[origin.id])
                         if name == 'possible_duplicate' else matches[origin.id])
                     for origin in origins}
                 for name in names}

@@ -6,6 +6,8 @@
             <field name="possible_duplicate"/>
             <label name="duplicates_reviewed"/>
             <field name="duplicates_reviewed"/>
+            <label name="conflict_details"/>
+            <field name="conflict_details" colspan="3"/>
             <field name="possible_duplicates" colspan="4"
                 view_ids="account_statement.statement_origin_view_tree,account_statement_common.statement_origin_form"/>
         </group>
