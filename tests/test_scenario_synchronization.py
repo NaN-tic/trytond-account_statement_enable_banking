@@ -177,6 +177,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
                     by_reference['other-information'].id,
                     by_reference['other-description'].id})
             self.assertTrue(duplicate.possible_duplicate)
+            self.assertIn('different entry reference', duplicate.conflict_details)
             self.assertEqual({o.id for o in duplicate.possible_duplicates},
                 {original.id, second_duplicate.id})
             self.assertEqual({o.id for o in original.possible_duplicates},
@@ -202,7 +203,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         duplicate.save()
         with self.assertRaises(UserWarning) as warning:
             duplicate.click('post')
-        self.assertIn('may duplicate', warning.exception.message)
+        self.assertIn('conflict details', warning.exception.message)
         duplicate.reload()
         self.assertEqual(duplicate.state, 'registered')
         self.assertFalse(duplicate.lines[0].move)
@@ -243,3 +244,87 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         self.assertEqual(statement.state, 'posted')
         original.reload()
         self.assertEqual(original.lines[0].move.state, 'posted')
+
+        # Reused references with changed data must be kept, including within
+        # one response, but downloading the same variants again is idempotent.
+        with Transaction().start(config.database_name, config.user,
+                context=config.context, _lock_tables=[
+                    'account_statement_journal', 'ir_sequence',
+                    'enable_banking_configuration']):
+            Journal = config.pool.get('account.statement.journal')
+            Origin = config.pool.get('account.statement.origin')
+            journal = Journal(journal.id)
+            Journal.write([journal], {'search_suggestions': False})
+            changed_amount = dict(credit, transaction_amount={
+                    'amount': '110.25', 'currency': currency_code})
+            changed_date = dict(credit,
+                booking_date=(date.today() - timedelta(days=1)).isoformat())
+            changed_description = dict(credit,
+                remittance_information=['Corrected invoice'])
+            changed_information = dict(credit,
+                value_date=(date.today() - timedelta(days=1)).isoformat())
+            changed_balance = dict(credit,
+                balance_after_transaction={'amount': '500.00'})
+            response = Mock(status_code=200, json=Mock(return_value={
+                    'transactions': [
+                        credit, changed_amount, changed_date,
+                        changed_description, changed_information,
+                        changed_balance, changed_amount, changed_balance]}))
+            with patch(
+                    'trytond.modules.account_statement_enable_banking.'
+                    'journal.get_base_header', return_value={}), patch(
+                    'trytond.modules.account_statement_enable_banking.'
+                    'journal.requests.get', return_value=response):
+                journal._synchronize_statements_enable_banking()
+                conflicts = Origin.search([
+                        ('statement.journal', '=', journal.id),
+                        ('entry_reference', '=', 'credit-1'),
+                        ('id', '!=', original_id),
+                        ], order=[('id', 'ASC')])
+                self.assertEqual(len(conflicts), 5)
+                self.assertEqual(conflicts[0].amount, Decimal('110.25'))
+                self.assertEqual(conflicts[1].date,
+                    date.today() - timedelta(days=1))
+                self.assertEqual(conflicts[2].description, 'Corrected invoice')
+                self.assertEqual(conflicts[3].information['value_date'],
+                    changed_information['value_date'])
+                self.assertEqual(conflicts[4].balance, Decimal('500.00'))
+                for conflict, label in zip(conflicts,
+                        ['Amount', 'Date', 'Description', 'Information',
+                            'Balance']):
+                    self.assertTrue(conflict.possible_duplicate)
+                    self.assertFalse(conflict.duplicates_reviewed)
+                    self.assertIn(original_id,
+                        [o.id for o in conflict.possible_duplicates])
+                    self.assertIn('same entry reference',
+                        conflict.conflict_details)
+                    self.assertIn(label, conflict.conflict_details)
+                    self.assertEqual(conflict.state, 'registered')
+                self.assertEqual(Origin(original_id).amount, Decimal('100.25'))
+                self.assertEqual(Origin(original_id).statement.state, 'posted')
+                self.assertEqual(
+                    Origin(original_id).lines[0].move.state, 'posted')
+                self.assertIn(conflicts[0].id,
+                    [o.id for o in Origin(original_id).possible_duplicates])
+                journal._synchronize_statements_enable_banking()
+                self.assertEqual(Origin.search_count([
+                            ('statement.journal', '=', journal.id)]), 11)
+            conflict_id = conflicts[0].id
+            Transaction().commit()
+
+        Origin = Model.get('account.statement.origin')
+        conflict = Origin(conflict_id)
+        line = conflict.lines.new()
+        line.date = conflict.date
+        line.account = revenue
+        line.amount = conflict.amount
+        conflict.save()
+        with self.assertRaises(UserWarning):
+            conflict.click('post')
+        conflict.reload()
+        self.assertEqual(conflict.state, 'registered')
+        self.assertFalse(conflict.lines[0].move)
+        conflict.duplicates_reviewed = True
+        conflict.click('post')
+        self.assertEqual(conflict.state, 'posted')
+        self.assertEqual(conflict.lines[0].move.state, 'posted')
