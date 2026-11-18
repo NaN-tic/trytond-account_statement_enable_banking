@@ -3,14 +3,11 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data grouped="1">
-        <record model="ir.message" id="msg_possible_duplicate">
-            <field name="text">Origin "%(origin)s" may duplicate or conflict with these bank movements: %(duplicates)s. Review the conflict details before posting. Do you want to continue?</field>
+        <record model="ir.message" id="msg_review_start">
+            <field name="text">Set the review start date on the journal before reviewing statements.</field>
         </record>
-        <record model="ir.message" id="msg_reference_conflict">
-            <field name="text">Origin "%(origin)s": same entry reference "%(reference)s", but different fields: %(fields)s.</field>
-        </record>
-        <record model="ir.message" id="msg_changed_reference">
-            <field name="text">Origin "%(origin)s": same date, amount, description and information, but a different entry reference "%(reference)s".</field>
+        <record model="ir.message" id="msg_review_incomplete">
+            <field name="text">The bank did not return the complete period. The review has not been saved.</field>
         </record>
         <record model="ir.message" id="msg_no_session">
             <field name="text">Session not found.</field>
