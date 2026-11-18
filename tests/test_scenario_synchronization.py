@@ -144,7 +144,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
             self.assertEqual(empty.state, 'posted')
             self.assertEqual(empty.end_balance, Decimal('80.15'))
 
-            # Changed bank references must not suppress downloads or suggestions.
+            # Changed references are imported for review, without suggestions.
             Journal.write([journal], {'search_suggestions': True})
             changed = dict(credit, entry_reference=today + '.4')
             changed_again = dict(credit, entry_reference=today + '.5')
@@ -173,18 +173,17 @@ class TestEnableBankingSynchronization(unittest.TestCase):
             second_duplicate = by_reference[changed_again['entry_reference']]
             original = by_reference['credit-1']
             self.assertEqual(queued_ids, {
-                    duplicate.id, second_duplicate.id,
                     by_reference['other-information'].id,
                     by_reference['other-description'].id})
-            self.assertTrue(duplicate.possible_duplicate)
-            self.assertIn('different entry reference', duplicate.conflict_details)
-            self.assertEqual({o.id for o in duplicate.possible_duplicates},
+            self.assertEqual(duplicate.review_state, 'discrepancy')
+            self.assertIn('Entry Reference', duplicate.review_details)
+            self.assertEqual({o.id for o in duplicate.review_origins},
                 {original.id, second_duplicate.id})
-            self.assertEqual({o.id for o in original.possible_duplicates},
+            self.assertEqual({o.id for o in original.review_origins},
                 {duplicate.id, second_duplicate.id})
             for reference in ('debit-1', 'other-information',
                     'other-description'):
-                self.assertFalse(by_reference[reference].possible_duplicate)
+                self.assertEqual(by_reference[reference].review_state, 'pending')
             duplicate_id = duplicate.id
             second_duplicate_id = second_duplicate.id
             original_id = original.id
@@ -201,25 +200,32 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         line.account = revenue
         line.amount = duplicate.amount
         duplicate.save()
-        with self.assertRaises(UserWarning) as warning:
-            duplicate.click('post')
-        self.assertIn('conflict details', warning.exception.message)
-        duplicate.reload()
-        self.assertEqual(duplicate.state, 'registered')
-        self.assertFalse(duplicate.lines[0].move)
-
-        duplicate.duplicates_reviewed = True
         duplicate.click('post')
         self.assertEqual(duplicate.state, 'posted')
+        self.assertEqual(duplicate.review_state, 'reviewed')
         self.assertEqual(duplicate.lines[0].move.state, 'posted')
 
         second_duplicate = Origin(second_duplicate_id)
-        second_duplicate.click('cancel')
+        end_balance = second_duplicate.statement.end_balance
+        with self.assertRaises(UserWarning) as warning:
+            second_duplicate.click('mark_reviewed')
+        self.assertIn('will cancel', warning.exception.message)
+        second_duplicate.reload()
+        self.assertEqual(second_duplicate.state, 'registered')
+        self.assertEqual(second_duplicate.statement.end_balance, end_balance)
+        Warning = Model.get('res.user.warning')
+        User = Model.get('res.user')
+        Warning(user=User(config.user), name=warning.exception.name).save()
+        second_duplicate.click('mark_reviewed')
+        self.assertEqual(second_duplicate.state, 'cancelled')
+        self.assertEqual(second_duplicate.review_state, 'reviewed')
+        self.assertEqual(second_duplicate.statement.end_balance,
+            end_balance - second_duplicate.amount)
         original = Origin(original_id)
-        self.assertEqual({o.id for o in original.possible_duplicates},
-            {duplicate_id})
+        self.assertEqual({o.id for o in original.review_origins},
+            {duplicate_id, second_duplicate_id})
 
-        # Posting a validated statement must also warn, and allow confirmation.
+        # Statement posting no longer uses the old duplicate warning.
         line = original.lines.new()
         line.date = date.today()
         line.account = revenue
@@ -233,13 +239,6 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         debit_origin.save()
         statement = original.statement
         statement.click('validate_statement')
-        with self.assertRaises(UserWarning) as warning:
-            statement.click('post')
-        statement.reload()
-        self.assertEqual(statement.state, 'validated')
-        Warning = Model.get('res.user.warning')
-        User = Model.get('res.user')
-        Warning(user=User(config.user), name=warning.exception.name).save()
         statement.click('post')
         self.assertEqual(statement.state, 'posted')
         original.reload()
@@ -281,34 +280,31 @@ class TestEnableBankingSynchronization(unittest.TestCase):
                         ('entry_reference', '=', 'credit-1'),
                         ('id', '!=', original_id),
                         ], order=[('id', 'ASC')])
-                self.assertEqual(len(conflicts), 5)
+                self.assertEqual(len(conflicts), 4)
                 self.assertEqual(conflicts[0].amount, Decimal('110.25'))
                 self.assertEqual(conflicts[1].date,
                     date.today() - timedelta(days=1))
                 self.assertEqual(conflicts[2].description, 'Corrected invoice')
                 self.assertEqual(conflicts[3].information['value_date'],
                     changed_information['value_date'])
-                self.assertEqual(conflicts[4].balance, Decimal('500.00'))
+                # As in 7.8, a changed running balance alone is not a new
+                # transaction variant.
                 for conflict, label in zip(conflicts,
-                        ['Amount', 'Date', 'Description', 'Information',
-                            'Balance']):
-                    self.assertTrue(conflict.possible_duplicate)
-                    self.assertFalse(conflict.duplicates_reviewed)
+                        ['Amount', 'Date', 'Information', 'Information']):
+                    self.assertEqual(conflict.review_state, 'discrepancy')
                     self.assertIn(original_id,
-                        [o.id for o in conflict.possible_duplicates])
-                    self.assertIn('same entry reference',
-                        conflict.conflict_details)
-                    self.assertIn(label, conflict.conflict_details)
+                        [o.id for o in conflict.review_origins])
+                    self.assertIn(label, conflict.review_details)
                     self.assertEqual(conflict.state, 'registered')
                 self.assertEqual(Origin(original_id).amount, Decimal('100.25'))
                 self.assertEqual(Origin(original_id).statement.state, 'posted')
                 self.assertEqual(
                     Origin(original_id).lines[0].move.state, 'posted')
                 self.assertIn(conflicts[0].id,
-                    [o.id for o in Origin(original_id).possible_duplicates])
+                    [o.id for o in Origin(original_id).review_origins])
                 journal._synchronize_statements_enable_banking()
                 self.assertEqual(Origin.search_count([
-                            ('statement.journal', '=', journal.id)]), 11)
+                            ('statement.journal', '=', journal.id)]), 10)
             conflict_id = conflicts[0].id
             Transaction().commit()
 
@@ -319,12 +315,7 @@ class TestEnableBankingSynchronization(unittest.TestCase):
         line.account = revenue
         line.amount = conflict.amount
         conflict.save()
-        with self.assertRaises(UserWarning):
-            conflict.click('post')
-        conflict.reload()
-        self.assertEqual(conflict.state, 'registered')
-        self.assertFalse(conflict.lines[0].move)
-        conflict.duplicates_reviewed = True
         conflict.click('post')
         self.assertEqual(conflict.state, 'posted')
+        self.assertEqual(conflict.review_state, 'reviewed')
         self.assertEqual(conflict.lines[0].move.state, 'posted')

@@ -20,14 +20,6 @@ from .common import get_base_header, load_session_json, URL, REDIRECT_URL
 class Origin(metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
 
-    def _is_possible_duplicate(self, candidate):
-        if not super()._is_possible_duplicate(candidate):
-            return False
-        if self.statement.journal.statement_provider == 'enable_banking':
-            return bool(self.entry_reference and candidate.entry_reference
-                and self.entry_reference != candidate.entry_reference)
-        return True
-
     @fields.depends('statement', '_parent_statement.journal')
     def on_change_with_synchronized(self, name=None):
         if self.statement and self.statement.journal.enable_banking_session:

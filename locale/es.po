@@ -2,6 +2,38 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
+msgctxt "field:account.statement.journal,review_margin_days:"
+msgid "Review Margin Days"
+msgstr "Días de margen para la revisión"
+
+msgctxt "field:account.statement.journal,review_start_date:"
+msgid "Review Start Date"
+msgstr "Fecha de inicio de la revisión"
+
+msgctxt "field:account.statement.journal,reviewed_until:"
+msgid "Reviewed Until"
+msgstr "Verificado hasta el día"
+
+msgctxt "help:account.statement.journal,review_start_date:"
+msgid "First date to verify. Required before the first review."
+msgstr "Primera fecha que se debe verificar. Obligatoria antes de la primera revisión."
+
+msgctxt "model:ir.model.button,string:review_statement_enable_banking_button"
+msgid "Review Statements"
+msgstr "Revisar extractos"
+
+msgctxt "selection:ir.cron,method:"
+msgid "Review Enable Banking Journals"
+msgstr "Revisar diarios de Enable Banking"
+
+msgctxt "model:ir.message,text:msg_review_start"
+msgid "Set the review start date on the journal before reviewing statements."
+msgstr "Defina la fecha de inicio de la revisión en el diario antes de revisar los extractos."
+
+msgctxt "model:ir.message,text:msg_review_incomplete"
+msgid "The bank did not return the complete period. The review has not been saved."
+msgstr "El banco no ha devuelto el período completo. No se ha guardado la revisión."
+
 msgctxt "model:ir.message,text:msg_aspsp_connection_failed"
 msgid "The connection to the bank could not be completed. Enable Banking reports a problem communicating with the bank. Please try again later. If the problem persists, you may need to renew the banking session."
 msgstr "No se ha podido completar la conexión con el banco. Enable Banking informa de una incidencia al comunicarse con el banco. Vuelve a intentarlo más tarde. Si el problema persiste, puede ser necesario renovar la sesión bancaria."
