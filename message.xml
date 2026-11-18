@@ -3,6 +3,18 @@
 this repository contains the full copyright notices and license terms. -->
 <tryton>
     <data grouped="1">
+        <record model="ir.message" id="msg_review_start">
+            <field name="text">Set the review start date on the journal before reviewing statements.</field>
+        </record>
+        <record model="ir.message" id="msg_review_incomplete">
+            <field name="text">The bank did not return the complete period. The review has not been saved.</field>
+        </record>
+        <record model="ir.message" id="msg_review_difference">
+            <field name="text">Possible conflict with origin %(origin)s. Different fields: %(fields)s.</field>
+        </record>
+        <record model="ir.message" id="msg_review_missing">
+            <field name="text">The movement was not returned by the bank when reviewing its date.</field>
+        </record>
         <record model="ir.message" id="msg_no_session">
             <field name="text">Session not found.</field>
         </record>

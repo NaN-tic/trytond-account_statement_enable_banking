@@ -11,6 +11,7 @@ this repository contains the full copyright notices and license terms. -->
     </xpath>
     <xpath expr="/tree/field[@name='description']" position="after">
         <field name="state"/>
+        <field name="review_state" optional="0"/>
         <button name="post"/>
         <button name="cancel"/>
         <field name="remittance_information" tree_invisible="1"/>

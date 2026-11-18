@@ -172,6 +172,15 @@ class Journal(metaclass=PoolMeta):
     _get_weight_cache = Cache('account_statement_journal.get_weight')
     search_suggestions = fields.Boolean('Search Suggestions',
         help="Check if want to search automatically suggestions")
+    review_margin_days = fields.Integer("Review Margin Days", required=True,
+        domain=[('review_margin_days', '>=', 1)])
+    review_start_date = fields.Date("Review Start Date",
+        help="First date to verify. Required before the first review.")
+    reviewed_until = fields.Date("Reviewed Until", readonly=True)
+
+    @staticmethod
+    def default_review_margin_days():
+        return 3
 
     @classmethod
     def __setup__(cls):
@@ -186,6 +195,7 @@ class Journal(metaclass=PoolMeta):
                 'retrieve_enable_banking_session': {},
                 'synchronize_statement_enable_banking': {},
                 'evaluate_weights': {},
+                'review_statement_enable_banking': {},
                 })
 
     @classmethod
@@ -353,7 +363,13 @@ class Journal(metaclass=PoolMeta):
         for journal in journals:
             journal._synchronize_statements_enable_banking()
 
-    def _synchronize_statements_enable_banking(self):
+    @classmethod
+    @ModelView.button
+    def review_statement_enable_banking(cls, journals):
+        for journal in journals:
+            journal._synchronize_statements_enable_banking(review=True)
+
+    def _synchronize_statements_enable_banking(self, review=False):
         pool = Pool()
         Journal = pool.get('account.statement.journal')
         EBConfiguration = pool.get('enable_banking.configuration')
@@ -363,6 +379,11 @@ class Journal(metaclass=PoolMeta):
 
         ebconfig = EBConfiguration(1)
         today = Date.today()
+        # Serialize downloads and read the review cursor under the same lock.
+        Journal.lock([self])
+        if review and not (self.reviewed_until or self.review_start_date):
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_review_start'))
 
         if not self.enable_banking_session:
             raise AccessError(
@@ -398,6 +419,7 @@ class Journal(metaclass=PoolMeta):
         base_headers = get_base_header()
         statements = Statement.search([
                 ('journal', '=', self.id),
+                ('banking_review', '!=', True),
                 ('end_date', '!=', None),
                 ], order=[
                     ('end_date', 'DESC'),
@@ -417,6 +439,14 @@ class Journal(metaclass=PoolMeta):
         if date_from > today:
             date_from = today
         date_to = ((today - timedelta(days=self.offset_days_to or 0)))
+        if review:
+            date_to = today - timedelta(days=self.review_margin_days)
+            date_from = self.review_start_date
+            if self.reviewed_until:
+                date_from = self.reviewed_until - timedelta(
+                    days=ebconfig.offset or 0)
+                if self.review_start_date:
+                    date_from = max(date_from, self.review_start_date)
         if date_from > date_to:
             return
 
@@ -425,17 +455,15 @@ class Journal(metaclass=PoolMeta):
             "date_to": date_to.isoformat(),
             }
 
-        # Lock the journal to ensure not duplicate statements or origins
-        # as it works with cron + workers.
-        Journal.lock([self])
-
         # We need to create an statement, as is a required field for the origin
         statement = Statement()
         statement.company = self.company
         statement.name = self.name
         statement.date = today
         statement.journal = self
-        statement.on_change_journal()
+        statement.banking_review = review
+        if not review:
+            statement.on_change_journal()
         statement.end_balance = Decimal(0)
         if (not hasattr(statement, 'start_balance')
                 or statement.start_balance is None):
@@ -452,6 +480,7 @@ class Journal(metaclass=PoolMeta):
         total_amount = 0
         last_transaction_date = None
         continuation_key_error = False
+        continuation_keys = set()
         while True:
             if continuation_key:
                 query["continuation_key"] = continuation_key
@@ -474,25 +503,25 @@ class Journal(metaclass=PoolMeta):
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
+                if review and continuation_key:
+                    if continuation_key in continuation_keys:
+                        raise AccessError(gettext(
+                                'account_statement_enable_banking.'
+                                'msg_review_incomplete'))
+                    continuation_keys.add(continuation_key)
                 last_transaction_date = None
-                origins = []
                 for transaction in response['transactions']:
                     entry_reference = transaction.get('entry_reference', None)
                     # The entry_reference is set to None if not exist in
                     # transaction result, but could exist and be and empty
                     # string so control the "not", instead of "is None".
-                    if not entry_reference:
+                    if not entry_reference and not review:
                         continue
                     if (transaction['transaction_amount']['currency'] !=
                             self.currency.code):
                         raise AccessError(gettext(
                                 'account_statement_enable_banking.'
                                 'msg_currency_not_match'))
-                    found_statement_origin = StatementOrigin.search([
-                        ('entry_reference', '=', entry_reference),
-                        ])
-                    if found_statement_origin:
-                        continue
                     # TODO:
                     # Ensure transaction_amount.currency == origin.currency
                     statement_origin = StatementOrigin()
@@ -504,9 +533,8 @@ class Journal(metaclass=PoolMeta):
                     statement_origin.description = (", ".join(transaction.get(
                                 'remittance_information', [])))
                     statement_origin.currency = self.currency
-                    statement_origin.amount = (
-                        transaction.get('transaction_amount', {}).get(
-                            'amount', None))
+                    statement_origin.amount = Decimal(str(
+                        transaction['transaction_amount']['amount']))
                     if (transaction.get('credit_debit_indicator')
                             and transaction.get('credit_debit_indicator', '')
                             == 'DBIT'):
@@ -521,6 +549,8 @@ class Journal(metaclass=PoolMeta):
                         transaction[ebconfig.date_field], '%Y-%m-%d').date()
                     statement_origin.date = transaction_date
                     last_transaction_date = transaction_date
+                    if review and not date_from <= transaction_date <= date_to:
+                        continue
                     information_dict = {}
                     for key, value in transaction.items():
                         if value is None or key in self._keys_not_needed():
@@ -541,9 +571,7 @@ class Journal(metaclass=PoolMeta):
                         elif isinstance(value, list):
                             information_dict[key] = ", ".join(value)
                     statement_origin.information = information_dict
-                    origins.append(statement_origin)
                     to_save.append(statement_origin)
-                StatementOrigin.save(origins)
                 if not continuation_key:
                     statement.end_balance = (
                         statement.start_balance + total_amount)
@@ -551,6 +579,10 @@ class Journal(metaclass=PoolMeta):
                     break
             if ((r.status_code == 400 or continuation_key_error)
                     and continuation_key):
+                if review:
+                    raise AccessError(gettext(
+                            'account_statement_enable_banking.'
+                            'msg_review_incomplete'))
                 continuation_key_error = True
                 continuation_key = None
                 if (last_transaction_date
@@ -578,6 +610,16 @@ class Journal(metaclass=PoolMeta):
                         error_code=str(r.status_code),
                         error_message=str(r.text)))
 
+        to_save = self._review_downloaded_origins(
+            to_save, date_from, date_to, review=review)
+        statement.end_balance = statement.start_balance + sum(
+            (o.amount for o in to_save), Decimal(0))
+        statement.save()
+        if review:
+            self.reviewed_until = max(
+                self.reviewed_until or date_to, date_to)
+            self.save()
+
         if to_save:
             to_save.sort(reverse=True)
             to_save.sort(key=lambda x: x.date)
@@ -592,11 +634,104 @@ class Journal(metaclass=PoolMeta):
             if self.search_suggestions:
                 with Transaction().set_context(queue_name=QUEUE_NAME):
                     for origin in statement.origins:
+                        if origin.review_state == 'discrepancy':
+                            continue
                         StatementOrigin.__queue__.search_suggestions([origin])
         else:
             with Transaction().set_context(_skip_warnings=True):
                 Statement.validate_statement([statement])
                 Statement.post([statement])
+
+    def _review_downloaded_origins(self, downloaded, date_from, date_to,
+            review=True):
+        pool = Pool()
+        Origin = pool.get('account.statement.origin')
+        existing = Origin.search([
+                ('statement.journal', '=', self.id),
+                ['OR',
+                    [('date', '>=', date_from), ('date', '<=', date_to)],
+                    ('entry_reference', 'in', list({
+                            o.entry_reference for o in downloaded
+                            if o.entry_reference})),
+                    ],
+                ])
+        seen = set()
+        created = []
+        for incoming in downloaded:
+            candidates = []
+            exact = []
+            for origin in existing:
+                differences = origin.review_differences(incoming)
+                if not differences:
+                    exact.append(origin)
+                elif ((incoming.entry_reference
+                            and incoming.entry_reference
+                            == origin.entry_reference)
+                        or differences == ['entry_reference']):
+                    candidates.append((origin, differences))
+            if exact:
+                seen.update(o.id for o in exact)
+                seen.update(o.id for o, _ in candidates)
+                for match in exact:
+                    for candidate, differences in candidates:
+                        self._link_review_origins(match, candidate, differences)
+                if review:
+                    Origin.write([o for o in exact
+                            if o.review_state == 'pending'],
+                        {'review_state': 'reviewed'})
+                continue
+            incoming.review_state = (
+                'discrepancy' if candidates
+                else 'reviewed' if review else 'pending')
+            incoming.review_created = bool(candidates)
+            Origin.save([incoming])
+            self.set_number([incoming])
+            created.append(incoming)
+            existing.append(incoming)
+            seen.add(incoming.id)
+            for origin, differences in candidates:
+                seen.add(origin.id)
+                self._link_review_origins(incoming, origin, differences)
+        for origin in existing:
+            if (review and date_from <= origin.date <= date_to
+                    and origin.id not in seen
+                    and origin.state != 'cancelled'
+                    and not (origin.review_state == 'reviewed'
+                        and origin.review_details)):
+                Origin.add_review_discrepancy(origin, gettext(
+                        'account_statement_enable_banking.msg_review_missing'))
+        return created
+
+    def _link_review_origins(self, first, second, differences):
+        Origin = Pool().get('account.statement.origin')
+        # A known pair may already have been resolved manually.
+        if second in first.review_origins and first in second.review_origins:
+            return
+        newer = max((first, second), key=lambda o: o.id)
+        if newer.entry_reference and newer.statement.start_date:
+            Origin.write([newer], {'review_created': True})
+        labels = Origin.fields_get(differences)
+        fields_changed = ', '.join(
+            labels[name]['string'] for name in differences)
+        for target, related in ((first, second), (second, first)):
+            Origin.add_review_discrepancy(target, gettext(
+                    'account_statement_enable_banking.msg_review_difference',
+                    origin=related.rec_name, fields=fields_changed), related)
+
+    @classmethod
+    def review_enable_banking_journals(cls):
+        company = Transaction().context.get('company')
+        if not company:
+            return
+        with Transaction().set_context(queue_name=QUEUE_NAME):
+            for journal in cls.search([
+                    ('synchronize_journal', '=', True),
+                    ('company', '=', company),
+                    ['OR', ('review_start_date', '!=', None),
+                        ('reviewed_until', '!=', None)],
+                    ]):
+                cls.__queue__._synchronize_statements_enable_banking(
+                    journal, review=True)
 
     @classmethod
     def synchronize_enable_banking_journals(cls):
@@ -661,6 +796,8 @@ class Cron(metaclass=PoolMeta):
     def __setup__(cls):
         super().__setup__()
         cls.method.selection.extend([
+            ('account.statement.journal|review_enable_banking_journals',
+                "Review Enable Banking Journals"),
             ('account.statement.journal|synchronize_enable_banking_journals',
                 "Synchronize Enable Banking Journals"),
             ])

@@ -24,11 +24,18 @@ this repository contains the full copyright notices and license terms. -->
         <field name="offset_days_to"/>
         <label name="search_suggestions"/>
         <field name="search_suggestions"/>
+        <label name="review_margin_days"/>
+        <field name="review_margin_days"/>
+        <label name="review_start_date"/>
+        <field name="review_start_date"/>
+        <label name="reviewed_until"/>
+        <field name="reviewed_until"/>
 
         <group colspan="4" id="EB Session">
             <button name="retrieve_enable_banking_session"/>
             <button name="synchronize_statement_enable_banking"/>
             <button name="evaluate_weights"/>
+            <button name="review_statement_enable_banking"/>
         </group>
     </xpath>
 </data>

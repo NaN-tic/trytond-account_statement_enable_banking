@@ -2,6 +2,78 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=utf-8\n"
 
+msgctxt "field:account.statement.journal,review_margin_days:"
+msgid "Review Margin Days"
+msgstr "Días de margen para la revisión"
+
+msgctxt "field:account.statement.journal,review_start_date:"
+msgid "Review Start Date"
+msgstr "Fecha de inicio de la revisión"
+
+msgctxt "field:account.statement.journal,reviewed_until:"
+msgid "Reviewed Until"
+msgstr "Verificado hasta el día"
+
+msgctxt "field:account.statement.origin,review_state:"
+msgid "Review State"
+msgstr "Estado de revisión"
+
+msgctxt "field:account.statement.origin,review_details:"
+msgid "Review Details"
+msgstr "Detalles de la revisión"
+
+msgctxt "field:account.statement.origin,review_origins:"
+msgid "Related Origins"
+msgstr "Orígenes relacionados"
+
+msgctxt "selection:account.statement.origin,review_state:"
+msgid "Pending Review"
+msgstr "Pendiente de revisión"
+
+msgctxt "selection:account.statement.origin,review_state:"
+msgid "With Discrepancies"
+msgstr "Con discrepancias"
+
+msgctxt "selection:account.statement.origin,review_state:"
+msgid "Reviewed"
+msgstr "Revisado"
+
+msgctxt "model:ir.model.button,string:origin_mark_reviewed_button"
+msgid "Mark as Reviewed"
+msgstr "Marcar como revisado"
+
+msgctxt "model:ir.model.button,string:review_statement_enable_banking_button"
+msgid "Review Statements"
+msgstr "Revisar extractos"
+
+msgctxt "model:ir.action.act_window.domain,name:act_origin_discrepancies"
+msgid "With Discrepancies"
+msgstr "Con discrepancias"
+
+msgctxt "view:account.statement.origin:"
+msgid "Review"
+msgstr "Revisión"
+
+msgctxt "selection:ir.cron,method:"
+msgid "Review Enable Banking Journals"
+msgstr "Revisar diarios de Enable Banking"
+
+msgctxt "model:ir.message,text:msg_review_start"
+msgid "Set the review start date on the journal before reviewing statements."
+msgstr "Defina la fecha de inicio de la revisión en el diario antes de revisar los extractos."
+
+msgctxt "model:ir.message,text:msg_review_incomplete"
+msgid "The bank did not return the complete period. The review has not been saved."
+msgstr "El banco no ha devuelto el período completo. No se ha guardado la revisión."
+
+msgctxt "model:ir.message,text:msg_review_difference"
+msgid "Possible conflict with origin %(origin)s. Different fields: %(fields)s."
+msgstr "Posible conflicto con el origen %(origin)s. Campos diferentes: %(fields)s."
+
+msgctxt "model:ir.message,text:msg_review_missing"
+msgid "The movement was not returned by the bank when reviewing its date."
+msgstr "El banco no ha devuelto el movimiento al revisar su fecha."
+
 msgctxt "field:account.invoice,paid_directly:"
 msgid "Has Payed directly"
 msgstr "Ha pagado directamente"

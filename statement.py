@@ -105,6 +105,7 @@ class Statement(metaclass=PoolMeta):
 
     start_date = fields.DateTime("Start Date", readonly=True)
     end_date = fields.DateTime("End Date", readonly=True)
+    banking_review = fields.Boolean("Banking Review", readonly=True)
 
     @fields.depends('journal')
     def on_change_journal(self):
@@ -113,6 +114,7 @@ class Statement(metaclass=PoolMeta):
 
         statements = self.search([
                 ('journal', '=', self.journal.id),
+                ('banking_review', '!=', True),
                 ], order=[
                 ('date', 'DESC'),
                 ('id', 'DESC'),
@@ -810,12 +812,33 @@ class Line(metaclass=PoolMeta):
         OriginSuggestedLine.propose(suggested_lines)
 
 
+class OriginReview(ModelSQL):
+    "Statement Origin Review Relation"
+    __name__ = 'account.statement.origin.review'
+
+    origin = fields.Many2One('account.statement.origin', "Origin",
+        required=True, ondelete='CASCADE')
+    related = fields.Many2One('account.statement.origin', "Related Origin",
+        required=True, ondelete='CASCADE')
+
+
 class Origin(Workflow, metaclass=PoolMeta):
     __name__ = 'account.statement.origin'
 
     journal = fields.Function(fields.Many2One('account.statement.journal', 'Journal'),
             'get_journal', searcher='search_journal')
     entry_reference = fields.Char("Entry Reference", readonly=True)
+    review_state = fields.Selection([
+            ('pending', "Pending Review"),
+            ('discrepancy', "With Discrepancies"),
+            ('reviewed', "Reviewed"),
+            ], "Review State", required=True, readonly=True)
+    review_details = fields.Text("Review Details", readonly=True)
+    review_created = fields.Boolean("Created by Review", readonly=True)
+    review_origins = fields.Many2Many(
+        'account.statement.origin.review', 'origin', 'related',
+        "Related Origins", readonly=True)
+
     suggested_lines = fields.One2Many(
         'account.statement.origin.suggested.line', 'origin',
         'Suggested Lines', states={
@@ -838,6 +861,70 @@ class Origin(Workflow, metaclass=PoolMeta):
         searcher='search_remittance_information')
     synchronized = fields.Function(fields.Boolean('Synchronized'),
         'on_change_with_synchronized')
+
+    @classmethod
+    def __register__(cls, module_name):
+        table = cls.__table_handler__(module_name)
+        review_state_exists = table.column_exist('review_state')
+        super().__register__(module_name)
+
+        if not review_state_exists:
+            # Initialize historical origins only when introducing reviews.
+            origin = cls.__table__()
+            cutoff = datetime.today().date() - timedelta(days=10)
+            cursor = Transaction().connection.cursor()
+            cursor.execute(*origin.update(
+                    [origin.review_state], ['reviewed'],
+                    where=(origin.date < cutoff)
+                    & (origin.review_state == 'pending')))
+
+    @staticmethod
+    def default_review_state():
+        return 'pending'
+
+    @classmethod
+    @ModelView.button
+    def mark_reviewed(cls, origins):
+        Statement = Pool().get('account.statement')
+        cancelled = [o for o in origins
+                if o.review_created and not o.lines
+                and o.state == 'registered']
+        cls.cancel(cancelled)
+        statements = {}
+        for origin in cancelled:
+            statement = origin.statement
+            if statement.start_date:
+                statements.setdefault(statement, Decimal(0))
+                statements[statement] += origin.amount
+        for statement, amount in statements.items():
+            statement.end_balance -= amount
+            statement.save()
+            if all(o.state in {'posted', 'cancelled'}
+                    for o in statement.origins):
+                getattr(statement, 'validate_%s' % statement.validation)()
+                Statement.write([statement], {'state': 'posted'})
+        cls.write(origins, {'review_state': 'reviewed'})
+
+    def review_differences(self, other):
+        differences = []
+        for name in ('entry_reference', 'date', 'amount'):
+            if getattr(self, name) != getattr(other, name):
+                differences.append(name)
+        name = ('information' if self.information and other.information
+            else 'description')
+        if (getattr(self, name) or None) != (getattr(other, name) or None):
+            differences.append(name)
+        return differences
+
+    @classmethod
+    def add_review_discrepancy(cls, origin, message, related=None):
+        details = origin.review_details or ''
+        if message not in details.splitlines():
+            details = '\n'.join(filter(None, [details, message]))
+        values = {'review_state': 'discrepancy', 'review_details': details}
+        if related and related not in origin.review_origins:
+            values['review_origins'] = [('add', [related.id])]
+        cls.write([origin], values)
 
     @classmethod
     def __setup__(cls):
@@ -872,6 +959,9 @@ class Origin(Workflow, metaclass=PoolMeta):
                 ('posted', 'cancelled'),
                 ))
         cls._buttons.update({
+                'mark_reviewed': {
+                    'invisible': Eval('review_state') != 'discrepancy',
+                    },
                 'multiple_invoices': {
                     'invisible': Eval('state') != 'registered',
                     'depends': ['state'],
@@ -2166,6 +2256,10 @@ class Origin(Workflow, metaclass=PoolMeta):
         default.setdefault('suggested_lines', None)
         default.setdefault('balance', None)
         default.setdefault('state', 'registered')
+        default.setdefault('review_state', 'pending')
+        default.setdefault('review_created', False)
+        default.setdefault('review_details', None)
+        default.setdefault('review_origins', None)
         return super().copy(origins, default=default)
 
     @classmethod
@@ -2242,6 +2336,9 @@ class Origin(Workflow, metaclass=PoolMeta):
         if statements:
             Statement.write(statements, {'state': 'posted'})
         StatementLine.post_move(lines)
+        cls.write([o for o in origins
+                if o.review_state == 'discrepancy' and o.lines],
+            {'review_state': 'reviewed'})
         if statement_state:
             Statement.write(*statement_state)
         # End awful hack
@@ -2250,7 +2347,7 @@ class Origin(Workflow, metaclass=PoolMeta):
         # the statement could be posted too.
         statements_to_post = []
         for statement in statements:
-            if all(x.state == 'posted'
+            if all(x.state in {'posted', 'cancelled'}
                     for x in statement.origins if x not in origins):
                 getattr(statement, 'validate_%s' % statement.validation)()
                 statements_to_post.append(statement)
