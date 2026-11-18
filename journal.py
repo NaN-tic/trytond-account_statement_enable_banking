@@ -50,6 +50,15 @@ class Journal(metaclass=PoolMeta):
         'Allow to not download "to" today, could be set "to" some days before.'
         ' This field could be from 0 to 20. 0 meaning today, other value will '
         'be substracted from today.')
+    review_margin_days = fields.Integer("Review Margin Days", required=True,
+        domain=[('review_margin_days', '>=', 1)])
+    review_start_date = fields.Date("Review Start Date",
+        help="First date to verify. Required before the first review.")
+    reviewed_until = fields.Date("Reviewed Until", readonly=True)
+
+    @staticmethod
+    def default_review_margin_days():
+        return 3
 
     @classmethod
     def __setup__(cls):
@@ -66,6 +75,7 @@ class Journal(metaclass=PoolMeta):
         cls._buttons.update({
                 'retrieve_enable_banking_session': {},
                 'synchronize_statement_enable_banking': {},
+                'review_statement_enable_banking': {},
                 })
 
     @staticmethod
@@ -145,16 +155,28 @@ class Journal(metaclass=PoolMeta):
         for journal in journals:
             journal._synchronize_statements_enable_banking()
 
-    def _synchronize_statements_enable_banking(self):
+    @classmethod
+    @ModelView.button
+    def review_statement_enable_banking(cls, journals):
+        for journal in journals:
+            journal._synchronize_statements_enable_banking(review=True)
+
+    def _synchronize_statements_enable_banking(self, review=False):
         if self.statement_provider != 'enable_banking':
             return
         pool = Pool()
+        Journal = pool.get('account.statement.journal')
         EBConfiguration = pool.get('enable_banking.configuration')
         Statement = pool.get('account.statement')
         Date = pool.get('ir.date')
 
         ebconfig = EBConfiguration(1)
         today = Date.today()
+        # Read both cursors under the same lock as scheduled imports.
+        Journal.lock([self])
+        if review and not (self.reviewed_until or self.review_start_date):
+            raise AccessError(gettext(
+                    'account_statement_enable_banking.msg_review_start'))
 
         if not self.enable_banking_session:
             raise AccessError(
@@ -190,6 +212,7 @@ class Journal(metaclass=PoolMeta):
         base_headers = get_base_header()
         statements = Statement.search([
                 ('journal', '=', self.id),
+                ('banking_review', '!=', True),
                 ('end_date', '!=', None),
                 ], order=[
                     ('end_date', 'DESC'),
@@ -209,6 +232,14 @@ class Journal(metaclass=PoolMeta):
         if date_from > today:
             date_from = today
         date_to = ((today - timedelta(days=self.offset_days_to or 0)))
+        if review:
+            date_to = today - timedelta(days=self.review_margin_days)
+            date_from = self.review_start_date
+            if self.reviewed_until:
+                date_from = self.reviewed_until - timedelta(
+                    days=ebconfig.offset or 0)
+                if self.review_start_date:
+                    date_from = max(date_from, self.review_start_date)
         if date_from > date_to:
             return
 
@@ -217,14 +248,16 @@ class Journal(metaclass=PoolMeta):
             "date_to": date_to.isoformat(),
             }
 
-        statement = self.create_import_statement(date_from, date_to)
+        statement = self.create_import_statement(
+            date_from, date_to, review=review)
 
         # Get the data, as we have a limit of transactions every query, we need
         # to do a while loop to get all the transactions
         continuation_key = None
-        to_save = []
+        transactions = []
         last_transaction_date = None
         continuation_key_error = False
+        continuation_keys = set()
         while True:
             if continuation_key:
                 query["continuation_key"] = continuation_key
@@ -261,14 +294,19 @@ class Journal(metaclass=PoolMeta):
             if r.status_code == 200:
                 response = r.json()
                 continuation_key = response.get('continuation_key')
+                if review and continuation_key:
+                    if continuation_key in continuation_keys:
+                        raise AccessError(gettext(
+                                'account_statement_enable_banking.'
+                                'msg_review_incomplete'))
+                    continuation_keys.add(continuation_key)
                 last_transaction_date = None
-                transactions = []
                 for transaction in response['transactions']:
                     entry_reference = transaction.get('entry_reference', None)
                     # The entry_reference is set to None if not exist in
                     # transaction result, but could exist and be and empty
                     # string so control the "not", instead of "is None".
-                    if not entry_reference:
+                    if not entry_reference and not review:
                         continue
                     if (transaction['transaction_amount']['currency'] !=
                             self.currency.code):
@@ -287,6 +325,9 @@ class Journal(metaclass=PoolMeta):
                             balance_after_transaction['amount']))
                     transaction_date = self._get_transaction_date(
                         transaction, ebconfig.date_field)
+                    last_transaction_date = transaction_date
+                    if review and not date_from <= transaction_date <= date_to:
+                        continue
                     information_dict = {}
                     for key, value in transaction.items():
                         if value is None or key in self._keys_not_needed():
@@ -315,19 +356,19 @@ class Journal(metaclass=PoolMeta):
                             'remittance_information', [])),
                         'information': information_dict,
                         })
-                origins = self.import_statement_transactions(
-                    statement, transactions)
-                to_save.extend(origins)
-                if origins:
-                    last_transaction_date = origins[-1].date
                 if not continuation_key:
                     break
             if ((r.status_code == 400 or continuation_key_error)
                     and continuation_key):
+                if review:
+                    raise AccessError(gettext(
+                            'account_statement_enable_banking.'
+                            'msg_review_incomplete'))
                 continuation_key_error = True
                 continuation_key = None
                 if (last_transaction_date
-                        and last_transaction_date != query["date_from"]):
+                        and last_transaction_date.isoformat()
+                        != query["date_from"]):
                     # TODO: Remove when some Spanish Bnaks solve the recursive
                     # calls problem. (eg: Bankinter)
                     # If the problem with the continuation_key is not solved
@@ -348,7 +389,28 @@ class Journal(metaclass=PoolMeta):
                         error_code=str(r.status_code),
                         error_message=str(r.text)))
 
-        self.finish_import_statement(statement, to_save)
+        origins = self.import_statement_transactions(
+            statement, transactions, review=review)
+        self.finish_import_statement(statement, origins)
+        if review:
+            self.reviewed_until = max(self.reviewed_until or date_to, date_to)
+            self.save()
+
+    @classmethod
+    def review_enable_banking_journals(cls):
+        company = Transaction().context.get('company')
+        if not company:
+            return
+        with Transaction().set_context(queue_name=QUEUE_NAME):
+            for journal in cls.search([
+                    ('statement_provider', '=', 'enable_banking'),
+                    ('synchronize_journal', '=', True),
+                    ('company', '=', company),
+                    ['OR', ('review_start_date', '!=', None),
+                        ('reviewed_until', '!=', None)],
+                    ]):
+                cls.__queue__._synchronize_statements_enable_banking(
+                    journal, review=True)
 
     @classmethod
     def synchronize_enable_banking_journals(cls):
@@ -414,8 +476,12 @@ class Cron(metaclass=PoolMeta):
     def __setup__(cls):
         super().__setup__()
         cls.method.selection.extend([
+            ('account.statement.journal|review_enable_banking_journals',
+                "Review Enable Banking Journals"),
             ('account.statement.journal|synchronize_enable_banking_journals',
                 "Synchronize Enable Banking Journals"),
             ])
-        cls.methods_company_needed.add(
-            'account.statement.journal|synchronize_enable_banking_journals')
+        cls.methods_company_needed.update({
+            'account.statement.journal|review_enable_banking_journals',
+            'account.statement.journal|synchronize_enable_banking_journals',
+            })
