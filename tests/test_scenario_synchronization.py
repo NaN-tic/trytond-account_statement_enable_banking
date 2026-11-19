@@ -106,7 +106,17 @@ class TestEnableBankingSynchronization(unittest.TestCase):
             debit = dict(credit, entry_reference='debit-1',
                 credit_debit_indicator='DBIT',
                 transaction_amount={
-                    'amount': '20.10', 'currency': currency_code})
+                    'amount': '20.10', 'currency': currency_code},
+                debtor_account_additional_identification=[{
+                    'identification': '0410',
+                    'scheme_name': 'CPAN',
+                    'issuer': 'MASTERCARD',
+                    }, {
+                    'identification': '1234',
+                    'scheme_name': 'CPAN',
+                    }],
+                creditor_account_additional_identification=[
+                    'legacy identifier', {'identification': '5678'}])
             responses = [
                 Mock(status_code=200, json=Mock(return_value={
                     'transactions': [credit], 'continuation_key': 'page-2'})),
@@ -127,6 +137,14 @@ class TestEnableBankingSynchronization(unittest.TestCase):
             self.assertTrue(all(o.number and o.synchronized for o in origins))
             self.assertTrue(all(o.remittance_information == 'Invoice 123'
                 for o in origins))
+            debit_origin, = [o for o in origins
+                if o.entry_reference == 'debit-1']
+            self.assertEqual(debit_origin.information[
+                    'debtor_account_additional_identification'],
+                '0410 (CPAN, MASTERCARD); 1234 (CPAN)')
+            self.assertEqual(debit_origin.information[
+                    'creditor_account_additional_identification'],
+                'legacy identifier; 5678')
             statement, = Statement.search([('journal', '=', journal.id)])
             self.assertEqual(statement.state, 'registered')
             self.assertEqual(statement.end_balance, Decimal('80.15'))
