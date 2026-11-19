@@ -346,14 +346,39 @@ class Journal(metaclass=PoolMeta):
                                 elif isinstance(v, bytes):
                                     information_dict[tag] = str(v)
                         elif isinstance(value, list):
-                            information_dict[key] = ", ".join(value)
+                            if key in {
+                                    'debtor_account_additional_identification',
+                                    'creditor_account_additional_identification',
+                                    }:
+                                identifications = []
+                                for item in value:
+                                    if isinstance(item, str):
+                                        identifications.append(item)
+                                        continue
+                                    identification = item.get(
+                                        'identification') or ''
+                                    details = ', '.join(
+                                        item[name] for name in (
+                                            'scheme_name', 'issuer')
+                                        if item.get(name))
+                                    if details:
+                                        identification = (
+                                            f'{identification} ({details})'
+                                            ).strip()
+                                    if identification:
+                                        identifications.append(identification)
+                                information_dict[key] = '; '.join(
+                                    identifications)
+                            else:
+                                information_dict[key] = ", ".join(value)
+                    remittance_information = transaction.get(
+                        'remittance_information', [])
                     transactions.append({
                         'entry_reference': entry_reference,
                         'date': transaction_date,
                         'amount': amount,
                         'balance': balance,
-                        'description': ', '.join(transaction.get(
-                            'remittance_information', [])),
+                        'description': ', '.join(remittance_information),
                         'information': information_dict,
                         })
                 if not continuation_key:
