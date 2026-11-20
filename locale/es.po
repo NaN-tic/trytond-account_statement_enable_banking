@@ -12,11 +12,11 @@ msgstr "Fecha de inicio de la revisión"
 
 msgctxt "field:account.statement.journal,reviewed_until:"
 msgid "Reviewed Until"
-msgstr "Verificado hasta el día"
+msgstr "Revisado hasta el día"
 
 msgctxt "help:account.statement.journal,review_start_date:"
 msgid "First date to verify. Required before the first review."
-msgstr "Primera fecha que se debe verificar. Obligatoria antes de la primera revisión."
+msgstr "Primera fecha que se debe revisar. Obligatoria antes de la primera revisión."
 
 msgctxt "model:ir.model.button,string:review_statement_enable_banking_button"
 msgid "Review Statements"
@@ -156,11 +156,11 @@ msgstr "Solo se permite un máximo de 180 días."
 
 msgctxt "model:enable_banking.configuration,string:"
 msgid "Enable Banking Configuration"
-msgstr "Habilitar la configuración bancaria"
+msgstr "Configuración de Enable Banking"
 
 msgctxt "model:enable_banking.origin_synchronize_statement.ask,string:"
 msgid "Enable Banking Origin Synchronize Statement Ask"
-msgstr "Sincronización de Extractos de Enable Banking - Preguntar"
+msgstr "Sincronización de extractos de Enable Banking: selección del destino"
 
 msgctxt "model:enable_banking.retrieve_session.select_session,string:"
 msgid "Enable Banking Retrieve Session Select Session"
@@ -320,7 +320,7 @@ msgstr "La sesión entre Enable Banking y tu banco se ha creado con éxito."
 
 msgctxt "selection:enable_banking.configuration,date_field:"
 msgid "Booking Date"
-msgstr "Fecha reserva"
+msgstr "Fecha de contabilización"
 
 msgctxt "selection:enable_banking.configuration,date_field:"
 msgid "Transaction Date"
@@ -356,7 +356,7 @@ msgstr "¿Quieres continuar?"
 
 msgctxt "view:enable_banking.retrieve_session.start:"
 msgid "Retrieve an enable banking session, creating one if it does not exist"
-msgstr "Recupera una sesión bancaria habilitada, creando una si no existe"
+msgstr "Recupera una sesión de Enable Banking o crea una si no hay ninguna"
 
 msgctxt "view:enable_banking.session:"
 msgid "Bank"
