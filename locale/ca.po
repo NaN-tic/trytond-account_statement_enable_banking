@@ -12,11 +12,11 @@ msgstr "Data d'inici de la revisió"
 
 msgctxt "field:account.statement.journal,reviewed_until:"
 msgid "Reviewed Until"
-msgstr "Verificat fins al dia"
+msgstr "Revisat fins al dia"
 
 msgctxt "help:account.statement.journal,review_start_date:"
 msgid "First date to verify. Required before the first review."
-msgstr "Primera data que cal verificar. Obligatòria abans de la primera revisió."
+msgstr "Primera data que cal revisar. Obligatòria abans de la primera revisió."
 
 msgctxt "model:ir.model.button,string:review_statement_enable_banking_button"
 msgid "Review Statements"
@@ -150,13 +150,13 @@ msgctxt "help:enable_banking.retrieve_session.start,enable_banking_session_valid
 msgid "Only allowed maximum 180 days."
 msgstr "Només es permeten un màxim de 180 dies."
 
-msgctxt "model:enable_banking.configuration,name:"
+msgctxt "model:enable_banking.configuration,string:"
 msgid "Enable Banking Configuration"
 msgstr "Configuració Enable Banking"
 
 msgctxt "model:enable_banking.origin_synchronize_statement.ask,string:"
 msgid "Enable Banking Origin Synchronize Statement Ask"
-msgstr "Sinconització d'Extractes de Enable Banking - Preguntar"
+msgstr "Sincronització d'extractes d'Enable Banking: selecció de la destinació"
 
 msgctxt "model:enable_banking.retrieve_session.select_session,string:"
 msgid "Enable Banking Retrieve Session Select Session"
@@ -316,7 +316,7 @@ msgstr "La sessió entre Enable Banking i el teu banc s'ha creat amb èxit."
 
 msgctxt "selection:enable_banking.configuration,date_field:"
 msgid "Booking Date"
-msgstr "Data reserva"
+msgstr "Data de comptabilització"
 
 msgctxt "selection:enable_banking.configuration,date_field:"
 msgid "Transaction Date"
@@ -352,7 +352,7 @@ msgstr "Vols continuar?"
 
 msgctxt "view:enable_banking.retrieve_session.start:"
 msgid "Retrieve an enable banking session, creating one if it does not exist"
-msgstr "Recuperar una sessió bancària habilitada i crear-ne una si no existeix"
+msgstr "Recupera una sessió d'Enable Banking o crea'n una si no n'hi ha cap"
 
 msgctxt "view:enable_banking.session:"
 msgid "Bank"
