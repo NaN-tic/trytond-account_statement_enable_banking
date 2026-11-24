@@ -233,3 +233,38 @@ class TestBankingReview(unittest.TestCase):
         self.assertEqual(duplicate.review_state, 'discrepancy')
         self.assertIn(duplicate, stable.review_origins)
         self.assertEqual(len(Origin.find([('journal', '=', journal.id)])), 12)
+
+        # Match missing payments only against new arrivals in this review.
+        configuration.date_field = 'booking_date'
+        configuration.save()
+        journal.review_start_date = booking_date - timedelta(days=4)
+        journal.save()
+
+        def payment(reference, days, amount):
+            data = transaction(reference, amount, 'Payment')
+            data.update(booking_date=(booking_date + timedelta(days=days)
+                    ).isoformat(), value_date=booking_date.isoformat())
+            return data
+
+        previous = payment('already-imported', -2, 104)
+        download([payment('old', -2, 100), payment('too-far', -3, 101),
+                payment('ambiguous', -2, 102), payment('ambiguous-2', -1, 102),
+                payment('two-arrivals', -2, 103), payment('prior', 0, 104),
+                previous])
+        download([payment('rebooked', 0, 100), payment('far', 0, 101),
+                payment('maybe', 0, 102), payment('arrival-1', -1, 103),
+                payment('arrival-2', 0, 103), previous], review=True)
+        payments = {o.entry_reference: o for o in Origin.find([
+                    ('journal', '=', journal.id), ('amount', '>=', 100)])}
+        for ref, other in [('old', 'rebooked'), ('rebooked', 'old')]:
+            self.assertEqual(payments[ref].review_state, 'discrepancy')
+            self.assertEqual(list(payments[ref].review_origins),
+                [payments[other]])
+        for ref in ['too-far', 'ambiguous', 'ambiguous-2', 'two-arrivals',
+                'prior']:
+            self.assertIn('not returned', payments[ref].review_details)
+            self.assertFalse(payments[ref].review_origins)
+        for ref in ['far', 'maybe', 'arrival-1', 'arrival-2',
+                'already-imported']:
+            self.assertEqual(payments[ref].review_state, 'reviewed')
+            self.assertFalse(payments[ref].review_origins)
